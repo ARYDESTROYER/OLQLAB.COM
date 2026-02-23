@@ -41,6 +41,42 @@ body {
   animation: float-medium 10s ease-in-out infinite;
 }
 
+.animate-aurora-one {
+  animation: aurora-one 18s ease-in-out infinite;
+}
+
+.animate-aurora-two {
+  animation: aurora-two 14s ease-in-out infinite;
+}
+
+.animate-aurora-three {
+  animation: aurora-three 16s ease-in-out infinite;
+}
+
+.hover-lift {
+  transition: transform 260ms ease, box-shadow 260ms ease, border-color 260ms ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 42px -28px rgba(15, 23, 42, 0.45);
+}
+
+.scroll-reveal {
+  animation: surface-fade 760ms ease both;
+}
+
+@supports (animation-timeline: view()) {
+  .scroll-reveal {
+    animation-name: reveal-up;
+    animation-duration: 1ms;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: view();
+    animation-range: entry 5% cover 34%;
+  }
+}
+
 @keyframes surface-fade {
   from {
     opacity: 0;
@@ -62,6 +98,17 @@ body {
   }
 }
 
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(36px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @keyframes float-medium {
   0%,
   100% {
@@ -69,6 +116,36 @@ body {
   }
   50% {
     transform: translate(-18px, 18px);
+  }
+}
+
+@keyframes aurora-one {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(40px, 16px, 0) scale(1.04);
+  }
+}
+
+@keyframes aurora-two {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-26px, 24px, 0) scale(1.08);
+  }
+}
+
+@keyframes aurora-three {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(18px, -22px, 0) scale(1.06);
   }
 }
 
@@ -83,7 +160,18 @@ textarea {
   .surface-fade-delay,
   .surface-fade-delay-2,
   .animate-float-slow,
-  .animate-float-medium {
+  .animate-float-medium,
+  .animate-aurora-one,
+  .animate-aurora-two,
+  .animate-aurora-three,
+  .scroll-reveal {
     animation: none;
+  }
+
+  .hover-lift,
+  .hover-lift:hover {
+    transform: none;
+    box-shadow: none;
+    transition: none;
   }
 }
