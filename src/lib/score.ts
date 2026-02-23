@@ -446,7 +446,7 @@ export function computeScores(
 export function generateNarrative(
   traits: TraitScores,
   competencies: CompetencyScore[],
-) : GeneratedNarrative {
+): GeneratedNarrative {
   const traitNarratives = traitKeys.map((key) => buildTraitNarrative(key, traits[key]));
   const competencyThemes = buildCompetencyThemes(competencies);
 
@@ -491,14 +491,14 @@ export function generateNarrative(
       `Growth priority: improve ${mainGrowth} first, then reinforce ${secondaryGrowth} so development gains translate into predictable team outcomes.`,
     ],
     actions: [
-      "Weeks 1-2: Select one high-impact project and define two observable behaviors that will demonstrate your top strengths in visible ways.",
-      "Weeks 1-2: Identify one recurring trigger that affects your weakest pattern and write a simple response protocol you can use in the moment.",
-      "Weeks 3-4: Request two short feedback check-ins from colleagues who regularly see your work under pressure.",
-      "Weeks 3-4: Convert feedback into one measurable weekly commitment (for example, response quality, decision clarity, or follow-through reliability).",
-      "Weeks 5-8: Practice one stretch behavior in real meetings each week and track what changed in team response and outcome quality.",
-      "Weeks 5-8: Add a post-project reflection routine: what created momentum, what introduced friction, and what you will repeat next cycle.",
-      "Weeks 9-12: Recalibrate with your manager on role expectations, then align your next quarter goals to your strongest value-creation patterns.",
-      "Week 12: Review progress against your behavior commitments and carry forward the two habits with the highest impact.",
+      "Select one high-impact project and define two observable behaviors that will demonstrate your strongest patterns in visible ways.",
+      "Identify one recurring trigger that affects your weakest pattern and write a simple response protocol for in-the-moment use.",
+      "Request short feedback check-ins from colleagues who regularly see your work under pressure.",
+      "Convert feedback into one measurable weekly commitment tied to response quality, decision clarity, or follow-through reliability.",
+      "Practice one stretch behavior in real meetings and track what changed in team response and outcome quality.",
+      "Add a post-project reflection routine: what created momentum, what introduced friction, and what to repeat next cycle.",
+      "Recalibrate with your manager on role expectations and align upcoming goals to your strongest value-creation patterns.",
+      "Review progress against behavior commitments and carry forward the two habits with the highest observed impact.",
     ],
     workplaceSignals: [
       `Decision pattern: You are likely to make stronger decisions when curiosity and structure are both active, with explicit trade-offs and clear ownership.`,

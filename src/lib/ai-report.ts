@@ -10,6 +10,15 @@ export type AiNarrative = {
   cautionNotes: string[];
 };
 
+function sanitizeNarrativeText(input: string) {
+  return input
+    .replace(/\b\d+\s*\/\s*100\b/gi, "")
+    .replace(/\b\d+(?:\.\d+)?\s*%/g, "")
+    .replace(/\bscore(?:d)?\s*[:\-]?\s*\d+(?:\.\d+)?/gi, "signal")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
 function parseJson(text: string) {
   try {
     return JSON.parse(text);
@@ -49,10 +58,10 @@ function fallbackNarrative(traits: TraitScores, competencies: CompetencyScore[])
     managerCoaching:
       "Use a weekly 15-minute coaching cadence focused on one observable strength behavior and one observable stretch behavior. Anchor discussions in recent project moments, name what changed, and agree the next experiment before closing the conversation.",
     improvementRoadmap: [
-      "Define one measurable behavior target for weeks 1-2 and capture baseline examples.",
-      "Run one stretch experiment in a live project each week for weeks 3-6.",
+      "Define one measurable behavior target and capture baseline examples.",
+      "Run one stretch experiment in a live project each week.",
       "Collect concise manager and peer feedback after each key collaboration moment.",
-      "Lock two repeatable habits by week 8 and review outcomes by week 12.",
+      "Lock two repeatable habits and review outcomes at the end of the cycle.",
     ],
     cautionNotes: [
       "Assessment output is developmental, not diagnostic.",
@@ -112,20 +121,24 @@ export async function generateAiNarrative(
     }
 
     return {
-      executiveSummary:
+      executiveSummary: sanitizeNarrativeText(
         parsed.executiveSummary || fallbackNarrative(traits, competencies).executiveSummary,
-      strengthsNarrative:
+      ),
+      strengthsNarrative: sanitizeNarrativeText(
         parsed.strengthsNarrative || fallbackNarrative(traits, competencies).strengthsNarrative,
-      developmentNarrative:
+      ),
+      developmentNarrative: sanitizeNarrativeText(
         parsed.developmentNarrative ||
-        fallbackNarrative(traits, competencies).developmentNarrative,
-      managerCoaching:
+          fallbackNarrative(traits, competencies).developmentNarrative,
+      ),
+      managerCoaching: sanitizeNarrativeText(
         parsed.managerCoaching || fallbackNarrative(traits, competencies).managerCoaching,
+      ),
       improvementRoadmap: Array.isArray(parsed.improvementRoadmap)
-        ? parsed.improvementRoadmap.slice(0, 6).map(String)
+        ? parsed.improvementRoadmap.slice(0, 6).map((item: unknown) => sanitizeNarrativeText(String(item)))
         : fallbackNarrative(traits, competencies).improvementRoadmap,
       cautionNotes: Array.isArray(parsed.cautionNotes)
-        ? parsed.cautionNotes.slice(0, 4).map(String)
+        ? parsed.cautionNotes.slice(0, 4).map((item: unknown) => sanitizeNarrativeText(String(item)))
         : fallbackNarrative(traits, competencies).cautionNotes,
     };
   } catch {

@@ -273,6 +273,9 @@ export default function MyReportPage() {
   const assessmentTitle =
     data?.narrative?.assessmentTitle || data?.assessment?.title || "OLQLAB Assessment";
   const reportHeadline = data?.narrative?.profileHeadline || "Workstyle Development Profile";
+  const participantName =
+    data?.narrative?.participantName?.trim() || "Participant";
+  const firstName = participantName.split(" ")[0] || "Participant";
   const summary =
     data?.narrative?.summary ||
     "This report combines personality tendencies and scenario behavior to guide focused growth and practical impact.";
@@ -280,6 +283,16 @@ export default function MyReportPage() {
   const takenAtLabel = formatDateTime(
     data?.narrative?.assessmentTakenAt || data?.submittedAt || null,
   );
+
+  const traitSignals = traitOrder.map(({ key, label }) => {
+    const value = Math.max(0, Math.min(100, Number(data?.score?.[key] || 0)));
+    return {
+      key,
+      label,
+      value,
+      band: toBand(value),
+    };
+  });
 
   if (!assessmentId) return <main className="p-8">Invalid assessment id.</main>;
   if (error) return <main className="p-8">{error}</main>;
@@ -296,10 +309,13 @@ export default function MyReportPage() {
           {assessmentTitle}
         </p>
         <h1 className="relative mt-3 text-3xl font-semibold tracking-tight text-slate-900 md:text-4xl">
-          Development Report
+          Development Report for {firstName}
         </h1>
         <p className="relative mt-2 text-lg font-medium text-slate-800">{reportHeadline}</p>
-        <p className="relative mt-4 max-w-3xl text-sm leading-7 text-slate-700">{summary}</p>
+        <p className="relative mt-4 max-w-3xl text-sm leading-7 text-slate-700">
+          {firstName}, {summary.charAt(0).toLowerCase()}
+          {summary.slice(1)}
+        </p>
 
         <div className="relative mt-6 flex flex-wrap items-center gap-3">
           <div className="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-medium text-slate-700">
@@ -313,6 +329,46 @@ export default function MyReportPage() {
           </a>
         </div>
       </header>
+
+      <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">Trait Signal Map</h2>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            Visual profile only
+          </span>
+        </div>
+        <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-600">
+          These visual indicators show your relative signal strength across each dimension without
+          exposing numeric scoring.
+        </p>
+        <div className="mt-6 grid gap-4">
+          {traitSignals.map((trait) => (
+            <div key={trait.key} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-sm font-semibold text-slate-800">{trait.label}</p>
+                <span
+                  className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${bandClasses[trait.band]}`}
+                >
+                  {bandLabels[trait.band]}
+                </span>
+              </div>
+              <div className="relative h-4 rounded-full bg-gradient-to-r from-sky-200 via-amber-200 to-emerald-300">
+                <div
+                  className="absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full border-2 border-slate-700 bg-white shadow-sm"
+                  style={{
+                    left: `calc(${Math.max(3, Math.min(97, trait.value))}% - 8px)`,
+                  }}
+                />
+              </div>
+              <div className="mt-2 flex justify-between text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                <span>Emerging</span>
+                <span>Balanced</span>
+                <span>Strong</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <article className="rounded-2xl border border-emerald-200 bg-emerald-50/80 p-5">
@@ -398,7 +454,7 @@ export default function MyReportPage() {
 
       <section className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm md:p-7">
         <h2 className="text-2xl font-semibold tracking-tight text-slate-900">
-          12-Week Action Plan
+          Action Plan
         </h2>
         <p className="mt-2 text-sm leading-7 text-slate-600">
           The following plan is designed to turn insight into repeatable behavior change.

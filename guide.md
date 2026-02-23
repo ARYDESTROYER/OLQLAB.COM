@@ -190,7 +190,7 @@ Page structure:
   - trait context cards
   - scenario behavior themes
 - Page 3:
-  - 12-week action plan
+  - action plan
   - workplace signals
   - reflection prompts
   - manager discussion guide
@@ -424,3 +424,46 @@ Primary files for report and regeneration behavior:
 - `src/app/reports/leader/[userId]/[assessmentId]/page.tsx`
 - `src/app/admin/AdminClient.tsx`
 
+## 18. Journey Update (Report Visual Upgrade)
+
+Date:
+- `2026-02-24` (implementation pass)
+
+Summary of this pass:
+- Upgraded report presentation quality in both web and PDF outputs.
+- Added stronger visual cues (trait signal bars/visual maps) without exposing numeric trait scores.
+- Improved personalization by addressing the participant by name in report surfaces.
+- Expanded PDF readability and section sizing, including a dedicated extended-insights page when data exists.
+- Renamed report section title from `12-Week Action Plan` to `Action Plan`.
+
+Technical details:
+1. Narrative text update
+- Removed timeboxed phrasing in generated action steps to keep the section timeless and cleaner.
+- File: `src/lib/score.ts`
+
+2. AI narrative sanitization
+- Added cleanup logic to strip score-style output patterns from enrichment text if the model returns them.
+- File: `src/lib/ai-report.ts`
+
+3. Participant report UI visual refresh
+- Added `Trait Signal Map` with bar-style visual indicators and band labels only.
+- Removed numeric rendering from trait visuals.
+- Added participant-name personalization in the report hero.
+- Updated section title to `Action Plan`.
+- File: `src/app/reports/me/[assessmentId]/page.tsx`
+
+4. PDF redesign
+- Rebuilt PDF composition with stronger layout hierarchy and larger readable content blocks.
+- Added trait signal bars (visual only, no numeric labels).
+- Improved spacing, card structure, and narrative flow across pages.
+- Ensured extended insights are no longer compressed by allocating a dedicated full page when available.
+- Kept minimum report size at 3 pages, with optional 4th page for extended insights.
+- File: `src/app/api/reports/me/[assessmentId]/pdf/route.ts`
+
+Validation:
+- `npm run lint` passed
+- `npm run build` passed
+
+Operational note:
+- Existing reports reflect this new visual style in web/PDF immediately.
+- Narrative text improvements appear most fully after submit or admin regeneration.

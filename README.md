@@ -136,7 +136,7 @@ Report generation now stores a richer narrative payload in `Report.narrativeJson
 - `summary`
 - `strengths`
 - `growthAreas`
-- `actions` (12-week action structure)
+- `actions` (action plan structure)
 - `workplaceSignals`
 - `reflectionPrompts`
 - `managerDiscussionGuide`
@@ -538,7 +538,7 @@ What changed:
   - workplace signals
   - reflection prompts
   - manager discussion guide
-  - expanded 12-week action plan
+  - expanded action plan
 
 2. Participant/leader UI updates
 - Report pages now prioritize contextual interpretation over raw scoring output.
@@ -557,6 +557,40 @@ What changed:
   - `Regenerate Report` button for `SUBMITTED` participants only.
 - Regeneration recomputes score and rewrites report narrative for the selected participant/assessment.
 - Regenerated report is immediately reflected in participant web report and PDF export.
+
+Validation:
+- `npm run lint` passed
+- `npm run build` passed
+
+## Journal Addendum - Report Visual Overhaul
+
+Timestamp:
+- `2026-02-24` (local implementation pass)
+
+What changed:
+1. Visual redesign for participant report page
+- Added trait signal bar visuals with qualitative bands only.
+- Removed numeric display from trait visuals.
+- Increased personalization in hero content by addressing participant by name.
+- Renamed section heading to `Action Plan`.
+
+2. PDF formatting overhaul
+- Rebuilt PDF layout to improve readability, hierarchy, and visual polish.
+- Added bar-style trait signal graphics without numeric labels.
+- Improved section sizing and spacing across pages.
+- Extended insights now get a dedicated full page when present, instead of compressed content blocks.
+
+3. Narrative refinements
+- Updated generated `actions` phrasing to be cleaner and less timeboxed.
+- Added sanitization for AI enrichment text to strip score-like patterns if returned.
+
+Files touched in this pass:
+- `src/lib/score.ts`
+- `src/lib/ai-report.ts`
+- `src/app/reports/me/[assessmentId]/page.tsx`
+- `src/app/api/reports/me/[assessmentId]/pdf/route.ts`
+- `guide.md`
+- `README.md`
 
 Validation:
 - `npm run lint` passed
