@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+  LEADER
+}
+
+enum SessionStatus {
+  IN_PROGRESS
+  SUBMITTED
+}
+
+model Tenant {
+  id        String   @id @default(cuid())
+  name      String
+  seatLimit Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users       User[]
+  assessments Assessment[]
+  seats       Seat[]
+  invites     Invite[]
+  auditLogs   AuditLog[]
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  firstName     String
+  lastName      String
+  role          Role
+  tenantId      String
+  managerId     String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant            Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  manager           User?       @relation("UserManager", fields: [managerId], references: [id])
+  reports           User[]      @relation("UserManager")
+  assessmentSessions QuizSession[]
+  accounts          Account[]
+  sessions          Session[]
+
+  @@index([tenantId])
+  @@index([managerId])
+}
+
+model Seat {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userEmail String
+  assigned  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userEmail])
+}
+
+model Assessment {
+  id         String   @id @default(cuid())
+  tenantId   String
+  title      String
+  isPublished Boolean @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  policy    AssessmentPolicy?
+  questions Question[]
+  sessions  QuizSession[]
+  scores    Score[]
+  reports   Report[]
+
+  @@index([tenantId])
+}
+
+model AssessmentPolicy {
+  id                        String  @id @default(cuid())
+  assessmentId              String  @unique
+  showResultsToEmployee     Boolean @default(true)
+  resultReleaseDelayHours   Int     @default(0)
+  postSubmitMessage         String
+  leaderCanViewFullReport   Boolean @default(true)
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+}
+
+model Question {
+  id           String @id @default(cuid())
+  assessmentId String
+  prompt       String
+  trait        String
+  reverse      Boolean @default(false)
+  sortOrder    Int
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  answers    Answer[]
+
+  @@index([assessmentId])
+}
+
+model QuizSession {
+  id           String        @id @default(cuid())
+  assessmentId String
+  userId       String
+  status       SessionStatus @default(IN_PROGRESS)
+  startedAt    DateTime      @default(now())
+  submittedAt  DateTime?
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  answers    Answer[]
+
+  @@unique([assessmentId, userId])
+}
+
+model Answer {
+  id         String   @id @default(cuid())
+  sessionId  String
+  questionId String
+  value      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  session  QuizSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, questionId])
+}
+
+model Score {
+  id           String   @id @default(cuid())
+  assessmentId String
+  userId       String
+  openness     Float
+  conscientiousness Float
+  extraversion Float
+  agreeableness Float
+  neuroticism  Float
+  createdAt    DateTime @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, userId])
+}
+
+model Report {
+  id            String   @id @default(cuid())
+  assessmentId  String
+  userId        String
+  narrativeJson String
+  createdAt     DateTime @default(now())
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, userId])
+}
+
+model Invite {
+  id         String   @id @default(cuid())
+  tenantId   String
+  email      String
+  token      String   @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  actorId   String?
+  action    String
+  metadata  String
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}

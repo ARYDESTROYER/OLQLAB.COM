@@ -1,36 +1,105 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PersonaPilot MVP
 
-## Getting Started
+Corporate personality assessment platform (pilot v1) built with Next.js, Prisma, Vercel Postgres, Auth.js magic links, and Resend.
 
-First, run the development server:
+## Features implemented
+
+- Multi-tenant core model with seats, users, roles (`ADMIN`, `EMPLOYEE`, `LEADER`)
+- CSV import for employees (`email, first_name, last_name, manager_email`)
+- Invite-only sign in (only imported seat emails can login)
+- Assessment creation + publish policy controls
+- Assessment session flow (start, answer autosave, submit)
+- Big Five scoring + narrative report generation
+- Employee report access gating based on policy
+- Leader report endpoint with permission checks
+
+## Tech stack
+
+- Next.js 16 (App Router)
+- TypeScript
+- Prisma ORM
+- Postgres (Vercel Postgres)
+- NextAuth/Auth.js + Prisma Adapter + Email provider
+- Resend for emails
+
+## Required environment variables
+
+Create `.env.local` (copy from `.env.example`):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require"
+NEXTAUTH_SECRET="replace-with-random-secret"
+NEXTAUTH_URL="http://localhost:3000"
+RESEND_API_KEY="re_xxx"
+EMAIL_FROM="noreply@yourdomain.com"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local run
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npx prisma generate
+npx prisma migrate dev --name init
+npm run prisma:seed
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Open: `http://localhost:3000`
 
-## Learn More
+## MVP usage flow
 
-To learn more about Next.js, take a look at the following resources:
+1. Sign in as seeded admin email: `admin@democorp.com` (magic link)
+2. Open `/admin`
+3. Create tenant (or use seeded one)
+4. Import employees via CSV text box
+5. Send invites
+6. Create assessment
+7. Publish assessment with policy
+8. Employee opens `/assessment/current`, completes quiz
+9. Employee views report at `/reports/me/:assessmentId`
+10. Leader/admin can query leader report endpoint/page
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API endpoints implemented
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- `POST /api/admin/tenants`
+- `POST /api/admin/users/import-csv`
+- `POST /api/admin/invites/send`
+- `POST /api/admin/assessments`
+- `POST /api/admin/assessments/:id/publish`
+- `POST /api/assessment/sessions/start`
+- `GET /api/assessment/sessions/:id`
+- `POST /api/assessment/sessions/:id/answer`
+- `POST /api/assessment/sessions/:id/submit`
+- `GET /api/reports/me/:assessmentId`
+- `GET /api/reports/leader/:userId/:assessmentId`
 
-## Deploy on Vercel
+## Deploy to Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1. Push this repo to GitHub.
+2. Create Vercel project from repo.
+3. Add Vercel Postgres integration and copy `DATABASE_URL`.
+4. Add env vars in Vercel project settings:
+   - `DATABASE_URL`
+   - `NEXTAUTH_SECRET`
+   - `NEXTAUTH_URL` (your deployed domain)
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM`
+5. Run Prisma migration against production DB:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npx prisma migrate deploy
+```
+
+6. Seed production (optional for demo tenant):
+
+```bash
+npm run prisma:seed
+```
+
+7. Trigger a deployment.
+
+## Notes
+
+- Compliance/SSO not included in this pilot scope.
+- Leader dashboard UI is minimal; endpoint logic is implemented.
+- Assessment authoring is basic and optimized for speed to launch.
