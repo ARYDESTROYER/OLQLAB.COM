@@ -30,7 +30,7 @@ export type RecommendedTemplate = {
 };
 
 export const recommendedTemplate40: RecommendedTemplate = {
-  title: "Corporate Workstyle & Personality 40",
+  title: "OLQLAB Corporate Workstyle 40",
   competencies: [
     {
       code: "emotional_intelligence",

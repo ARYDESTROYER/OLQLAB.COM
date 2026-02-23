@@ -1,4 +1,4 @@
-# PersonaPilot MVP
+# OLQLAB MVP
 
 Corporate personality assessment platform with hybrid quiz support:
 - Trait-based personality questions (Likert scale)

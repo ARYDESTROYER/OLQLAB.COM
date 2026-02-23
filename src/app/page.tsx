@@ -5,8 +5,8 @@ import { db } from "@/lib/db";
 type Role = "ADMIN" | "EMPLOYEE" | "LEADER";
 
 function roleLabel(role: Role) {
-  if (role === "ADMIN") return "Platform Admin";
-  if (role === "LEADER") return "Team Leader";
+  if (role === "ADMIN") return "Admin";
+  if (role === "LEADER") return "Leader";
   return "Participant";
 }
 
@@ -15,37 +15,77 @@ export default async function HomePage() {
 
   if (!session?.user) {
     return (
-      <main className="mx-auto max-w-6xl space-y-12 px-6 py-10 md:px-10 md:py-16">
-        <section className="grid gap-8 rounded-[2rem] border border-slate-200 bg-white/80 p-8 shadow-sm md:grid-cols-[1.2fr_0.8fr] md:p-12">
-          <div className="space-y-6">
-            <p className="inline-flex rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-white">
-              Personality Intelligence Platform
-            </p>
-            <h1 className="text-4xl font-semibold tracking-tight text-slate-900 md:text-5xl">
-              Professional personality assessments for modern teams.
-            </h1>
-            <p className="max-w-2xl text-base leading-relaxed text-slate-700">
-              PersonaPilot combines validated trait items with real workplace scenarios to produce actionable,
-              development-focused reports for participants, leaders, and HR teams.
-            </p>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/signin"
-                className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-700"
-              >
-                Sign In With Magic Link
-              </Link>
-            </div>
-          </div>
+      <main className="relative overflow-hidden px-6 pb-20 pt-10 md:px-10 md:pt-12">
+        <div className="pointer-events-none absolute -left-24 top-16 h-72 w-72 rounded-full bg-cyan-300/35 blur-3xl animate-float-slow" />
+        <div className="pointer-events-none absolute right-[-80px] top-[-40px] h-96 w-96 rounded-full bg-amber-200/50 blur-3xl animate-float-medium" />
+        <div className="pointer-events-none absolute bottom-[-120px] left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-sky-200/45 blur-3xl animate-float-slow" />
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-slate-600">How It Works</h2>
-            <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm text-slate-700">
-              <li>Admins onboard clients and participants.</li>
-              <li>Participants complete a mixed personality + scenario assessment.</li>
-              <li>Reports provide strengths, growth areas, and coaching actions.</li>
-              <li>Leaders track completion and development progress.</li>
-            </ol>
+        <section className="mx-auto max-w-7xl space-y-8">
+          <header className="surface-fade flex items-center justify-between rounded-2xl border border-slate-200/70 bg-white/70 px-5 py-4 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">OQ</div>
+              <div>
+                <p className="text-sm font-semibold tracking-[0.12em] text-slate-900">OLQLAB</p>
+                <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Workstyle Intelligence</p>
+              </div>
+            </div>
+            <Link
+              href="/signin"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700"
+            >
+              Sign In
+            </Link>
+          </header>
+
+          <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+            <article className="surface-fade-delay rounded-[2rem] border border-slate-200 bg-white/80 p-7 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.45)] backdrop-blur-xl md:p-10">
+              <p className="inline-flex rounded-full bg-slate-900 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-white">
+                OLQLAB Personality Intelligence Platform
+              </p>
+              <h1 className="mt-6 text-4xl font-semibold leading-tight tracking-tight text-slate-900 md:text-6xl">
+                Build stronger teams with clear personality and behavior signals.
+              </h1>
+              <p className="mt-6 max-w-2xl text-base leading-relaxed text-slate-700 md:text-lg">
+                OLQLAB combines trait-based psychometrics and workplace scenarios into one professional assessment
+                workflow, with rich reports for participants, leaders, and HR decision-makers.
+              </p>
+
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link
+                  href="/signin"
+                  className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
+                >
+                  Start With Magic Link
+                </Link>
+                <Link
+                  href="/signin"
+                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-500"
+                >
+                  Open Workspace
+                </Link>
+              </div>
+            </article>
+
+            <aside className="surface-fade-delay-2 grid gap-4 rounded-[2rem] border border-slate-200 bg-white/80 p-6 shadow-[0_20px_60px_-30px_rgba(15,23,42,0.35)] backdrop-blur-xl md:p-7">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Assessment Design</p>
+                <p className="mt-2 text-sm font-medium text-slate-800">
+                  Hybrid personality + scenario model with role-based access controls.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Admin Visibility</p>
+                <p className="mt-2 text-sm font-medium text-slate-800">
+                  Track completion, in-progress users, and no-shows in one console.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-xs uppercase tracking-[0.14em] text-slate-500">Reporting</p>
+                <p className="mt-2 text-sm font-medium text-slate-800">
+                  Action-ready participant reports and downloadable PDF summaries.
+                </p>
+              </div>
+            </aside>
           </div>
         </section>
       </main>
@@ -82,7 +122,7 @@ export default async function HomePage() {
       <section className="rounded-[2rem] border border-slate-200 bg-white p-8 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Workspace</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">OLQLAB Workspace</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Welcome back</h1>
             <p className="mt-2 text-sm text-slate-600">{session.user.email}</p>
           </div>
@@ -123,11 +163,11 @@ export default async function HomePage() {
         </Link>
 
         <Link
-          href="/assessment/current"
+          href="/reports/current"
           className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-400"
         >
           <h2 className="text-lg font-semibold text-slate-900">My Reports</h2>
-          <p className="mt-2 text-sm text-slate-600">Access your latest submitted assessments and downloadable reports.</p>
+          <p className="mt-2 text-sm text-slate-600">Open completed reports and download PDF copies.</p>
         </Link>
 
         {role === "ADMIN" && (

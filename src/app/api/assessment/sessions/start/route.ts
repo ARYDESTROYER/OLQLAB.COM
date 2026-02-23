@@ -6,7 +6,17 @@ export async function POST(req: NextRequest) {
   const check = await requireSession();
   if ("error" in check) return check.error;
 
-  const { assessmentId } = (await req.json()) as { assessmentId: string };
+  let assessmentId = "";
+  try {
+    const body = (await req.json()) as { assessmentId?: string };
+    assessmentId = body.assessmentId?.trim() || "";
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  if (!assessmentId) {
+    return NextResponse.json({ error: "assessmentId is required." }, { status: 400 });
+  }
   const userId = check.session.user.id;
 
   const user = await db.user.findUnique({ where: { id: userId } });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 type Section = {
   id: string;
@@ -38,8 +38,10 @@ type AnswerState = {
   optionId?: string;
 };
 
-export default function SessionPage({ params }: { params: { sessionId: string } }) {
+export default function SessionPage() {
   const router = useRouter();
+  const params = useParams<{ sessionId: string }>();
+  const sessionId = typeof params?.sessionId === "string" ? params.sessionId : "";
 
   const [sections, setSections] = useState<Section[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -48,31 +50,50 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
   const [sessionStatus, setSessionStatus] = useState<"IN_PROGRESS" | "SUBMITTED">("IN_PROGRESS");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string>("");
 
   useEffect(() => {
-    const run = async () => {
-      const res = await fetch(`/api/assessment/sessions/${params.sessionId}`);
-      const data = await res.json();
-      if (!data.questions) return;
-
-      setAssessmentId(data.assessmentId);
-      setSections(data.sections || []);
-      setQuestions(data.questions);
-      setSessionStatus(data.status === "SUBMITTED" ? "SUBMITTED" : "IN_PROGRESS");
-
-      const next: Record<string, AnswerState> = {};
-      for (const answer of data.answers as Answer[]) {
-        next[answer.questionId] = {
-          value: typeof answer.value === "number" ? answer.value : undefined,
-          optionId: answer.optionId || undefined,
-        };
-      }
-      setAnswers(next);
+    if (!sessionId) {
+      setLoadError("Invalid session id. Please start the assessment again.");
       setLoading(false);
+      return;
+    }
+
+    const run = async () => {
+      try {
+        const res = await fetch(`/api/assessment/sessions/${sessionId}`);
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error((data as { error?: string }).error || "Could not load assessment session.");
+        }
+        if (!(data as { questions?: unknown[] }).questions) {
+          throw new Error("Session data is incomplete.");
+        }
+
+        setAssessmentId((data as { assessmentId: string }).assessmentId);
+        setSections((data as { sections?: Section[] }).sections || []);
+        setQuestions((data as { questions: Question[] }).questions);
+        setSessionStatus(
+          (data as { status?: string }).status === "SUBMITTED" ? "SUBMITTED" : "IN_PROGRESS",
+        );
+
+        const next: Record<string, AnswerState> = {};
+        for (const answer of (data as { answers?: Answer[] }).answers || []) {
+          next[answer.questionId] = {
+            value: typeof answer.value === "number" ? answer.value : undefined,
+            optionId: answer.optionId || undefined,
+          };
+        }
+        setAnswers(next);
+      } catch (error) {
+        setLoadError(error instanceof Error ? error.message : "Could not load session.");
+      } finally {
+        setLoading(false);
+      }
     };
 
     run();
-  }, [params.sessionId]);
+  }, [sessionId]);
 
   const answeredCount = useMemo(
     () =>
@@ -110,7 +131,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
     if (isReadOnly) return;
     setAnswers((prev) => ({ ...prev, [questionId]: { value } }));
 
-    await fetch(`/api/assessment/sessions/${params.sessionId}/answer`, {
+    await fetch(`/api/assessment/sessions/${sessionId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ questionId, value }),
@@ -121,7 +142,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
     if (isReadOnly) return;
     setAnswers((prev) => ({ ...prev, [questionId]: { optionId } }));
 
-    await fetch(`/api/assessment/sessions/${params.sessionId}/answer`, {
+    await fetch(`/api/assessment/sessions/${sessionId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ questionId, optionId }),
@@ -133,16 +154,26 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
       router.push(`/reports/me/${assessmentId}`);
       return;
     }
-    setSubmitting(true);
-    const res = await fetch(`/api/assessment/sessions/${params.sessionId}/submit`, {
-      method: "POST",
-    });
-    const data = await res.json();
-    alert(data.postSubmitMessage || "Submitted");
-    router.push(`/reports/me/${assessmentId}`);
+    try {
+      setSubmitting(true);
+      const res = await fetch(`/api/assessment/sessions/${sessionId}/submit`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Could not submit assessment.");
+      }
+      alert((data as { postSubmitMessage?: string }).postSubmitMessage || "Submitted");
+      router.push(`/reports/me/${assessmentId}`);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not submit assessment.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   if (loading) return <main className="p-8">Loading session...</main>;
+  if (loadError) return <main className="p-8">{loadError}</main>;
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6 md:p-10">

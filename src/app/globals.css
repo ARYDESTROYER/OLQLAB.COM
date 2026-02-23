@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sora);
+  --font-sans: var(--font-space-grotesk);
   --font-mono: var(--font-plex-mono);
 }
 
@@ -18,11 +18,72 @@
 
 body {
   color: var(--foreground);
-  font-family: var(--font-sora), "Segoe UI", sans-serif;
+  font-family: var(--font-space-grotesk), "Segoe UI", sans-serif;
+}
+
+.surface-fade {
+  animation: surface-fade 720ms ease-out both;
+}
+
+.surface-fade-delay {
+  animation: surface-fade 820ms ease-out 120ms both;
+}
+
+.surface-fade-delay-2 {
+  animation: surface-fade 920ms ease-out 220ms both;
+}
+
+.animate-float-slow {
+  animation: float-slow 14s ease-in-out infinite;
+}
+
+.animate-float-medium {
+  animation: float-medium 10s ease-in-out infinite;
+}
+
+@keyframes surface-fade {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes float-slow {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(22px, -16px);
+  }
+}
+
+@keyframes float-medium {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(-18px, 18px);
+  }
 }
 
 pre,
 code,
 textarea {
   font-family: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .surface-fade,
+  .surface-fade-delay,
+  .surface-fade-delay-2,
+  .animate-float-slow,
+  .animate-float-medium {
+    animation: none;
+  }
 }

@@ -1,36 +1,54 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
-export default function AssessmentStartPage({ params }: { params: { assessmentId: string } }) {
+export default function AssessmentStartPage() {
   const router = useRouter();
+  const params = useParams<{ assessmentId: string }>();
+  const assessmentId =
+    typeof params?.assessmentId === "string" ? params.assessmentId : "";
   const [loading, setLoading] = useState(false);
 
   async function startSession() {
+    if (!assessmentId) {
+      alert("Missing assessment id. Please refresh and try again.");
+      return;
+    }
+
     setLoading(true);
-    const res = await fetch("/api/assessment/sessions/start", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ assessmentId: params.assessmentId }),
-    });
-    const data = await res.json();
-    if (data.alreadySubmitted) {
-      router.push(`/reports/me/${params.assessmentId}`);
-      return;
+    try {
+      const res = await fetch("/api/assessment/sessions/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assessmentId }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Could not start session.");
+      }
+
+      if ((data as { alreadySubmitted?: boolean }).alreadySubmitted) {
+        router.push(`/reports/me/${assessmentId}`);
+        return;
+      }
+      if ((data as { sessionId?: string }).sessionId) {
+        router.push(`/assessment/session/${(data as { sessionId: string }).sessionId}`);
+        return;
+      }
+
+      alert("Could not start session. Please try again.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Could not start session.");
+    } finally {
+      setLoading(false);
     }
-    if (data.sessionId) {
-      router.push(`/assessment/session/${data.sessionId}`);
-      return;
-    }
-    alert(data.error || "Could not start session.");
-    setLoading(false);
   }
 
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6 md:p-10">
       <section className="rounded-3xl bg-gradient-to-r from-cyan-100 via-sky-50 to-amber-100 p-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Workstyle Assessment</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">OLQLAB Workstyle Assessment</h1>
         <p className="mt-3 text-slate-700">
           You will answer personality items and practical workplace scenarios. There are no &quot;wrong&quot;
           answers. Choose what best reflects your natural style.

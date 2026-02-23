@@ -124,7 +124,7 @@ export async function GET(
     color: rgb(0.97, 0.92, 0.82),
   });
 
-  page.drawText("Personality Development Report", {
+  page.drawText("OLQLAB Development Report", {
     x: 42,
     y: 796,
     size: 20,

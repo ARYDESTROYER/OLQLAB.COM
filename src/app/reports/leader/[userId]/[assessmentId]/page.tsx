@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
 type Data = {
   error?: string;
@@ -25,15 +26,33 @@ type Data = {
   };
 };
 
-export default function LeaderReportPage({ params }: { params: { userId: string; assessmentId: string } }) {
+export default function LeaderReportPage() {
+  const params = useParams<{ userId: string; assessmentId: string }>();
+  const userId = typeof params?.userId === "string" ? params.userId : "";
+  const assessmentId =
+    typeof params?.assessmentId === "string" ? params.assessmentId : "";
   const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`/api/reports/leader/${params.userId}/${params.assessmentId}`)
-      .then((r) => r.json())
-      .then(setData);
-  }, [params.userId, params.assessmentId]);
+    if (!userId || !assessmentId) return;
+    const run = async () => {
+      try {
+        const res = await fetch(`/api/reports/leader/${userId}/${assessmentId}`);
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error((payload as { error?: string }).error || "Could not load leader report.");
+        }
+        setData(payload as Data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load leader report.");
+      }
+    };
+    run();
+  }, [userId, assessmentId]);
 
+  if (!userId || !assessmentId) return <main className="p-8">Invalid report route.</main>;
+  if (error) return <main className="p-8">{error}</main>;
   if (!data) return <main className="p-8">Loading...</main>;
   if (data.error) return <main className="p-8">{data.error}</main>;
 

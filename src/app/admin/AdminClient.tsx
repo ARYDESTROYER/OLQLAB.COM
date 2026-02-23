@@ -313,7 +313,7 @@ export default function AdminPage() {
   const [employeeImportOutput, setEmployeeImportOutput] = useState<string>("");
   const [inviteOutput, setInviteOutput] = useState<string>("");
 
-  const [assessmentTitle, setAssessmentTitle] = useState("Workstyle & Personality Baseline");
+  const [assessmentTitle, setAssessmentTitle] = useState("OLQLAB Workstyle Baseline");
   const [competencies, setCompetencies] = useState<DraftCompetency[]>(starterCompetencies);
   const [questions, setQuestions] = useState<DraftQuestion[]>(starterQuestions);
   const [spreadsheetText, setSpreadsheetText] = useState("");
@@ -710,7 +710,7 @@ export default function AdminPage() {
       <header className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-6 md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-600">Admin Studio</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-          Corporate Personality Assessment Builder
+          OLQLAB Assessment Builder
         </h1>
         <p className="mt-3 max-w-3xl text-sm text-slate-700">
           Search client, import participants, design mixed-format quiz (personality + scenario), and launch with controlled report visibility.

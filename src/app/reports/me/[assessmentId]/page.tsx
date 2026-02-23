@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
 
 type CompetencyRow = {
   code: string;
@@ -50,12 +51,29 @@ const traitLabels: Array<{ key: TraitKey; label: string }> = [
   { key: "neuroticism", label: "Neuroticism" },
 ];
 
-export default function MyReportPage({ params }: { params: { assessmentId: string } }) {
+export default function MyReportPage() {
+  const params = useParams<{ assessmentId: string }>();
+  const assessmentId =
+    typeof params?.assessmentId === "string" ? params.assessmentId : "";
   const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    fetch(`/api/reports/me/${params.assessmentId}`).then((r) => r.json()).then(setData);
-  }, [params.assessmentId]);
+    if (!assessmentId) return;
+    const run = async () => {
+      try {
+        const res = await fetch(`/api/reports/me/${assessmentId}`);
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error((payload as { error?: string }).error || "Could not load report.");
+        }
+        setData(payload as Data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not load report.");
+      }
+    };
+    run();
+  }, [assessmentId]);
 
   const competencies = useMemo(() => {
     const fromNarrative = data?.narrative?.competencyBreakdown || [];
@@ -63,16 +81,18 @@ export default function MyReportPage({ params }: { params: { assessmentId: strin
     return (fromNarrative.length > 0 ? fromNarrative : fromScore).slice(0, 10);
   }, [data]);
 
+  if (!assessmentId) return <main className="p-8">Invalid assessment id.</main>;
+  if (error) return <main className="p-8">{error}</main>;
   if (!data) return <main className="p-8">Loading report...</main>;
   if (data.message) return <main className="p-8">{data.message}</main>;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
       <header className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-6">
-        <h1 className="text-3xl font-semibold tracking-tight">Your Personality Report</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">Your OLQLAB Report</h1>
         <p className="mt-2 text-slate-700">{data.narrative?.summary}</p>
         <a
-          href={`/api/reports/me/${params.assessmentId}/pdf`}
+          href={`/api/reports/me/${assessmentId}/pdf`}
           className="mt-4 inline-block rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
         >
           Download PDF Report

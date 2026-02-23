@@ -17,7 +17,7 @@ export default function SignInPage() {
   return (
     <main className="mx-auto max-w-xl space-y-6 p-6 md:p-10">
       <section className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Secure Sign-in</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">OLQLAB Secure Sign-in</h1>
         <p className="mt-2 text-sm text-slate-700">
           Enter your work email. We will send a one-time magic link.
         </p>
