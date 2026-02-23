@@ -1,12 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { recommendedTemplate40 } from "@/lib/recommended-template";
 
 type Tenant = {
   id: string;
   name: string;
   seatLimit: number;
   updatedAt: string;
+};
+
+type DirectoryUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: "ADMIN" | "EMPLOYEE" | "LEADER";
+  tenant: { id: string; name: string };
+  manager?: { email: string; firstName: string; lastName: string } | null;
 };
 
 type AssessmentListItem = {
@@ -84,6 +95,36 @@ const starterQuestions: DraftQuestion[] = [
     ],
   },
 ];
+
+function mapRecommendedTemplateToDraft() {
+  return {
+    title: recommendedTemplate40.title,
+    competencies: recommendedTemplate40.competencies.map((competency) => ({
+      id: uid("c"),
+      code: competency.code,
+      name: competency.name,
+      description: competency.description,
+    })),
+    questions: recommendedTemplate40.questions.map((question) => ({
+      id: uid("q"),
+      code: question.code,
+      sectionTitle: question.sectionTitle,
+      sectionKind: question.sectionKind,
+      type: question.type,
+      category: question.category,
+      prompt: question.prompt,
+      trait: question.trait,
+      reverse: question.reverse,
+      scaleMin: question.scaleMin,
+      scaleMax: question.scaleMax,
+      options: question.options.map((option) => ({
+        id: uid("o"),
+        text: option.text,
+        impacts: option.impacts,
+      })),
+    })),
+  };
+}
 
 function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
@@ -267,6 +308,30 @@ export default function AdminPage() {
     postSubmitMessage: "Thank you. Your results are now available.",
     leaderCanViewFullReport: true,
   });
+  const [overview, setOverview] = useState({
+    tenantCount: 0,
+    userCount: 0,
+    assessmentCount: 0,
+    sessionCount: 0,
+  });
+  const [directoryUsers, setDirectoryUsers] = useState<DirectoryUser[]>([]);
+  const [userQuery, setUserQuery] = useState("");
+  const [directoryRefreshTick, setDirectoryRefreshTick] = useState(0);
+  const [addUserForm, setAddUserForm] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    role: "EMPLOYEE" as "ADMIN" | "EMPLOYEE" | "LEADER",
+    managerEmail: "",
+  });
+  const [addUserOutput, setAddUserOutput] = useState("");
+  const [soloForm, setSoloForm] = useState({
+    tenantName: "",
+    email: "",
+    firstName: "",
+    lastName: "",
+  });
+  const [soloOutput, setSoloOutput] = useState("");
 
   useEffect(() => {
     const timeout = setTimeout(async () => {
@@ -286,6 +351,30 @@ export default function AdminPage() {
         setAssessments(data.assessments || []);
       });
   }, [selectedTenant]);
+
+  useEffect(() => {
+    fetch("/api/admin/overview")
+      .then((r) => r.json())
+      .then((data) => {
+        setOverview({
+          tenantCount: data.tenantCount || 0,
+          userCount: data.userCount || 0,
+          assessmentCount: data.assessmentCount || 0,
+          sessionCount: data.sessionCount || 0,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedTenant?.id) params.set("tenantId", selectedTenant.id);
+    if (userQuery.trim()) params.set("q", userQuery.trim());
+    fetch(`/api/admin/users?${params.toString()}`)
+      .then((r) => r.json())
+      .then((data) => setDirectoryUsers(data.users || []))
+      .catch(() => setDirectoryUsers([]));
+  }, [selectedTenant, userQuery, directoryRefreshTick]);
 
   const selectedAssessment = useMemo(
     () => assessments.find((assessment) => assessment.id === selectedAssessmentId),
@@ -317,6 +406,9 @@ export default function AdminPage() {
     });
     const data = await res.json();
     setEmployeeImportOutput(JSON.stringify(data, null, 2));
+    if (res.ok) {
+      setDirectoryRefreshTick((prev) => prev + 1);
+    }
   }
 
   async function sendInvites() {
@@ -390,6 +482,79 @@ export default function AdminPage() {
       alert("Spreadsheet imported into builder.");
     } catch (error) {
       alert(error instanceof Error ? error.message : "Could not parse spreadsheet.");
+    }
+  }
+
+  function loadRecommendedTemplate() {
+    const template = mapRecommendedTemplateToDraft();
+    setAssessmentTitle(template.title);
+    setCompetencies(template.competencies);
+    setQuestions(template.questions);
+    alert("Loaded recommended 40-question template.");
+  }
+
+  async function addSingleUser() {
+    if (!selectedTenant) {
+      alert("Select a client first.");
+      return;
+    }
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        tenantId: selectedTenant.id,
+        email: addUserForm.email,
+        firstName: addUserForm.firstName,
+        lastName: addUserForm.lastName,
+        role: addUserForm.role,
+        managerEmail: addUserForm.managerEmail || undefined,
+      }),
+    });
+    const data = await res.json();
+    setAddUserOutput(JSON.stringify(data, null, 2));
+    if (res.ok) {
+      setAddUserForm({
+        email: "",
+        firstName: "",
+        lastName: "",
+        role: "EMPLOYEE",
+        managerEmail: "",
+      });
+      setDirectoryRefreshTick((prev) => prev + 1);
+    }
+  }
+
+  async function addSoloUser() {
+    const res = await fetch("/api/admin/users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        createSoloTenant: true,
+        tenantName: soloForm.tenantName,
+        email: soloForm.email,
+        firstName: soloForm.firstName,
+        lastName: soloForm.lastName,
+        role: "EMPLOYEE",
+        seatLimit: 1,
+      }),
+    });
+    const data = await res.json();
+    setSoloOutput(JSON.stringify(data, null, 2));
+    if (res.ok && data.user?.tenant) {
+      setSelectedTenant({
+        id: data.user.tenant.id,
+        name: data.user.tenant.name,
+        seatLimit: 1,
+        updatedAt: new Date().toISOString(),
+      });
+      setTenantQuery(data.user.tenant.name);
+      setSoloForm({
+        tenantName: "",
+        email: "",
+        firstName: "",
+        lastName: "",
+      });
+      setDirectoryRefreshTick((prev) => prev + 1);
     }
   }
 
@@ -504,6 +669,25 @@ export default function AdminPage() {
         </p>
       </header>
 
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Clients</p>
+          <p className="mt-2 text-2xl font-semibold">{overview.tenantCount}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Users</p>
+          <p className="mt-2 text-2xl font-semibold">{overview.userCount}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Assessments</p>
+          <p className="mt-2 text-2xl font-semibold">{overview.assessmentCount}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Sessions</p>
+          <p className="mt-2 text-2xl font-semibold">{overview.sessionCount}</p>
+        </div>
+      </section>
+
       <section className="grid gap-4 lg:grid-cols-2">
         <article className="rounded-2xl border border-slate-200 bg-white p-5">
           <h2 className="text-lg font-semibold">1. Select Client</h2>
@@ -574,57 +758,176 @@ export default function AdminPage() {
         </article>
 
         <article className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h2 className="text-lg font-semibold">3. Competency Categories</h2>
-          <div className="mt-3 space-y-2">
-            {competencies.map((competency, index) => (
-              <div key={competency.id} className="grid gap-2 md:grid-cols-3">
-                <input
-                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-                  value={competency.code}
-                  onChange={(e) =>
-                    setCompetencies((prev) =>
-                      prev.map((item, i) =>
-                        i === index ? { ...item, code: e.target.value } : item,
-                      ),
-                    )
-                  }
-                  placeholder="code"
-                />
-                <input
-                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-                  value={competency.name}
-                  onChange={(e) =>
-                    setCompetencies((prev) =>
-                      prev.map((item, i) =>
-                        i === index ? { ...item, name: e.target.value } : item,
-                      ),
-                    )
-                  }
-                  placeholder="display name"
-                />
-                <input
-                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-                  value={competency.description}
-                  onChange={(e) =>
-                    setCompetencies((prev) =>
-                      prev.map((item, i) =>
-                        i === index ? { ...item, description: e.target.value } : item,
-                      ),
-                    )
-                  }
-                  placeholder="description"
-                />
-              </div>
-            ))}
+          <h2 className="text-lg font-semibold">3. Add Individual Participant</h2>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="email"
+              value={addUserForm.email}
+              onChange={(e) => setAddUserForm((prev) => ({ ...prev, email: e.target.value }))}
+            />
+            <select
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={addUserForm.role}
+              onChange={(e) =>
+                setAddUserForm((prev) => ({ ...prev, role: e.target.value as "ADMIN" | "EMPLOYEE" | "LEADER" }))
+              }
+            >
+              <option value="EMPLOYEE">EMPLOYEE</option>
+              <option value="LEADER">LEADER</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="first name"
+              value={addUserForm.firstName}
+              onChange={(e) => setAddUserForm((prev) => ({ ...prev, firstName: e.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="last name"
+              value={addUserForm.lastName}
+              onChange={(e) => setAddUserForm((prev) => ({ ...prev, lastName: e.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm md:col-span-2"
+              placeholder="manager email (optional)"
+              value={addUserForm.managerEmail}
+              onChange={(e) => setAddUserForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
+            />
           </div>
-          <button className="mt-3 rounded-xl border border-slate-300 px-4 py-2 text-sm" onClick={addCompetency}>
-            Add Category
+          <button className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={addSingleUser} disabled={!selectedTenant}>
+            Add User To Selected Client
           </button>
+          {addUserOutput && <pre className="mt-3 overflow-auto rounded bg-slate-50 p-3 text-xs">{addUserOutput}</pre>}
+
+          <div className="mt-5 border-t border-slate-200 pt-4">
+            <h3 className="text-sm font-semibold">Solo Buyer (single individual)</h3>
+            <p className="mt-1 text-xs text-slate-600">Creates a 1-seat client and adds one participant directly.</p>
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="solo client name"
+                value={soloForm.tenantName}
+                onChange={(e) => setSoloForm((prev) => ({ ...prev, tenantName: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="email"
+                value={soloForm.email}
+                onChange={(e) => setSoloForm((prev) => ({ ...prev, email: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="first name"
+                value={soloForm.firstName}
+                onChange={(e) => setSoloForm((prev) => ({ ...prev, firstName: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                placeholder="last name"
+                value={soloForm.lastName}
+                onChange={(e) => setSoloForm((prev) => ({ ...prev, lastName: e.target.value }))}
+              />
+            </div>
+            <button className="mt-3 rounded-xl bg-cyan-700 px-4 py-2 text-sm text-white" onClick={addSoloUser}>
+              Create Solo Client & User
+            </button>
+            {soloOutput && <pre className="mt-3 overflow-auto rounded bg-slate-50 p-3 text-xs">{soloOutput}</pre>}
+          </div>
         </article>
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">4. Build Quiz</h2>
+        <h2 className="text-lg font-semibold">Directory View (Clients / Users)</h2>
+        <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <input
+            className="rounded-xl border border-slate-300 px-3 py-2"
+            value={userQuery}
+            onChange={(e) => setUserQuery(e.target.value)}
+            placeholder="Search user by name or email"
+          />
+          <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-600">
+            Showing {directoryUsers.length} users {selectedTenant ? `in ${selectedTenant.name}` : "across all clients"}
+          </p>
+        </div>
+        <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-600">
+              <tr>
+                <th className="px-3 py-2">Name</th>
+                <th className="px-3 py-2">Email</th>
+                <th className="px-3 py-2">Role</th>
+                <th className="px-3 py-2">Client</th>
+                <th className="px-3 py-2">Manager</th>
+              </tr>
+            </thead>
+            <tbody>
+              {directoryUsers.map((user) => (
+                <tr key={user.id} className="border-t border-slate-100">
+                  <td className="px-3 py-2">{user.firstName} {user.lastName}</td>
+                  <td className="px-3 py-2">{user.email}</td>
+                  <td className="px-3 py-2">{user.role}</td>
+                  <td className="px-3 py-2">{user.tenant?.name}</td>
+                  <td className="px-3 py-2">{user.manager ? `${user.manager.firstName} ${user.manager.lastName}` : "-"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="text-lg font-semibold">4. Competency Categories</h2>
+        <div className="mt-3 space-y-2">
+          {competencies.map((competency, index) => (
+            <div key={competency.id} className="grid gap-2 md:grid-cols-3">
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={competency.code}
+                onChange={(e) =>
+                  setCompetencies((prev) =>
+                    prev.map((item, i) =>
+                      i === index ? { ...item, code: e.target.value } : item,
+                    ),
+                  )
+                }
+                placeholder="code"
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={competency.name}
+                onChange={(e) =>
+                  setCompetencies((prev) =>
+                    prev.map((item, i) =>
+                      i === index ? { ...item, name: e.target.value } : item,
+                    ),
+                  )
+                }
+                placeholder="display name"
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={competency.description}
+                onChange={(e) =>
+                  setCompetencies((prev) =>
+                    prev.map((item, i) =>
+                      i === index ? { ...item, description: e.target.value } : item,
+                    ),
+                  )
+                }
+                placeholder="description"
+              />
+            </div>
+          ))}
+        </div>
+        <button className="mt-3 rounded-xl border border-slate-300 px-4 py-2 text-sm" onClick={addCompetency}>
+          Add Category
+        </button>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="text-lg font-semibold">5. Build Quiz</h2>
         <input
           className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2"
           value={assessmentTitle}
@@ -633,6 +936,9 @@ export default function AdminPage() {
         />
 
         <div className="mt-4 flex flex-wrap gap-2">
+          <button className="rounded-xl border border-cyan-700 px-4 py-2 text-sm text-cyan-900" onClick={loadRecommendedTemplate}>
+            Load Recommended 40-Question Template
+          </button>
           <button className="rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={() => addQuestion("LIKERT_TRAIT")}>Add Personality Question</button>
           <button className="rounded-xl bg-cyan-700 px-4 py-2 text-sm text-white" onClick={() => addQuestion("SJT_SINGLE")}>Add Scenario Question</button>
         </div>
@@ -885,7 +1191,7 @@ export default function AdminPage() {
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">5. Publish & Visibility Policy</h2>
+        <h2 className="text-lg font-semibold">6. Publish & Visibility Policy</h2>
 
         <select
           className="mt-3 w-full rounded-xl border border-slate-300 px-3 py-2"

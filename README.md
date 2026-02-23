@@ -8,10 +8,14 @@ Corporate personality assessment platform with hybrid quiz support:
 
 - Client search + create flow in admin (no manual tenant ID input)
 - Employee CSV import + invite sending
+- Direct single-user add flow (no CSV required)
+- Solo buyer flow (auto-creates 1-seat client + user)
+- Directory view for clients/users from admin UI
 - Hybrid assessment builder:
   - `LIKERT_TRAIT` questions
   - `SJT_SINGLE` scenario questions
   - per-option weighted competency impacts
+- One-click recommended 40-question template (25 personality + 15 scenarios)
 - Spreadsheet-to-builder import (CSV paste)
 - Assessment publish policy controls
 - Session runtime supports both question types
@@ -19,6 +23,8 @@ Corporate personality assessment platform with hybrid quiz support:
   - Big Five trait percentages
   - competency impact totals
 - Employee and leader report pages upgraded for mixed scoring output
+- AI-assisted narrative sections (optional, when `OPENAI_API_KEY` is set)
+- PDF report download endpoint with trait bars and development summary
 
 ## Tech stack
 
@@ -40,6 +46,8 @@ NEXTAUTH_SECRET="replace-with-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
 RESEND_API_KEY="re_xxx"
 EMAIL_FROM="noreply@yourdomain.com"
+OPENAI_API_KEY=""
+REPORT_LLM_MODEL="gpt-4o-mini"
 ```
 
 For production on Vercel, use your real domain in `NEXTAUTH_URL`.
@@ -86,6 +94,9 @@ Notes:
 
 - `GET /api/admin/tenants` (search)
 - `POST /api/admin/tenants`
+- `GET /api/admin/overview`
+- `GET /api/admin/users`
+- `POST /api/admin/users`
 - `POST /api/admin/users/import-csv`
 - `POST /api/admin/invites/send`
 - `GET /api/admin/assessments`
@@ -96,6 +107,7 @@ Notes:
 - `POST /api/assessment/sessions/:id/answer`
 - `POST /api/assessment/sessions/:id/submit`
 - `GET /api/reports/me/:assessmentId`
+- `GET /api/reports/me/:assessmentId/pdf`
 - `GET /api/reports/leader/:userId/:assessmentId`
 
 ## Migrations added

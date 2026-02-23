@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/api-auth";
 import { computeScores, generateNarrative } from "@/lib/score";
+import { generateAiNarrative } from "@/lib/ai-report";
 
 export async function POST(
   _req: NextRequest,
@@ -44,7 +45,16 @@ export async function POST(
     session.assessment.questions,
     session.answers,
   );
-  const narrative = generateNarrative(traits, competencies);
+  const baseNarrative = generateNarrative(traits, competencies);
+  const aiNarrative = await generateAiNarrative(traits, competencies, {
+    fullName: `${check.session.user.name || ""}`.trim() || "Participant",
+    email: check.session.user.email || "",
+    assessmentTitle: session.assessment.title,
+  });
+  const narrative = {
+    ...baseNarrative,
+    aiNarrative,
+  };
 
   await db.$transaction([
     db.quizSession.update({

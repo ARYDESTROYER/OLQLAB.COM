@@ -31,6 +31,14 @@ type Data = {
     growthAreas: string[];
     actions: string[];
     competencyBreakdown?: CompetencyRow[];
+    aiNarrative?: {
+      executiveSummary?: string;
+      strengthsNarrative?: string;
+      developmentNarrative?: string;
+      managerCoaching?: string;
+      improvementRoadmap?: string[];
+      cautionNotes?: string[];
+    };
   };
 };
 
@@ -63,6 +71,12 @@ export default function MyReportPage({ params }: { params: { assessmentId: strin
       <header className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-6">
         <h1 className="text-3xl font-semibold tracking-tight">Your Personality Report</h1>
         <p className="mt-2 text-slate-700">{data.narrative?.summary}</p>
+        <a
+          href={`/api/reports/me/${params.assessmentId}/pdf`}
+          className="mt-4 inline-block rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+        >
+          Download PDF Report
+        </a>
       </header>
 
       <section className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-5 md:grid-cols-2">
@@ -121,6 +135,40 @@ export default function MyReportPage({ params }: { params: { assessmentId: strin
           {data.narrative?.actions?.map((item) => <li key={item}>{item}</li>)}
         </ol>
       </section>
+
+      {data.narrative?.aiNarrative && (
+        <section className="rounded-2xl border border-indigo-200 bg-indigo-50 p-5">
+          <h2 className="text-lg font-semibold">AI-Assisted Insight</h2>
+          {data.narrative.aiNarrative.executiveSummary && (
+            <p className="mt-2 text-sm text-slate-700">{data.narrative.aiNarrative.executiveSummary}</p>
+          )}
+          {data.narrative.aiNarrative.strengthsNarrative && (
+            <p className="mt-2 text-sm text-slate-700">
+              <span className="font-semibold">Strength context:</span>{" "}
+              {data.narrative.aiNarrative.strengthsNarrative}
+            </p>
+          )}
+          {data.narrative.aiNarrative.developmentNarrative && (
+            <p className="mt-2 text-sm text-slate-700">
+              <span className="font-semibold">Development context:</span>{" "}
+              {data.narrative.aiNarrative.developmentNarrative}
+            </p>
+          )}
+          {data.narrative.aiNarrative.managerCoaching && (
+            <p className="mt-2 text-sm text-slate-700">
+              <span className="font-semibold">Manager coaching:</span>{" "}
+              {data.narrative.aiNarrative.managerCoaching}
+            </p>
+          )}
+          {data.narrative.aiNarrative.improvementRoadmap && (
+            <ul className="mt-2 list-disc pl-5 text-sm text-slate-700">
+              {data.narrative.aiNarrative.improvementRoadmap.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </main>
   );
 }

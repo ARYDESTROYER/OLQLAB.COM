@@ -18,6 +18,10 @@ type Data = {
     strengths?: string[];
     growthAreas?: string[];
     actions?: string[];
+    aiNarrative?: {
+      managerCoaching?: string;
+      executiveSummary?: string;
+    };
   };
 };
 
@@ -73,6 +77,12 @@ export default function LeaderReportPage({ params }: { params: { userId: string;
             <li key={item}>{item}</li>
           ))}
         </ol>
+        {data.narrative?.aiNarrative?.managerCoaching && (
+          <p className="mt-3 rounded-lg bg-indigo-50 p-3 text-sm text-slate-700">
+            <span className="font-semibold">AI coaching note:</span>{" "}
+            {data.narrative.aiNarrative.managerCoaching}
+          </p>
+        )}
       </section>
     </main>
   );
