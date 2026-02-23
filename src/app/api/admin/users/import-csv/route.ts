@@ -9,6 +9,10 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { tenantId, csvText } = body as { tenantId: string; csvText: string };
+  const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+  if (!tenant) {
+    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  }
 
   const records = parse(csvText, {
     columns: true,
@@ -23,6 +27,7 @@ export async function POST(req: NextRequest) {
 
   const created = [];
   const skipped = [];
+  let seatCount = await db.seat.count({ where: { tenantId } });
 
   for (const row of records) {
     const email = row.email?.toLowerCase();
@@ -40,9 +45,15 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    if (seatCount >= tenant.seatLimit) {
+      skipped.push({ email, reason: "seat_limit_reached" });
+      continue;
+    }
+
     await db.seat.create({
       data: { tenantId, userEmail: email },
     });
+    seatCount += 1;
 
     const manager = row.manager_email
       ? await db.user.findFirst({

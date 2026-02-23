@@ -25,6 +25,13 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  if (session.status === "SUBMITTED") {
+    return NextResponse.json(
+      { error: "Session already submitted and is read-only." },
+      { status: 400 },
+    );
+  }
+
   const question = await db.question.findUnique({
     where: { id: questionId },
     include: { options: true },

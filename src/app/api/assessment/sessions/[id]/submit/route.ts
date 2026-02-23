@@ -34,11 +34,22 @@ export async function POST(
         },
       },
       answers: true,
+      user: true,
     },
   });
 
   if (!session || session.userId !== check.session.user.id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  if (session.status === "SUBMITTED") {
+    return NextResponse.json({
+      submitted: true,
+      alreadySubmitted: true,
+      postSubmitMessage:
+        session.assessment.policy?.postSubmitMessage ||
+        "Thanks for completing your assessment.",
+    });
   }
 
   const { traits, competencies } = computeScores(
@@ -47,8 +58,8 @@ export async function POST(
   );
   const baseNarrative = generateNarrative(traits, competencies);
   const aiNarrative = await generateAiNarrative(traits, competencies, {
-    fullName: `${check.session.user.name || ""}`.trim() || "Participant",
-    email: check.session.user.email || "",
+    fullName: `${session.user.firstName} ${session.user.lastName}`.trim() || "Participant",
+    email: session.user.email,
     assessmentTitle: session.assessment.title,
   });
   const narrative = {

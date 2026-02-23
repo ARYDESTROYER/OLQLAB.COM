@@ -9,8 +9,17 @@ export async function POST(req: NextRequest) {
   const { assessmentId } = (await req.json()) as { assessmentId: string };
   const userId = check.session.user.id;
 
-  const assessment = await db.assessment.findUnique({
-    where: { id: assessmentId },
+  const user = await db.user.findUnique({ where: { id: userId } });
+  if (!user) {
+    return NextResponse.json({ error: "User not found" }, { status: 404 });
+  }
+
+  const assessment = await db.assessment.findFirst({
+    where: {
+      id: assessmentId,
+      tenantId: user.tenantId,
+      isPublished: true,
+    },
     include: {
       sections: { orderBy: { sortOrder: "asc" } },
       questions: {
@@ -30,8 +39,21 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  if (!assessment || !assessment.isPublished) {
+  if (!assessment) {
     return NextResponse.json({ error: "Assessment unavailable" }, { status: 404 });
+  }
+
+  const seat = await db.seat.findUnique({
+    where: {
+      tenantId_userEmail: {
+        tenantId: user.tenantId,
+        userEmail: user.email.toLowerCase(),
+      },
+    },
+  });
+
+  if (!seat) {
+    return NextResponse.json({ error: "You are not assigned to this assessment tenant." }, { status: 403 });
   }
 
   const session = await db.quizSession.upsert({
@@ -43,6 +65,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     sessionId: session.id,
+    alreadySubmitted: session.status === "SUBMITTED",
     sections: assessment.sections,
     questions: assessment.questions,
     answers: session.answers,

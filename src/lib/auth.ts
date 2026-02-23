@@ -27,10 +27,35 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user }) {
       if (!user.email) return false;
-      const invitedSeat = await db.seat.findFirst({
-        where: { userEmail: user.email.toLowerCase() },
+      const email = user.email.toLowerCase();
+      const existingUser = await db.user.findUnique({
+        where: { email },
       });
-      return Boolean(invitedSeat);
+      if (!existingUser) return false;
+
+      const invitedSeat = await db.seat.findUnique({
+        where: {
+          tenantId_userEmail: {
+            tenantId: existingUser.tenantId,
+            userEmail: email,
+          },
+        },
+      });
+      if (!invitedSeat) return false;
+
+      if (!invitedSeat.assigned) {
+        await db.seat.update({
+          where: {
+            tenantId_userEmail: {
+              tenantId: existingUser.tenantId,
+              userEmail: email,
+            },
+          },
+          data: { assigned: true },
+        });
+      }
+
+      return true;
     },
     async session({ session, user }) {
       if (session.user) {

@@ -94,7 +94,47 @@ export async function GET(req: NextRequest) {
     take: 20,
   });
 
-  return NextResponse.json({ assessments });
+  const tenantParticipantCount = new Map<string, number>();
+  const withStats = await Promise.all(
+    assessments.map(async (assessment) => {
+      if (!tenantParticipantCount.has(assessment.tenantId)) {
+        const total = await db.user.count({
+          where: {
+            tenantId: assessment.tenantId,
+            role: { in: ["EMPLOYEE", "LEADER"] },
+          },
+        });
+        tenantParticipantCount.set(assessment.tenantId, total);
+      }
+
+      const totalParticipants = tenantParticipantCount.get(assessment.tenantId) || 0;
+      const [completed, inProgress] = await Promise.all([
+        db.quizSession.count({
+          where: { assessmentId: assessment.id, status: "SUBMITTED" },
+        }),
+        db.quizSession.count({
+          where: { assessmentId: assessment.id, status: "IN_PROGRESS" },
+        }),
+      ]);
+
+      const notStarted = Math.max(totalParticipants - completed - inProgress, 0);
+      const completionRate =
+        totalParticipants === 0 ? 0 : Math.round((completed / totalParticipants) * 100);
+
+      return {
+        ...assessment,
+        participantCounts: {
+          total: totalParticipants,
+          completed,
+          inProgress,
+          notStarted,
+        },
+        completionRate,
+      };
+    }),
+  );
+
+  return NextResponse.json({ assessments: withStats });
 }
 
 export async function POST(req: NextRequest) {

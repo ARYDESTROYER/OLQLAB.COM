@@ -133,3 +133,355 @@ DATABASE_URL="<PROD_DB_URL_UNPOOLED>" npx prisma migrate deploy
 ```bash
 DATABASE_URL="<PROD_DB_URL_UNPOOLED>" npm run prisma:seed
 ```
+
+## Full Project Journal / Diary
+
+This section is the full running log of what was planned, what happened, what failed, what was fixed, and what state the system is currently in.
+
+### Journal conventions
+
+- `UTC exact`: timestamp taken directly from logs.
+- `Local approx`: timestamp inferred from local file times/interaction order.
+- Secrets are intentionally redacted in this document.
+
+### Original objective and plan baseline
+
+`Date: 2026-02-23 (Local approx)`
+
+Initial objective:
+- Build and deploy a same-day pilot of a corporate personality platform.
+- Core requirement set:
+  - tenant/company model
+  - invite-only auth
+  - employee quiz
+  - score + report
+  - leader visibility controls
+  - admin controls for authoring/publishing and onboarding
+
+Original architecture plan:
+- Next.js App Router + TypeScript
+- Prisma + Postgres
+- Vercel deploy
+- Resend for email magic links
+- report narrative + score bands
+
+### Build timeline (chronological)
+
+1. `2026-02-23T17:11:55Z` (UTC exact)
+- First production runtime errors appeared.
+- Error class: `next-auth NO_SECRET`.
+- Impact: `/`, `/api/auth/providers`, `/api/auth/error` returned 500.
+
+2. `2026-02-23T17:14:57Z` to `2026-02-23T17:15:36Z` (UTC exact)
+- Repeated auth 500 failures continued.
+- Root cause remained missing `NEXTAUTH_SECRET`.
+
+3. `2026-02-23 21:31 local` (Local approx from scaffold file timestamps)
+- App scaffolded from empty repo.
+- Initial CLI issue: folder name (`New project`) violated npm naming for `create-next-app`.
+- Workaround used: scaffold temp dir, sync files into current repo.
+
+4. `2026-02-23 (Local approx)`
+- Initial backend and data model implemented:
+  - tenant, user, seats, assessments, sessions, answers, score, report, invites, audit
+  - auth + api routes + basic UI pages
+
+5. `2026-02-23 (Local approx)`
+- Build blockers encountered and fixed:
+  - Prisma 7 required newer Node than environment had.
+    - Fix: pin Prisma/Client to `6.8.2`.
+  - `next-auth` email provider required `nodemailer`.
+    - Fix: add `nodemailer`.
+  - eager env validation caused compile-time crash when envs absent.
+    - Fix: switch to lazy env access runtime helpers.
+
+6. `2026-02-23 21:52:58` to `21:53:17` (from user-provided Vercel build log)
+- Vercel build failed due Prisma client generation cache behavior.
+- Error: Prisma client outdated in Vercel dependency cache.
+- Fix applied:
+  - `build` script => `prisma generate && next build`
+  - `postinstall` script => `prisma generate`
+
+7. `2026-02-23 (Local approx)`
+- Neon marketplace DB selected (instead of old standalone Vercel Postgres UX).
+- DB connectivity validated from local code.
+- Initial Prisma migration created and applied.
+
+8. `2026-02-23 (Local approx)`
+- Production DB operations run:
+  - migrations deployed
+  - seed executed
+  - admin user bootstrap for requested email completed
+
+9. `2026-02-23T17:20:57Z` (UTC exact check run later)
+- Auth endpoint health check passed:
+  - `/api/auth/providers` returns `200`.
+- Confirms `NEXTAUTH_SECRET` + auth config healthy.
+
+10. `2026-02-23 (Local approx, post-fix phase)`
+- Admin and assessment model re-architected:
+  - replaced raw-ID admin forms with guided workflow
+  - added tenant search
+  - added hybrid question model (personality + scenarios)
+  - added competency impact scoring per option
+
+11. `2026-02-23 (Local approx, redesign phase)`
+- UI redesign completed:
+  - improved typography/background hierarchy
+  - clearer sections and operational flow
+  - better report screens and quiz experience
+  - typo redirect route added: `/singin` -> `/signin`
+
+12. `2026-02-23 (Local approx, advanced features phase)`
+- Added:
+  - direct single-user add API + UI (no CSV needed)
+  - solo-buyer flow (auto 1-seat client + user)
+  - admin overview metrics
+  - directory-style user/client visibility panel
+
+13. `2026-02-23 (Local approx, content/reporting phase)`
+- Added high-quality recommended assessment template:
+  - 40 total questions
+  - 25 Big Five Likert items
+  - 15 scenario items with weighted competency impacts
+
+14. `2026-02-23 (Local approx, AI/PDF phase)`
+- Added optional LLM narrative augmentation (OpenAI integration).
+- Added downloadable PDF report endpoint with:
+  - participant identity block
+  - trait bars
+  - competency indicators
+  - strengths / growth / action plan
+  - AI-assisted sections when available
+
+15. `2026-02-23 (Local exact from command output)`
+- Seed run confirmed:
+  - `questionCount: 40`
+  - `competencyCount: 8`
+- Admin account check confirmed:
+  - `littlemasteraryan@gmail.com` exists
+  - role `ADMIN`
+  - tenant `demo-tenant`
+
+### What worked
+
+- Vercel deployment pipeline after Prisma script fix.
+- Auth magic links once `NEXTAUTH_SECRET` was set.
+- Neon DB integration and migrations.
+- Resend domain verification and sending.
+- Invite-only access gating by seat allowlist.
+- Assessment runtime and scoring.
+- Hybrid model (traits + scenario competency scoring).
+- PDF generation endpoint and delivery.
+
+### What failed (and corresponding fixes)
+
+1. Scaffold command failed due folder naming.
+- Fix: scaffold in temp dir and sync.
+
+2. Prisma/Node compatibility mismatch (Prisma 7 vs Node 20.12).
+- Fix: pinned Prisma to 6.8.2.
+
+3. Missing `nodemailer` for next-auth email provider.
+- Fix: added dependency.
+
+4. Build-time env parsing crash.
+- Fix: lazy env loading pattern.
+
+5. Vercel cached Prisma client issue.
+- Fix: run `prisma generate` in `build` + `postinstall`.
+
+6. Production auth 500s (`NO_SECRET`).
+- Fix: set `NEXTAUTH_SECRET` in Vercel env.
+
+### Current deployed architecture/state (as of 2026-02-23)
+
+Platform:
+- Hosting: Vercel
+- Database: Neon Postgres via Vercel Marketplace
+- Auth: NextAuth email magic links
+- Mail: Resend
+- Domain: `www.olqlab.com` (canonical routing observed)
+
+Runtime status checks:
+- `/api/auth/providers` healthy (200).
+- DB migration state includes:
+  - `20260223170000_init`
+  - `20260223231000_hybrid_assessment`
+
+App capabilities currently implemented in code:
+- Admin:
+  - tenant search/create
+  - employee CSV import
+  - direct single-user add
+  - solo buyer onboarding
+  - user directory visibility
+  - assessment builder with mixed question types
+  - 40-question recommended template loader
+  - publish policy controls
+- Participant:
+  - magic-link sign-in
+  - mixed-format assessment flow
+  - delayed/policy-based report access
+- Reporting:
+  - trait and competency output
+  - narrative sections
+  - optional AI-enriched narrative
+  - PDF export endpoint
+
+### Conventional norm choices (design rationale)
+
+Implemented according to mainstream corporate assessment patterns:
+- personality section is no-right/no-wrong
+- scenario section scored on behavioral impacts
+- manager-facing output remains developmental
+- reports combine metrics + narrative + action steps
+
+### Known limitations / next backlog
+
+1. Psychometric calibration still lightweight.
+- Current scoring is deterministic and useful for pilot, but not normed against validated benchmark populations.
+
+2. Advanced enterprise controls are not complete yet.
+- No SSO/SAML.
+- No full compliance pack in product (SOC2/GDPR process docs deferred).
+
+3. Rich analytics and custom branding can be expanded.
+- Team-level heatmaps and advanced export packs can be deeper.
+
+4. Model governance for AI narratives.
+- Currently optional and prompt-constrained; can add stricter rubric templates and review workflow.
+
+### Exact commands/checks used during stabilization
+
+Build/lint stabilization:
+- `npm run lint`
+- `npm run build`
+- `npx prisma generate`
+
+DB operations:
+- `npx prisma migrate deploy`
+- `npm run prisma:seed`
+
+Operational checks:
+- `GET /api/auth/providers`
+- direct DB assertions for admin existence and question counts
+
+### Security note log
+
+- Credentials were shared during setup for rapid testing.
+- Best practice after this phase:
+  - rotate DB credentials
+  - rotate Resend API key
+  - rotate OpenAI key when added
+
+### Deployment handoff snapshot
+
+If redeploying from this revision:
+1. Push code.
+2. Ensure Vercel envs:
+   - `DATABASE_URL`
+   - `NEXTAUTH_SECRET`
+   - `NEXTAUTH_URL`
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM`
+   - optional: `OPENAI_API_KEY`, `REPORT_LLM_MODEL`
+3. Redeploy.
+4. Run `prisma migrate deploy`.
+5. Run seed if you want demo baseline data.
+
+This README section is intentionally exhaustive and acts as the project diary/history ledger up to this point.
+
+## Journal Addendum - Corrective Pass
+
+Timestamp:
+- UTC exact: `2026-02-23T19:19:48Z`
+- Local exact (IST): `2026-02-24 00:49:48 IST`
+
+Context of this pass:
+- Complaint set addressed:
+  - non-admin users seeing admin navigation/UI
+  - assessment not clearly accessible from home
+  - need for completion tracker (who completed / in progress / not started)
+  - need for cleaner, less confusing landing/dashboard behavior
+
+### What was changed in this pass
+
+1. Role segregation and admin gating
+- Added server-side role guard on `/admin`.
+- Non-admin users are now redirected away from `/admin`.
+- Home page now conditionally renders admin actions only for `ADMIN` role.
+- File changes:
+  - `src/app/admin/page.tsx` (server gate wrapper)
+  - `src/app/admin/AdminClient.tsx` (client admin UI moved here)
+  - `src/app/page.tsx` (role-based dashboard cards)
+
+2. Assessment accessibility and discoverability
+- Replaced old redirect-only `/assessment/current` with an Assessment Center list:
+  - shows all published assessments for the user tenant
+  - shows status per assessment (`Not Started`, `In Progress`, `Completed`)
+  - action buttons route to start/resume/report directly
+- Tightened session start permissions:
+  - user must belong to assessment tenant
+  - assessment must be published in same tenant
+  - valid seat required in that tenant
+- Added read-only protection for submitted sessions.
+- If already submitted, assessment start routes user to report.
+- File changes:
+  - `src/app/assessment/current/page.tsx`
+  - `src/app/api/assessment/sessions/start/route.ts`
+  - `src/app/api/assessment/sessions/[id]/answer/route.ts`
+  - `src/app/api/assessment/sessions/[id]/submit/route.ts`
+  - `src/app/assessment/[assessmentId]/page.tsx`
+  - `src/app/assessment/session/[sessionId]/page.tsx`
+
+3. Admin QoL tracker: completion and participant status
+- `GET /api/admin/assessments` now returns participant completion stats per assessment:
+  - total participants
+  - completed
+  - in progress
+  - not started
+  - completion rate
+- New endpoint:
+  - `GET /api/admin/assessments/:id/participants`
+  - returns per-user status and timestamps
+- Admin UI now includes "Assessment Participation Tracker" table with filter:
+  - ALL / SUBMITTED / IN_PROGRESS / NOT_STARTED
+- File changes:
+  - `src/app/api/admin/assessments/route.ts`
+  - `src/app/api/admin/assessments/[id]/participants/route.ts`
+  - `src/app/admin/AdminClient.tsx`
+
+4. Authentication and invite flow corrections
+- Sign-in now requires both:
+  - existing user record
+  - valid seat in that user tenant
+- Seat is marked assigned at first successful sign-in.
+- Directly added users are now created with `assigned: false` seat so invite flow works as intended.
+- CSV import now enforces seat limits and reports `seat_limit_reached` skips.
+- File changes:
+  - `src/lib/auth.ts`
+  - `src/app/api/admin/users/route.ts`
+  - `src/app/api/admin/users/import-csv/route.ts`
+
+5. Additional hardening
+- Leader report endpoint now verifies assessment tenant scope explicitly.
+- File changed:
+  - `src/app/api/reports/leader/[userId]/[assessmentId]/route.ts`
+
+### Validation results after changes
+
+Commands run:
+- `npm run lint` -> pass
+- `npm run build` -> pass
+
+Build output confirms route registration for:
+- `/admin`
+- `/assessment/current`
+- `/api/admin/assessments/[id]/participants`
+- all existing assessment/report APIs
+
+### Notes
+
+- The original long-form journal remains intact above; this section is only the latest corrective pass.
+- No secrets were added to the repository in this pass.

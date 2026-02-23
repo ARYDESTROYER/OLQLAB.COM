@@ -25,8 +25,12 @@ export async function GET(
 
   const assessment = await db.assessment.findUnique({
     where: { id: assessmentId },
-    include: { policy: true },
+    select: { tenantId: true, policy: true },
   });
+
+  if (!assessment || assessment.tenantId !== check.session.user.tenantId) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   if (!assessment?.policy?.leaderCanViewFullReport) {
     return NextResponse.json({ error: "Leader access disabled" }, { status: 403 });

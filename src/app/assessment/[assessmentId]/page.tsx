@@ -15,6 +15,10 @@ export default function AssessmentStartPage({ params }: { params: { assessmentId
       body: JSON.stringify({ assessmentId: params.assessmentId }),
     });
     const data = await res.json();
+    if (data.alreadySubmitted) {
+      router.push(`/reports/me/${params.assessmentId}`);
+      return;
+    }
     if (data.sessionId) {
       router.push(`/assessment/session/${data.sessionId}`);
       return;

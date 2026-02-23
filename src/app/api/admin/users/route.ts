@@ -122,10 +122,10 @@ export async function POST(req: NextRequest) {
     create: {
       tenantId,
       userEmail: normalizedEmail,
-      assigned: true,
+      assigned: false,
     },
     update: {
-      assigned: true,
+      assigned: existingSeat?.assigned ?? false,
     },
   });
 

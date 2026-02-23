@@ -45,6 +45,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, AnswerState>>({});
   const [assessmentId, setAssessmentId] = useState<string>("");
+  const [sessionStatus, setSessionStatus] = useState<"IN_PROGRESS" | "SUBMITTED">("IN_PROGRESS");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
@@ -57,6 +58,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
       setAssessmentId(data.assessmentId);
       setSections(data.sections || []);
       setQuestions(data.questions);
+      setSessionStatus(data.status === "SUBMITTED" ? "SUBMITTED" : "IN_PROGRESS");
 
       const next: Record<string, AnswerState> = {};
       for (const answer of data.answers as Answer[]) {
@@ -82,6 +84,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
       }).length,
     [answers, questions],
   );
+  const isReadOnly = sessionStatus === "SUBMITTED";
 
   const groupedSections = useMemo(() => {
     if (sections.length === 0) {
@@ -104,6 +107,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
   }, [questions, sections]);
 
   async function answerLikert(questionId: string, value: number) {
+    if (isReadOnly) return;
     setAnswers((prev) => ({ ...prev, [questionId]: { value } }));
 
     await fetch(`/api/assessment/sessions/${params.sessionId}/answer`, {
@@ -114,6 +118,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
   }
 
   async function answerScenario(questionId: string, optionId: string) {
+    if (isReadOnly) return;
     setAnswers((prev) => ({ ...prev, [questionId]: { optionId } }));
 
     await fetch(`/api/assessment/sessions/${params.sessionId}/answer`, {
@@ -124,6 +129,10 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
   }
 
   async function submit() {
+    if (isReadOnly) {
+      router.push(`/reports/me/${assessmentId}`);
+      return;
+    }
     setSubmitting(true);
     const res = await fetch(`/api/assessment/sessions/${params.sessionId}/submit`, {
       method: "POST",
@@ -142,6 +151,11 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
         <p className="mt-2 text-sm text-slate-700">
           Progress: {answeredCount}/{questions.length}
         </p>
+        {isReadOnly && (
+          <p className="mt-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800">
+            This session has already been submitted. Responses are read-only.
+          </p>
+        )}
         <div className="mt-3 h-2 rounded-full bg-white/80">
           <div
             className="h-2 rounded-full bg-slate-900"
@@ -188,6 +202,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
                             : "border-slate-300 bg-white"
                         }`}
                         onClick={() => answerLikert(question.id, value)}
+                        disabled={isReadOnly}
                       >
                         {value}
                       </button>
@@ -204,6 +219,7 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
                             : "border-slate-300 bg-white"
                         }`}
                         onClick={() => answerScenario(question.id, option.id)}
+                        disabled={isReadOnly}
                       >
                         {option.text}
                       </button>
@@ -218,10 +234,10 @@ export default function SessionPage({ params }: { params: { sessionId: string } 
 
       <button
         className="w-full rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white disabled:opacity-50"
-        disabled={submitting || answeredCount !== questions.length}
+        disabled={submitting || (!isReadOnly && answeredCount !== questions.length)}
         onClick={submit}
       >
-        {submitting ? "Submitting..." : "Submit Assessment"}
+        {submitting ? "Submitting..." : isReadOnly ? "Go To Report" : "Submit Assessment"}
       </button>
     </main>
   );
