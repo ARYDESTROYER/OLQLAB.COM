@@ -22,9 +22,10 @@ Corporate personality assessment platform with hybrid quiz support:
 - Scoring engine computes:
   - Big Five trait percentages
   - competency impact totals
-- Employee and leader report pages upgraded for mixed scoring output
-- AI-assisted narrative sections (optional, when `OPENAI_API_KEY` is set)
-- PDF report download endpoint with trait bars and development summary
+- Premium participant and leader report pages with long-form contextual narratives
+- AI-enriched narrative sections (optional, when `OPENAI_API_KEY` is set)
+- Admin-only report regeneration action for already submitted assessments
+- PDF report endpoint with guaranteed 3-page narrative layout and test timestamp
 
 ## Tech stack
 
@@ -71,6 +72,22 @@ npm run dev
 5. Build assessment in visual builder or import spreadsheet CSV
 6. Create assessment
 7. Publish and configure visibility policy
+8. Track participant status and regenerate submitted reports when needed
+
+## Admin report regeneration workflow
+
+1. Open `/admin`
+2. Select an assessment in **Publish & Visibility Policy**
+3. In **Assessment Participation Tracker**, locate a participant in `SUBMITTED` status
+4. Click **Regenerate Report**
+5. Backend recomputes trait scores, competency totals, narrative, and optional LLM enrichment
+6. Existing `Score` + `Report` records are upserted in place
+7. Participant immediately sees the regenerated report in `/reports/me/:assessmentId` and PDF export
+
+Notes:
+- Regeneration is admin-only (`requireAdmin`)
+- Regeneration is tenant-scoped (admin tenant must match assessment tenant)
+- Regeneration only works for sessions with status `SUBMITTED`
 
 ## Spreadsheet CSV format for quiz import
 
@@ -102,6 +119,8 @@ Notes:
 - `GET /api/admin/assessments`
 - `POST /api/admin/assessments`
 - `POST /api/admin/assessments/:id/publish`
+- `GET /api/admin/assessments/:id/participants`
+- `POST /api/admin/reports/regenerate`
 - `POST /api/assessment/sessions/start`
 - `GET /api/assessment/sessions/:id`
 - `POST /api/assessment/sessions/:id/answer`
@@ -109,6 +128,24 @@ Notes:
 - `GET /api/reports/me/:assessmentId`
 - `GET /api/reports/me/:assessmentId/pdf`
 - `GET /api/reports/leader/:userId/:assessmentId`
+
+## Report model (v2)
+
+Report generation now stores a richer narrative payload in `Report.narrativeJson`, including:
+- `profileHeadline`
+- `summary`
+- `strengths`
+- `growthAreas`
+- `actions` (12-week action structure)
+- `workplaceSignals`
+- `reflectionPrompts`
+- `managerDiscussionGuide`
+- `traitNarratives` (per-trait contextual interpretation)
+- `competencyThemes` (named strengths/focus themes without exposing numeric deltas to users)
+- `assessmentTakenAt`, `assessmentTitle`, `participantName`
+- `aiNarrative` (optional enrichment when OpenAI key is configured)
+
+The participant and leader report UIs consume this v2 payload and also include fallback handling for older records.
 
 ## Migrations added
 
@@ -485,3 +522,42 @@ Build output confirms route registration for:
 
 - The original long-form journal remains intact above; this section is only the latest corrective pass.
 - No secrets were added to the repository in this pass.
+
+## Journal Addendum - Report v2 + Admin Regeneration
+
+Timestamp:
+- UTC exact: `2026-02-24T00:00:00Z` (documented update window)
+
+What changed:
+1. Premium report model rollout
+- Replaced short score-heavy narrative style with long-form contextual report payload (`reportVersion: v2`).
+- Added richer narrative sections:
+  - profile headline
+  - trait-level contextual interpretation
+  - strengths/development with applied workplace guidance
+  - workplace signals
+  - reflection prompts
+  - manager discussion guide
+  - expanded 12-week action plan
+
+2. Participant/leader UI updates
+- Report pages now prioritize contextual interpretation over raw scoring output.
+- Competency score tables are no longer shown to end users in report UI.
+- Test timestamp is displayed in report headers.
+
+3. PDF overhaul
+- PDF export endpoint now renders a guaranteed 3-page structure.
+- Includes explicit test timestamp and long-form sections.
+- Removes old lightweight score-table style in participant-facing PDF.
+
+4. Admin-only report regeneration
+- Added endpoint:
+  - `POST /api/admin/reports/regenerate`
+- Added Admin UI action in participation tracker:
+  - `Regenerate Report` button for `SUBMITTED` participants only.
+- Regeneration recomputes score and rewrites report narrative for the selected participant/assessment.
+- Regenerated report is immediately reflected in participant web report and PDF export.
+
+Validation:
+- `npm run lint` passed
+- `npm run build` passed

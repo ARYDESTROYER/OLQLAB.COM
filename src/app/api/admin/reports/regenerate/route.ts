@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import { requireSession } from "@/lib/api-auth";
 import { computeScores, generateNarrative } from "@/lib/score";
 import { generateAiNarrative } from "@/lib/ai-report";
+import { requireAdmin } from "@/lib/api-auth";
+import { db } from "@/lib/db";
 
-export async function POST(
-  _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  const check = await requireSession();
+export async function POST(req: NextRequest) {
+  const check = await requireAdmin();
   if ("error" in check) return check.error;
-  const { id } = await params;
+
+  const body = (await req.json().catch(() => null)) as
+    | { assessmentId?: string; userId?: string }
+    | null;
+
+  const assessmentId = body?.assessmentId?.trim();
+  const userId = body?.userId?.trim();
+
+  if (!assessmentId || !userId) {
+    return NextResponse.json(
+      { error: "assessmentId and userId are required." },
+      { status: 400 },
+    );
+  }
 
   const session = await db.quizSession.findUnique({
-    where: { id },
+    where: {
+      assessmentId_userId: {
+        assessmentId,
+        userId,
+      },
+    },
     include: {
       assessment: {
         include: {
@@ -30,7 +45,6 @@ export async function POST(
               },
             },
           },
-          policy: true,
         },
       },
       answers: true,
@@ -38,54 +52,55 @@ export async function POST(
     },
   });
 
-  if (!session || session.userId !== check.session.user.id) {
+  if (!session) {
+    return NextResponse.json({ error: "Assessment session not found." }, { status: 404 });
+  }
+
+  if (session.assessment.tenantId !== check.session.user.tenantId) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  if (session.status === "SUBMITTED") {
-    return NextResponse.json({
-      submitted: true,
-      alreadySubmitted: true,
-      postSubmitMessage:
-        session.assessment.policy?.postSubmitMessage ||
-        "Thanks for completing your assessment.",
-    });
+  if (session.status !== "SUBMITTED") {
+    return NextResponse.json(
+      { error: "Only submitted assessments can be regenerated." },
+      { status: 400 },
+    );
   }
 
   const { traits, competencies } = computeScores(
     session.assessment.questions,
     session.answers,
   );
-  const submittedAt = new Date();
+
   const baseNarrative = generateNarrative(traits, competencies);
   const aiNarrative = await generateAiNarrative(traits, competencies, {
     fullName: `${session.user.firstName} ${session.user.lastName}`.trim() || "Participant",
     email: session.user.email,
     assessmentTitle: session.assessment.title,
   });
+
+  const now = new Date();
   const narrative = {
     ...baseNarrative,
-    assessmentTakenAt: submittedAt.toISOString(),
+    assessmentTakenAt: session.submittedAt?.toISOString() || now.toISOString(),
     assessmentTitle: session.assessment.title,
     participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    regeneratedAt: now.toISOString(),
+    regeneratedByAdminId: check.session.user.id,
     aiNarrative,
   };
 
   await db.$transaction([
-    db.quizSession.update({
-      where: { id },
-      data: { status: "SUBMITTED", submittedAt },
-    }),
     db.score.upsert({
       where: {
         assessmentId_userId: {
-          assessmentId: session.assessmentId,
-          userId: session.userId,
+          assessmentId,
+          userId,
         },
       },
       create: {
-        assessmentId: session.assessmentId,
-        userId: session.userId,
+        assessmentId,
+        userId,
         ...traits,
         competencyJson: competencies,
       },
@@ -97,23 +112,26 @@ export async function POST(
     db.report.upsert({
       where: {
         assessmentId_userId: {
-          assessmentId: session.assessmentId,
-          userId: session.userId,
+          assessmentId,
+          userId,
         },
       },
       create: {
-        assessmentId: session.assessmentId,
-        userId: session.userId,
+        assessmentId,
+        userId,
         narrativeJson: JSON.stringify(narrative),
       },
-      update: { narrativeJson: JSON.stringify(narrative) },
+      update: {
+        narrativeJson: JSON.stringify(narrative),
+      },
     }),
   ]);
 
   return NextResponse.json({
-    submitted: true,
-    postSubmitMessage:
-      session.assessment.policy?.postSubmitMessage ||
-      "Thanks for completing your assessment.",
+    ok: true,
+    message: "Report regenerated successfully.",
+    assessmentId,
+    userId,
+    regeneratedAt: now.toISOString(),
   });
 }

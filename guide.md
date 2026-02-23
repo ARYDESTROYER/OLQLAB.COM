@@ -1,107 +1,298 @@
-# OLQLAB Guide
+# OLQLAB Guide (Deep Technical Handover)
 
-This guide is the complete handover for the OLQLAB assessment platform.
-It explains product behavior, code structure, local development, and production deployment with Vercel + Neon + Resend.
+This guide is the canonical implementation handover for the OLQLAB platform as it exists in this repository.
+It is intentionally detailed so a new engineer can operate, debug, extend, and deploy the system without additional tribal context.
 
-## 1. What OLQLAB Is
+## 1. Product Purpose
 
-OLQLAB is a corporate personality and workstyle assessment platform.
-It supports:
-- invite-only email sign-in (magic link)
+OLQLAB is a corporate personality + workplace behavior assessment platform.
+
+The system combines:
+- trait-based personality items (`LIKERT_TRAIT`)
+- scenario judgment items (`SJT_SINGLE`) with competency impacts
+
+And provides:
+- invite-only email sign-in
 - role-based access (`ADMIN`, `EMPLOYEE`, `LEADER`)
-- hybrid assessments:
-  - personality Likert questions (`LIKERT_TRAIT`)
-  - scenario questions with weighted competency scoring (`SJT_SINGLE`)
-- participant reports + leader view + PDF export
-- admin controls for client onboarding, participant imports, assessment creation, publish policy, and completion tracking
+- assessment assignment/completion workflow
+- participant and leader report views
+- multi-page PDF report export
+- admin tooling for tenant/user/assessment operations
+- admin-only report regeneration for submitted assessments
 
-## 2. Core User Roles
+## 2. Role and Access Model
+
+### 2.1 Roles
 
 - `ADMIN`
-  - Access to `/admin`
-  - Creates tenants (clients), users, assessments, and policies
-  - Sees participation tracking and directory
+  - Full access to `/admin`
+  - Tenant management, participant import, assessment authoring, publish policy, participation tracking
+  - Can regenerate reports for submitted sessions in their own tenant
 - `EMPLOYEE`
-  - Can take assigned assessment(s)
-  - Can view own reports (depending on publish policy)
+  - Can complete published assessments in their tenant
+  - Can view own report based on assessment policy
 - `LEADER`
-  - Can do everything EMPLOYEE can
-  - Can view direct-report leader reports if policy allows
+  - Same as employee for own data
+  - Can view direct-report leader report when policy allows
 
-## 3. Current Product Flows
+### 2.2 Core Access Guards
 
-### 3.1 Sign-in Flow
+- `requireSession()` ensures authenticated user
+- `requireAdmin()` ensures `session.user.role === "ADMIN"`
 
-1. User enters email at `/signin`
-2. Magic link sent via Resend
-3. On sign-in callback:
-   - user record must exist
-   - user must have a valid seat in that tenant
-   - seat is marked `assigned=true` after successful sign-in
+Access is validated server-side in route handlers; frontend UI is not relied on as security.
 
-### 3.2 Assessment Flow
+## 3. Data Model (Prisma)
 
-1. User opens `/assessment/current` (Assessment Center)
-2. Sees all published assessments in tenant with status:
+Primary models relevant to assessment and reporting:
+- `Tenant`
+- `User`
+- `Seat`
+- `Assessment`
+- `AssessmentSection`
+- `Question`
+- `QuestionOption`
+- `OptionImpact`
+- `QuizSession`
+- `Answer`
+- `Score`
+- `Report`
+
+### 3.1 Runtime Entities
+
+- `QuizSession` is unique per (`assessmentId`, `userId`)
+- `QuizSession.status` transitions:
+  - `IN_PROGRESS` -> `SUBMITTED`
+- `Score` stores numeric outputs:
+  - Big Five trait percentages
+  - `competencyJson` raw competency deltas
+- `Report` stores narrative JSON (`narrativeJson`) consumed by web and PDF report outputs
+
+## 4. End-to-End Runtime Flow
+
+### 4.1 Sign-in
+
+1. User requests magic link at `/signin`
+2. NextAuth callback validates:
+   - user exists
+   - seat exists in same tenant
+3. seat marked `assigned=true` on successful sign-in
+
+### 4.2 Assessment
+
+1. User opens `/assessment/current`
+2. Published assessments for user tenant are listed with status:
    - `Not Started`
    - `In Progress`
    - `Completed`
-3. Starts/resumes assessment
-4. Answers saved per question
-5. Submit generates:
-   - trait scores
-   - competency scores
-   - narrative report (plus optional AI augmentation)
+3. Start/resume creates or reuses session
+4. Answers persist by question
+5. Submit route computes score + narrative and stores `Score` + `Report`
 
-### 3.3 Report Flow
+### 4.3 Reporting
 
-- `/reports/current` lists all submitted reports for current user
-- `/reports/me/[assessmentId]` shows full participant report
-- `/api/reports/me/[assessmentId]/pdf` downloads PDF report
+- `/reports/current` lists submitted assessments
+- `/reports/me/[assessmentId]` renders participant report
+- `/reports/leader/[userId]/[assessmentId]` renders leader view when policy allows
+- `/api/reports/me/[assessmentId]/pdf` exports participant PDF
 
-### 3.4 Admin Flow
+Policy gates are enforced before report access:
+- `showResultsToEmployee`
+- `resultReleaseDelayHours`
+- `leaderCanViewFullReport` (for leader route)
 
-1. `/admin` -> search/select/create client
-2. Add users via CSV or direct single-user form
-3. Optional solo-buyer flow (1-seat client + one user)
-4. Build assessment in UI or load 40-question template
-5. Publish with policy controls
-6. Track participation:
-   - total
-   - completed
-   - in progress
-   - not started
+## 5. Report Architecture (v2)
 
-## 4. Project Structure
+The report system is now a long-form narrative model designed for premium deliverables.
 
-- `src/app/page.tsx`
-  - Landing page (logged out) + workspace dashboard (logged in)
-- `src/app/admin/page.tsx`
-  - Server guard wrapper (admin-only)
+### 5.1 Scoring Layer (`src/lib/score.ts`)
+
+`computeScores(questions, answers)`:
+- Trait scoring:
+  - Normalizes LIKERT values to 0..1, handles reverse scoring
+  - Aggregates and scales to 0..100 percentages
+- Competency scoring:
+  - Resolves selected SJT option
+  - Sums `OptionImpact.delta` per competency
+
+Output:
+- `traits`: Big Five percentages
+- `competencies`: sorted competency deltas
+
+### 5.2 Narrative Layer (`generateNarrative`)
+
+`generateNarrative(traits, competencies)` now returns a structured `GeneratedNarrative` payload:
+- `reportVersion: "v2"`
+- `profileHeadline`
+- `summary`
+- `strengths`
+- `growthAreas`
+- `actions`
+- `workplaceSignals`
+- `reflectionPrompts`
+- `managerDiscussionGuide`
+- `traitNarratives` (per trait)
+- `competencyThemes` (named themes, strength/focus)
+- `competencyBreakdown` (stored raw, not shown as score table in participant report)
+
+### 5.3 Trait Narrative Rules
+
+Each trait gets:
+- qualitative band (`high`, `moderate`, `emerging`)
+- contextual interpretation
+- leverage guidance
+- development focus
+
+This replaces the old score-only bullet style and produces actionable context per trait.
+
+### 5.4 AI Enrichment Layer (`src/lib/ai-report.ts`)
+
+`generateAiNarrative(...)` is optional (requires `OPENAI_API_KEY`).
+
+Prompt constraints:
+- no clinical/medical framing
+- no numeric score output in narrative
+- no “AI” mention in generated prose
+- workplace-specific examples preferred
+
+If model output fails JSON parse, fallback narrative is used.
+
+### 5.5 Narrative Metadata
+
+At submit (and admin regeneration), narrative stores:
+- `assessmentTakenAt`
+- `assessmentTitle`
+- `participantName`
+- optional `aiNarrative`
+
+When admin regeneration is used, metadata also includes:
+- `regeneratedAt`
+- `regeneratedByAdminId`
+
+## 6. PDF Architecture (3-page minimum)
+
+PDF route:
+- `GET /api/reports/me/:assessmentId/pdf`
+
+Characteristics:
+- fixed 3-page structure (cover/summary, trait context, development plan)
+- explicit `Test Taken` timestamp in identity block
+- richer typography and section hierarchy
+- no raw competency +/- table shown to participant
+
+Page structure:
+- Page 1:
+  - title and assessment identity
+  - participant identity
+  - test taken date/time
+  - summary + strength snapshot + development snapshot
+- Page 2:
+  - trait context cards
+  - scenario behavior themes
+- Page 3:
+  - 12-week action plan
+  - workplace signals
+  - reflection prompts
+  - manager discussion guide
+  - extended insight block (if present)
+
+## 7. Admin Report Regeneration (New)
+
+### 7.1 Purpose
+
+Allows admins to rebuild report outputs for already submitted assessments after:
+- report logic updates
+- narrative style changes
+- prompt improvements
+- bug fixes in scoring or formatting
+
+### 7.2 Route
+
+- `POST /api/admin/reports/regenerate`
+
+Request body:
+```json
+{
+  "assessmentId": "<assessment-id>",
+  "userId": "<participant-user-id>"
+}
+```
+
+### 7.3 Security and Scope
+
+Route enforces:
+- authenticated admin (`requireAdmin`)
+- assessment session exists for provided `assessmentId` + `userId`
+- assessment tenant matches admin tenant
+- session status is `SUBMITTED`
+
+### 7.4 Regeneration Steps
+
+1. Load submitted `QuizSession` with questions/options/impacts/answers/user
+2. Recompute `traits` + `competencies` via `computeScores`
+3. Rebuild base narrative via `generateNarrative`
+4. Optionally generate enrichment via `generateAiNarrative`
+5. Upsert `Score`
+6. Upsert `Report` with fresh `narrativeJson`
+
+### 7.5 User Impact
+
+No migration needed.
+
+Because participant report endpoints always load current `Report` row:
+- regenerated report is immediately visible to participant and leader views
+- PDF export immediately reflects new content
+
+## 8. Admin UI Behavior
+
+File:
 - `src/app/admin/AdminClient.tsx`
-  - Full admin UI
-- `src/app/assessment/current/page.tsx`
-  - Assessment Center
-- `src/app/reports/current/page.tsx`
-  - Reports list for current user
-- `src/app/api/*`
-  - Route handlers for admin/auth/assessment/reports
-- `src/lib/auth.ts`
-  - NextAuth config + sign-in gate logic
-- `src/lib/score.ts`
-  - scoring and base narrative generation
-- `src/lib/ai-report.ts`
-  - optional LLM narrative enrichment
-- `prisma/schema.prisma`
-  - DB schema
-- `prisma/migrations/*`
-  - migration history
-- `prisma/seed.ts`
-  - seed data and recommended template
 
-## 5. Environment Variables
+Participation tracker includes:
+- filter by status (`ALL`, `SUBMITTED`, `IN_PROGRESS`, `NOT_STARTED`)
+- per-participant status and timestamps
+- `Regenerate Report` action only for `SUBMITTED` rows
 
-Create `.env.local` from `.env.example`.
+The action sends:
+- `POST /api/admin/reports/regenerate`
+
+Response is displayed in the admin panel for operator feedback.
+
+## 9. API Catalog
+
+### 9.1 Admin
+
+- `GET /api/admin/tenants`
+- `POST /api/admin/tenants`
+- `GET /api/admin/overview`
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+- `POST /api/admin/users/import-csv`
+- `POST /api/admin/invites/send`
+- `GET /api/admin/assessments`
+- `POST /api/admin/assessments`
+- `POST /api/admin/assessments/:id/publish`
+- `GET /api/admin/assessments/:id/participants`
+- `POST /api/admin/reports/regenerate`
+
+### 9.2 Assessment Runtime
+
+- `POST /api/assessment/sessions/start`
+- `GET /api/assessment/sessions/:id`
+- `POST /api/assessment/sessions/:id/answer`
+- `POST /api/assessment/sessions/:id/submit`
+
+### 9.3 Reports
+
+- `GET /api/reports/me/:assessmentId`
+- `GET /api/reports/me/:assessmentId/pdf`
+- `GET /api/reports/leader/:userId/:assessmentId`
+
+### 9.4 Auth
+
+- `GET/POST /api/auth/[...nextauth]`
+
+## 10. Environment Variables
 
 Required:
 - `DATABASE_URL`
@@ -114,7 +305,7 @@ Optional:
 - `OPENAI_API_KEY`
 - `REPORT_LLM_MODEL` (default: `gpt-4o-mini`)
 
-## 6. Local Development
+## 11. Local Setup and Quality Gates
 
 ```bash
 cd "/Users/ary/Documents/New project"
@@ -125,156 +316,111 @@ npm run prisma:seed
 npm run dev
 ```
 
-Open:
-- `http://localhost:3000`
-
 Quality checks:
 ```bash
 npm run lint
 npm run build
 ```
 
-## 7. Deploy (Vercel + Neon + Resend)
+## 12. Production Deployment Runbook
 
-### 7.1 Vercel Project Setup
-
-1. Push repo to GitHub
-2. Import repo in Vercel
-3. In Vercel Storage, create/attach Neon Postgres
-4. Add environment variables in Vercel project settings
-
-### 7.2 Neon Setup
-
-Use:
-- pooled URL for app runtime (`DATABASE_URL`)
-- non-pooled URL for migration commands if needed
-
-After deploy, run migrations:
+1. Push repository to GitHub
+2. Import in Vercel
+3. Attach Neon Postgres
+4. Set all required environment variables
+5. Deploy
+6. Run migrations:
 ```bash
 DATABASE_URL="<PROD_DATABASE_URL_UNPOOLED>" npx prisma migrate deploy
 ```
-
-Optional seed:
+7. Optional seed:
 ```bash
 DATABASE_URL="<PROD_DATABASE_URL_UNPOOLED>" npm run prisma:seed
 ```
 
-### 7.3 Resend Setup
+## 13. Smoke Tests (Post Deploy)
 
-1. Add and verify sending domain in Resend
-2. Create API key
-3. Set:
-   - `RESEND_API_KEY`
-   - `EMAIL_FROM` (verified sender, e.g. `noreply@olqlab.com`)
+### 13.1 Core Runtime
 
-### 7.4 Auth Settings
+1. Admin sign-in
+2. Client select/create
+3. Add participant(s)
+4. Send invite
+5. Publish assessment
+6. Participant starts and submits assessment
+7. Participant views report and downloads PDF
+8. Leader views report (if policy allows)
 
-- `NEXTAUTH_URL` must match production origin exactly (e.g. `https://www.olqlab.com`)
-- `NEXTAUTH_SECRET` must be set in production
+### 13.2 Regeneration Runtime
 
-Generate secret:
-```bash
-openssl rand -base64 32
-```
+1. Admin opens participation tracker
+2. Select submitted participant
+3. Trigger `Regenerate Report`
+4. Confirm success payload in admin UI
+5. Open participant report URL and verify refreshed narrative
+6. Re-download PDF and verify refreshed content and test timestamp
 
-### 7.5 Domain
+## 14. Troubleshooting
 
-- Point domain to Vercel
-- Set canonical primary domain in Vercel
-- Ensure `NEXTAUTH_URL` matches canonical domain
-
-## 8. API Overview
-
-Admin:
-- `GET /api/admin/tenants`
-- `POST /api/admin/tenants`
-- `GET /api/admin/overview`
-- `GET /api/admin/users`
-- `POST /api/admin/users`
-- `POST /api/admin/users/import-csv`
-- `POST /api/admin/invites/send`
-- `GET /api/admin/assessments`
-- `POST /api/admin/assessments`
-- `POST /api/admin/assessments/:id/publish`
-- `GET /api/admin/assessments/:id/participants`
-
-Assessment runtime:
-- `POST /api/assessment/sessions/start`
-- `GET /api/assessment/sessions/:id`
-- `POST /api/assessment/sessions/:id/answer`
-- `POST /api/assessment/sessions/:id/submit`
-
-Reports:
-- `GET /api/reports/me/:assessmentId`
-- `GET /api/reports/me/:assessmentId/pdf`
-- `GET /api/reports/leader/:userId/:assessmentId`
-
-Auth:
-- `GET/POST /api/auth/[...nextauth]`
-
-## 9. Operational Smoke Test (Production)
-
-1. Sign in with admin email
-2. Open `/admin`
-3. Create/select tenant
-4. Add participant (single or CSV)
-5. Send invite
-6. Create assessment and publish
-7. Sign in as participant
-8. Open `/assessment/current` and start assessment
-9. Submit assessment
-10. Open `/reports/current` and verify report + PDF download
-11. Confirm admin tracker reflects participant status changes
-
-## 10. Troubleshooting
-
-### 10.1 "Start" button stuck on "Starting..."
-
-Common root cause:
-- frontend sends missing `assessmentId` to `/api/assessment/sessions/start`
-
-Symptoms:
-- logs show `PrismaClientValidationError` and `assessmentId is missing`
-
-Fix:
-- ensure dynamic routes use `useParams` in client components
-- handle fetch failures with `try/catch/finally` so loading state resets
-- redeploy latest commit
-
-### 10.2 Magic link fails
+### 14.1 Report missing for participant
 
 Check:
-- `NEXTAUTH_SECRET` set
-- `NEXTAUTH_URL` correct
-- `RESEND_API_KEY` valid
-- `EMAIL_FROM` verified in Resend
+- session exists and `status=SUBMITTED`
+- assessment policy `showResultsToEmployee=true`
+- release delay elapsed (`resultReleaseDelayHours`)
+- `Score` and `Report` rows exist for (`assessmentId`, `userId`)
 
-### 10.3 Report not visible
+### 14.2 Regeneration fails with 400
 
-Check publish policy:
-- `showResultsToEmployee`
-- `resultReleaseDelayHours`
+Likely causes:
+- `assessmentId` or `userId` missing in request body
+- session not in `SUBMITTED` status
 
-### 10.4 Cannot sign in as invited user
+### 14.3 Regeneration fails with 403
 
-Check both records exist:
-- `User` for email
-- `Seat` in same tenant for email
+Likely cause:
+- admin tenant does not match assessment tenant
 
-## 11. Security and Maintenance
+### 14.4 Regeneration succeeds but text feels old
 
-- Rotate all leaked/shared credentials immediately
-- Keep DB, email, and LLM keys only in Vercel env vars
-- Never commit `.env.local`
-- Re-run:
-  - `npm run lint`
-  - `npm run build`
-  - before each production deployment
+Check:
+- participant is opening correct assessment report
+- regenerate was run for correct (`assessmentId`, `userId`)
+- optional AI key/model config if expecting enriched sections
 
-## 12. Notes for Future Developers
+### 14.5 PDF still looks short
 
-Recommended immediate next improvements:
-- add automated test suite for session start/submit/report flows
-- add audit logging for publish changes and admin mutations
-- add in-app notifications/toasts for fetch failures
-- add SSO (SAML/OIDC) for enterprise clients
+Ensure request is hitting updated route version and deployment is current.
+Current implementation always creates 3 pages in the PDF endpoint.
+
+## 15. Extension Notes
+
+Recommended next extensions:
+- audit log entry for regeneration events (`who`, `when`, `which report`)
+- optional batch regeneration endpoint by assessment
+- admin preview diff (before/after narrative)
+- queue-backed regeneration for high-volume tenants
+- report version pinning by assessment policy
+
+## 16. Security and Maintenance
+
+- Keep all secrets in environment variables only
+- Rotate credentials after sharing/testing
+- Do not commit `.env.local`
+- Run lint/build before every deploy
+- Keep Prisma + Next.js dependencies aligned with runtime Node version
+
+## 17. File Reference Map
+
+Primary files for report and regeneration behavior:
+- `src/lib/score.ts`
+- `src/lib/ai-report.ts`
+- `src/app/api/assessment/sessions/[id]/submit/route.ts`
+- `src/app/api/admin/reports/regenerate/route.ts`
+- `src/app/api/reports/me/[assessmentId]/route.ts`
+- `src/app/api/reports/leader/[userId]/[assessmentId]/route.ts`
+- `src/app/api/reports/me/[assessmentId]/pdf/route.ts`
+- `src/app/reports/me/[assessmentId]/page.tsx`
+- `src/app/reports/leader/[userId]/[assessmentId]/page.tsx`
+- `src/app/admin/AdminClient.tsx`
+

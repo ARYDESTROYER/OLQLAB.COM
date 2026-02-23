@@ -51,6 +51,11 @@ export async function GET(
   });
 
   return NextResponse.json({
+    assessment: {
+      id: session.assessment.id,
+      title: session.assessment.title,
+    },
+    submittedAt: session.submittedAt,
     score,
     narrative: report ? JSON.parse(report.narrativeJson) : null,
   });

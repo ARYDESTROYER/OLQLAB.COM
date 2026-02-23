@@ -5,26 +5,38 @@ import { useParams } from "next/navigation";
 
 type Data = {
   error?: string;
-  employee?: { firstName: string; lastName: string; email: string };
-  score?: {
-    openness: number;
-    conscientiousness: number;
-    extraversion: number;
-    agreeableness: number;
-    neuroticism: number;
-    competencyJson?: Array<{ code: string; name: string; score: number }>;
+  submittedAt?: string | null;
+  assessment?: {
+    id: string;
+    title: string;
   };
+  employee?: { firstName: string; lastName: string; email: string };
   narrative?: {
+    profileHeadline?: string;
     summary?: string;
     strengths?: string[];
     growthAreas?: string[];
     actions?: string[];
+    workplaceSignals?: string[];
+    managerDiscussionGuide?: string[];
+    assessmentTakenAt?: string;
     aiNarrative?: {
-      managerCoaching?: string;
       executiveSummary?: string;
+      managerCoaching?: string;
+      improvementRoadmap?: string[];
     };
   };
 };
+
+function formatDateTime(input?: string | null) {
+  if (!input) return "Not available";
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return "Not available";
+  return date.toLocaleString(undefined, {
+    dateStyle: "long",
+    timeStyle: "short",
+  });
+}
 
 export default function LeaderReportPage() {
   const params = useParams<{ userId: string; assessmentId: string }>();
@@ -56,53 +68,145 @@ export default function LeaderReportPage() {
   if (!data) return <main className="p-8">Loading...</main>;
   if (data.error) return <main className="p-8">{data.error}</main>;
 
+  const strengths = data.narrative?.strengths || [];
+  const growthAreas = data.narrative?.growthAreas || [];
+  const actions = data.narrative?.actions || [];
+  const workplaceSignals = data.narrative?.workplaceSignals || [];
+  const managerGuide = data.narrative?.managerDiscussionGuide || [];
+
+  const takenAt = formatDateTime(
+    data.narrative?.assessmentTakenAt || data.submittedAt || null,
+  );
+
   return (
-    <main className="mx-auto max-w-4xl space-y-6 p-6 md:p-10">
-      <header className="rounded-3xl bg-gradient-to-r from-sky-100 via-cyan-50 to-lime-100 p-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Leader View</h1>
-        <p className="mt-1 text-sm text-slate-700">
-          {data.employee?.firstName} {data.employee?.lastName} ({data.employee?.email})
+    <main className="mx-auto max-w-6xl space-y-6 p-5 md:p-9">
+      <header className="rounded-[30px] border border-cyan-100 bg-gradient-to-r from-sky-100 via-cyan-50 to-lime-100 p-6 md:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Leader View
+        </p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+          {data.employee?.firstName} {data.employee?.lastName}
+        </h1>
+        <p className="mt-1 text-sm text-slate-700">{data.employee?.email}</p>
+        <p className="mt-4 text-sm text-slate-800">
+          <span className="font-semibold">Assessment:</span>{" "}
+          {data.assessment?.title || "Assessment"}
+        </p>
+        <p className="mt-1 text-sm text-slate-800">
+          <span className="font-semibold">Test Taken:</span> {takenAt}
         </p>
       </header>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Trait Snapshot</h2>
-        <pre className="mt-3 overflow-auto rounded bg-slate-50 p-3 text-xs">{JSON.stringify(data.score, null, 2)}</pre>
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-xl font-semibold text-slate-900">
+          {data.narrative?.profileHeadline || "Development Summary"}
+        </h2>
+        <p className="mt-3 text-sm leading-7 text-slate-700">
+          {data.narrative?.summary ||
+            "Use this report to coach for sustained behavior change through specific examples and weekly feedback cycles."}
+        </p>
+        {data.narrative?.aiNarrative?.executiveSummary && (
+          <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm leading-7 text-slate-700">
+            {data.narrative.aiNarrative.executiveSummary}
+          </p>
+        )}
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">
         <article className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
-          <h3 className="font-semibold">Strength Signals</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-            {(data.narrative?.strengths || []).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
+          <h3 className="text-lg font-semibold text-emerald-950">Strength Signals</h3>
+          <ul className="mt-3 space-y-3 text-sm leading-7 text-emerald-950">
+            {strengths.length > 0 ? (
+              strengths.map((item, index) => (
+                <li key={`${index}-${item.slice(0, 48)}`} className="rounded-lg bg-white/70 px-3 py-2">
+                  {item}
+                </li>
+              ))
+            ) : (
+              <li className="rounded-lg bg-white/70 px-3 py-2">No strength narrative available.</li>
+            )}
           </ul>
         </article>
+
         <article className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
-          <h3 className="font-semibold">Coaching Opportunities</h3>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm">
-            {(data.narrative?.growthAreas || []).map((item) => (
-              <li key={item}>{item}</li>
-            ))}
+          <h3 className="text-lg font-semibold text-amber-950">Coaching Priorities</h3>
+          <ul className="mt-3 space-y-3 text-sm leading-7 text-amber-950">
+            {growthAreas.length > 0 ? (
+              growthAreas.map((item, index) => (
+                <li key={`${index}-${item.slice(0, 48)}`} className="rounded-lg bg-white/70 px-3 py-2">
+                  {item}
+                </li>
+              ))
+            ) : (
+              <li className="rounded-lg bg-white/70 px-3 py-2">No growth narrative available.</li>
+            )}
           </ul>
         </article>
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h3 className="font-semibold">Suggested Manager Actions</h3>
-        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm">
-          {(data.narrative?.actions || []).map((item) => (
-            <li key={item}>{item}</li>
-          ))}
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h3 className="text-xl font-semibold text-slate-900">Suggested Manager Actions</h3>
+        <ol className="mt-3 space-y-3 text-sm leading-7 text-slate-700">
+          {actions.length > 0 ? (
+            actions.map((item, index) => (
+              <li key={`${index}-${item.slice(0, 48)}`} className="flex gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                  {index + 1}
+                </span>
+                <span>{item}</span>
+              </li>
+            ))
+          ) : (
+            <li className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              No manager action plan available.
+            </li>
+          )}
         </ol>
+
         {data.narrative?.aiNarrative?.managerCoaching && (
-          <p className="mt-3 rounded-lg bg-indigo-50 p-3 text-sm text-slate-700">
-            <span className="font-semibold">AI coaching note:</span>{" "}
+          <p className="mt-4 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 text-sm leading-7 text-indigo-950">
+            <span className="font-semibold">Coaching note:</span>{" "}
             {data.narrative.aiNarrative.managerCoaching}
           </p>
         )}
+
+        {data.narrative?.aiNarrative?.improvementRoadmap?.length ? (
+          <ul className="mt-4 space-y-2 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3 text-sm leading-7 text-indigo-950">
+            {data.narrative.aiNarrative.improvementRoadmap.map((item, index) => (
+              <li key={`${index}-${item.slice(0, 48)}`}>{item}</li>
+            ))}
+          </ul>
+        ) : null}
       </section>
+
+      {(workplaceSignals.length > 0 || managerGuide.length > 0) && (
+        <section className="grid gap-4 md:grid-cols-2">
+          <article className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="text-lg font-semibold text-slate-900">Workplace Signals</h3>
+            <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-700">
+              {workplaceSignals.map((item, index) => (
+                <li key={`${index}-${item.slice(0, 48)}`}>{item}</li>
+              ))}
+            </ul>
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white p-5">
+            <h3 className="text-lg font-semibold text-slate-900">Manager Conversation Guide</h3>
+            <ul className="mt-3 space-y-2 text-sm leading-7 text-slate-700">
+              {managerGuide.length > 0 ? (
+                managerGuide.map((item, index) => (
+                  <li key={`${index}-${item.slice(0, 48)}`}>{item}</li>
+                ))
+              ) : (
+                <li>
+                  Use concrete examples from recent projects, agree one weekly behavior target, and
+                  revisit in a fixed coaching cadence.
+                </li>
+              )}
+            </ul>
+          </article>
+        </section>
+      )}
     </main>
   );
 }

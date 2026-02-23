@@ -325,6 +325,8 @@ export default function AdminPage() {
   const [participantStatusFilter, setParticipantStatusFilter] = useState<
     "ALL" | ParticipantStatus
   >("ALL");
+  const [regeneratingUserId, setRegeneratingUserId] = useState("");
+  const [regenerateOutput, setRegenerateOutput] = useState("");
   const [publishOutput, setPublishOutput] = useState("");
   const [publishPolicy, setPublishPolicy] = useState({
     isPublished: true,
@@ -703,6 +705,42 @@ export default function AdminPage() {
     });
     const data = await res.json();
     setPublishOutput(JSON.stringify(data, null, 2));
+  }
+
+  async function loadParticipants(assessmentId: string) {
+    try {
+      const res = await fetch(`/api/admin/assessments/${assessmentId}/participants`);
+      const data = await res.json();
+      setAssessmentParticipants(data.participants || []);
+    } catch {
+      setAssessmentParticipants([]);
+    }
+  }
+
+  async function regenerateParticipantReport(userId: string) {
+    if (!selectedAssessmentId) return;
+    setRegeneratingUserId(userId);
+    setRegenerateOutput("");
+
+    try {
+      const res = await fetch("/api/admin/reports/regenerate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assessmentId: selectedAssessmentId, userId }),
+      });
+      const data = await res.json();
+      setRegenerateOutput(JSON.stringify(data, null, 2));
+
+      if (res.ok) {
+        await loadParticipants(selectedAssessmentId);
+      }
+    } catch {
+      setRegenerateOutput(
+        JSON.stringify({ error: "Could not regenerate report. Please retry." }, null, 2),
+      );
+    } finally {
+      setRegeneratingUserId("");
+    }
   }
 
   return (
@@ -1366,6 +1404,7 @@ export default function AdminPage() {
                   <th className="px-3 py-2">Manager</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Last Activity</th>
+                  <th className="px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -1385,11 +1424,32 @@ export default function AdminPage() {
                           ? new Date(participant.startedAt).toLocaleString()
                           : "-"}
                     </td>
+                    <td className="px-3 py-2">
+                      {participant.status === "SUBMITTED" ? (
+                        <button
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                          onClick={() => regenerateParticipantReport(participant.userId)}
+                          disabled={Boolean(regeneratingUserId)}
+                        >
+                          {regeneratingUserId === participant.userId
+                            ? "Regenerating..."
+                            : "Regenerate Report"}
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400">-</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+        )}
+
+        {regenerateOutput && (
+          <pre className="mt-4 overflow-auto rounded bg-slate-50 p-3 text-xs">
+            {regenerateOutput}
+          </pre>
         )}
       </section>
     </main>

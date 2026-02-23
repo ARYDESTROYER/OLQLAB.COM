@@ -25,7 +25,7 @@ export async function GET(
 
   const assessment = await db.assessment.findUnique({
     where: { id: assessmentId },
-    select: { tenantId: true, policy: true },
+    select: { id: true, title: true, tenantId: true, policy: true },
   });
 
   if (!assessment || assessment.tenantId !== check.session.user.tenantId) {
@@ -42,6 +42,15 @@ export async function GET(
   const report = await db.report.findUnique({
     where: { assessmentId_userId: { assessmentId, userId } },
   });
+  const session = await db.quizSession.findUnique({
+    where: {
+      assessmentId_userId: {
+        assessmentId,
+        userId,
+      },
+    },
+    select: { submittedAt: true },
+  });
 
   return NextResponse.json({
     employee: {
@@ -50,6 +59,11 @@ export async function GET(
       firstName: employee.firstName,
       lastName: employee.lastName,
     },
+    assessment: {
+      id: assessment.id,
+      title: assessment.title,
+    },
+    submittedAt: session?.submittedAt || null,
     score,
     narrative: report ? JSON.parse(report.narrativeJson) : null,
   });

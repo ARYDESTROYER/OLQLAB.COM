@@ -25,24 +25,34 @@ function parseJson(text: string) {
 }
 
 function fallbackNarrative(traits: TraitScores, competencies: CompetencyScore[]): AiNarrative {
-  const topCompetencies = competencies.slice(0, 3).map((item) => item.name).join(", ");
+  const topCompetencies = competencies
+    .filter((item) => item.score > 0)
+    .slice(0, 3)
+    .map((item) => item.name)
+    .join(", ");
   const riskCompetencies = [...competencies]
     .reverse()
-    .slice(0, 2)
+    .filter((item) => item.score < 0)
+    .slice(0, 3)
     .map((item) => item.name)
     .join(", ");
 
+  const opennessSignal = traits.openness >= 70 ? "high" : traits.openness >= 35 ? "moderate" : "emerging";
+  const conscientiousSignal =
+    traits.conscientiousness >= 70 ? "high" : traits.conscientiousness >= 35 ? "moderate" : "emerging";
+
   return {
     executiveSummary:
-      "The profile indicates a blend of stable personality tendencies and practical behavior signals in real workplace scenarios.",
-    strengthsNarrative: `Top emerging behavioral strengths include ${topCompetencies || "collaboration and adaptability"}.`,
-    developmentNarrative: `Primary development focus areas include ${riskCompetencies || "emotional regulation and communication consistency"}.`,
+      "The profile shows a practical blend of personality tendencies and scenario behavior patterns, with clear opportunities to increase role impact through intentional habit design over the next quarter.",
+    strengthsNarrative: `Openness appears ${opennessSignal} and conscientiousness appears ${conscientiousSignal}, suggesting strong potential to pair creative problem framing with disciplined execution. Scenario choices further indicate momentum in ${topCompetencies || "collaboration and adaptability"}, which can be amplified by assigning this person to cross-functional projects with visible ownership.`,
+    developmentNarrative: `The primary growth edge is improving consistency under pressure while maintaining relationship quality in difficult trade-offs. Focus areas include ${riskCompetencies || "communication consistency and accountability follow-through"}, with best results likely from short behavior cycles, rapid feedback, and explicit pre-commitments before high-stakes moments.`,
     managerCoaching:
-      "Use specific weekly behavioral targets, frequent feedback loops, and role-play on high-stakes collaboration situations.",
+      "Use a weekly 15-minute coaching cadence focused on one observable strength behavior and one observable stretch behavior. Anchor discussions in recent project moments, name what changed, and agree the next experiment before closing the conversation.",
     improvementRoadmap: [
-      "Set one measurable behavior goal for the next 2 weeks.",
-      "Gather manager and peer feedback after one major collaboration event.",
-      "Repeat assessment in 8-12 weeks to track directional change.",
+      "Define one measurable behavior target for weeks 1-2 and capture baseline examples.",
+      "Run one stretch experiment in a live project each week for weeks 3-6.",
+      "Collect concise manager and peer feedback after each key collaboration moment.",
+      "Lock two repeatable habits by week 8 and review outcomes by week 12.",
     ],
     cautionNotes: [
       "Assessment output is developmental, not diagnostic.",
@@ -71,23 +81,23 @@ export async function generateAiNarrative(
     traitScores: traits,
     competencyScores: competencies,
     instruction:
-      "Create a professional, development-focused workplace personality report segment. No medical or clinical language.",
+      "Create a professional, development-focused workplace narrative. Avoid medical language and avoid reporting numeric scores in the narrative.",
   };
 
   try {
     const response = await client.responses.create({
       model,
       temperature: 0.3,
-      max_output_tokens: 1300,
+      max_output_tokens: 1700,
       input: [
         {
           role: "system",
           content:
-            "You are an organizational psychologist writing corporate development feedback. Return strictly valid JSON only.",
+            "You are an organizational psychologist writing premium corporate development feedback. Return strictly valid JSON only.",
         },
         {
           role: "user",
-          content: `Return JSON with keys: executiveSummary, strengthsNarrative, developmentNarrative, managerCoaching, improvementRoadmap (array of 3-6 strings), cautionNotes (array of 2-4 strings). Data: ${JSON.stringify(
+          content: `Return JSON with keys: executiveSummary, strengthsNarrative, developmentNarrative, managerCoaching, improvementRoadmap (array of 3-6 strings), cautionNotes (array of 2-4 strings). Rules: do not include numeric scores or percentages, do not mention AI, and provide concrete workplace examples. Data: ${JSON.stringify(
             inputPayload,
           )}`,
         },
