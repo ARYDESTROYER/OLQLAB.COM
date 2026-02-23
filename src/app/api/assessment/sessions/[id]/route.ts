@@ -13,7 +13,25 @@ export async function GET(
   const session = await db.quizSession.findUnique({
     where: { id },
     include: {
-      assessment: { include: { questions: { orderBy: { sortOrder: "asc" } } } },
+      assessment: {
+        include: {
+          sections: { orderBy: { sortOrder: "asc" } },
+          questions: {
+            orderBy: { sortOrder: "asc" },
+            include: {
+              section: true,
+              options: {
+                orderBy: { displayOrder: "asc" },
+                include: {
+                  impacts: {
+                    include: { competency: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       answers: true,
     },
   });
@@ -25,6 +43,7 @@ export async function GET(
   return NextResponse.json({
     sessionId: session.id,
     assessmentId: session.assessmentId,
+    sections: session.assessment.sections,
     questions: session.assessment.questions,
     answers: session.answers,
     status: session.status,

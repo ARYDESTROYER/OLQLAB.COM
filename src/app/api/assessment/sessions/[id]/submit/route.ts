@@ -16,7 +16,19 @@ export async function POST(
     include: {
       assessment: {
         include: {
-          questions: true,
+          questions: {
+            include: {
+              options: {
+                include: {
+                  impacts: {
+                    include: {
+                      competency: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
           policy: true,
         },
       },
@@ -28,11 +40,11 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const answerMap: Record<string, number> = {};
-  for (const answer of session.answers) answerMap[answer.questionId] = answer.value;
-
-  const scores = computeScores(session.assessment.questions, answerMap);
-  const narrative = generateNarrative(scores);
+  const { traits, competencies } = computeScores(
+    session.assessment.questions,
+    session.answers,
+  );
+  const narrative = generateNarrative(traits, competencies);
 
   await db.$transaction([
     db.quizSession.update({
@@ -49,9 +61,13 @@ export async function POST(
       create: {
         assessmentId: session.assessmentId,
         userId: session.userId,
-        ...scores,
+        ...traits,
+        competencyJson: competencies,
       },
-      update: scores,
+      update: {
+        ...traits,
+        competencyJson: competencies,
+      },
     }),
     db.report.upsert({
       where: {

@@ -11,7 +11,23 @@ export async function POST(req: NextRequest) {
 
   const assessment = await db.assessment.findUnique({
     where: { id: assessmentId },
-    include: { questions: { orderBy: { sortOrder: "asc" } } },
+    include: {
+      sections: { orderBy: { sortOrder: "asc" } },
+      questions: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          section: true,
+          options: {
+            orderBy: { displayOrder: "asc" },
+            include: {
+              impacts: {
+                include: { competency: true },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   if (!assessment || !assessment.isPublished) {
@@ -27,6 +43,7 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({
     sessionId: session.id,
+    sections: assessment.sections,
     questions: assessment.questions,
     answers: session.answers,
   });

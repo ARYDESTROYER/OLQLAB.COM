@@ -17,21 +17,38 @@ export default function AssessmentStartPage({ params }: { params: { assessmentId
     const data = await res.json();
     if (data.sessionId) {
       router.push(`/assessment/session/${data.sessionId}`);
+      return;
     }
+    alert(data.error || "Could not start session.");
     setLoading(false);
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-2xl font-semibold">Personality Assessment</h1>
-      <p className="mt-2 text-slate-600">Complete all statements from 1 (strongly disagree) to 5 (strongly agree).</p>
-      <button
-        className="mt-6 rounded bg-slate-900 px-4 py-2 text-white disabled:opacity-50"
-        onClick={startSession}
-        disabled={loading}
-      >
-        {loading ? "Starting..." : "Start"}
-      </button>
+    <main className="mx-auto max-w-3xl space-y-6 p-6 md:p-10">
+      <section className="rounded-3xl bg-gradient-to-r from-cyan-100 via-sky-50 to-amber-100 p-8">
+        <h1 className="text-3xl font-semibold tracking-tight">Workstyle Assessment</h1>
+        <p className="mt-3 text-slate-700">
+          You will answer personality items and practical workplace scenarios. There are no &quot;wrong&quot;
+          answers. Choose what best reflects your natural style.
+        </p>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <h2 className="text-lg font-semibold">Before you start</h2>
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <li>Set aside 10-15 minutes without interruption.</li>
+          <li>Respond honestly to maximize insight quality.</li>
+          <li>You can complete in one sitting and submit once all questions are answered.</li>
+        </ul>
+
+        <button
+          className="mt-6 rounded-xl bg-slate-900 px-5 py-3 font-medium text-white disabled:opacity-50"
+          onClick={startSession}
+          disabled={loading}
+        >
+          {loading ? "Starting..." : "Begin Assessment"}
+        </button>
+      </section>
     </main>
   );
 }

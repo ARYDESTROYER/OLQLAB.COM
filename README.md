@@ -1,30 +1,38 @@
 # PersonaPilot MVP
 
-Corporate personality assessment platform (pilot v1) built with Next.js, Prisma, Vercel Postgres, Auth.js magic links, and Resend.
+Corporate personality assessment platform with hybrid quiz support:
+- Trait-based personality questions (Likert scale)
+- Scenario-based behavior questions (option impacts by competency)
 
-## Features implemented
+## What is implemented now
 
-- Multi-tenant core model with seats, users, roles (`ADMIN`, `EMPLOYEE`, `LEADER`)
-- CSV import for employees (`email, first_name, last_name, manager_email`)
-- Invite-only sign in (only imported seat emails can login)
-- Assessment creation + publish policy controls
-- Assessment session flow (start, answer autosave, submit)
-- Big Five scoring + narrative report generation
-- Employee report access gating based on policy
-- Leader report endpoint with permission checks
+- Client search + create flow in admin (no manual tenant ID input)
+- Employee CSV import + invite sending
+- Hybrid assessment builder:
+  - `LIKERT_TRAIT` questions
+  - `SJT_SINGLE` scenario questions
+  - per-option weighted competency impacts
+- Spreadsheet-to-builder import (CSV paste)
+- Assessment publish policy controls
+- Session runtime supports both question types
+- Scoring engine computes:
+  - Big Five trait percentages
+  - competency impact totals
+- Employee and leader report pages upgraded for mixed scoring output
 
 ## Tech stack
 
 - Next.js 16 (App Router)
 - TypeScript
 - Prisma ORM
-- Postgres (Vercel Postgres)
-- NextAuth/Auth.js + Prisma Adapter + Email provider
-- Resend for emails
+- Postgres (Neon / Vercel Marketplace DB)
+- NextAuth/Auth.js magic link auth
+- Resend email delivery
+- Tailwind CSS
 
-## Required environment variables
+## Environment variables
 
-Create `.env.local` (copy from `.env.example`):
+Create `.env.local` from `.env.example`:
 
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require"
@@ -34,7 +42,9 @@ RESEND_API_KEY="re_xxx"
 EMAIL_FROM="noreply@yourdomain.com"
 ```
 
-## Local run
+For production on Vercel, use your real domain in `NEXTAUTH_URL`.
+
+## Local setup
 
 ```bash
 npm install
@@ -44,26 +54,41 @@ npm run prisma:seed
 npm run dev
 ```
 
-Open: `http://localhost:3000`
+## Admin workflow
 
-## MVP usage flow
-
-1. Sign in as seeded admin email: `admin@democorp.com` (magic link)
-2. Open `/admin`
-3. Create tenant (or use seeded one)
-4. Import employees via CSV text box
-5. Send invites
+1. Open `/admin`
+2. Search/select client or create one
+3. Import employee CSV (`email,first_name,last_name,manager_email`)
+4. Send invites
+5. Build assessment in visual builder or import spreadsheet CSV
 6. Create assessment
-7. Publish assessment with policy
-8. Employee opens `/assessment/current`, completes quiz
-9. Employee views report at `/reports/me/:assessmentId`
-10. Leader/admin can query leader report endpoint/page
+7. Publish and configure visibility policy
 
-## API endpoints implemented
+## Spreadsheet CSV format for quiz import
 
+Paste CSV into **Optional: Paste Spreadsheet CSV** in admin.
+
+Required header:
+
+```csv
+question_code,section_title,section_kind,question_type,category,prompt,trait,reverse,scale_min,scale_max,option_code,option_text,impacts
+```
+
+Notes:
+- `section_kind`: `PERSONALITY` or `SCENARIO`
+- `question_type`: `LIKERT_TRAIT` or `SJT_SINGLE`
+- For scenario questions, repeat the same `question_code` on multiple rows (one row per option)
+- `impacts` format example:
+  - `emotional_intelligence:+1,collaboration:+1`
+  - `emotional_intelligence:-1,collaboration:-1`
+
+## API routes
+
+- `GET /api/admin/tenants` (search)
 - `POST /api/admin/tenants`
 - `POST /api/admin/users/import-csv`
 - `POST /api/admin/invites/send`
+- `GET /api/admin/assessments`
 - `POST /api/admin/assessments`
 - `POST /api/admin/assessments/:id/publish`
 - `POST /api/assessment/sessions/start`
@@ -73,33 +98,26 @@ Open: `http://localhost:3000`
 - `GET /api/reports/me/:assessmentId`
 - `GET /api/reports/leader/:userId/:assessmentId`
 
+## Migrations added
+
+- `prisma/migrations/20260223170000_init`
+- `prisma/migrations/20260223231000_hybrid_assessment`
+
 ## Deploy to Vercel
 
-1. Push this repo to GitHub.
-2. Create Vercel project from repo.
-3. Add Vercel Postgres integration and copy `DATABASE_URL`.
-4. Add env vars in Vercel project settings:
-   - `DATABASE_URL`
-   - `NEXTAUTH_SECRET`
-   - `NEXTAUTH_URL` (your deployed domain)
-   - `RESEND_API_KEY`
-   - `EMAIL_FROM`
-5. Run Prisma migration against production DB:
+1. Push code to GitHub
+2. Import repo in Vercel
+3. Attach Neon (or another Postgres provider)
+4. Add env vars in Vercel project
+5. Deploy
+6. Run migrations in production:
 
 ```bash
-npx prisma migrate deploy
+DATABASE_URL="<PROD_DB_URL_UNPOOLED>" npx prisma migrate deploy
 ```
 
-6. Seed production (optional for demo tenant):
+7. Seed demo data if needed:
 
 ```bash
-npm run prisma:seed
+DATABASE_URL="<PROD_DB_URL_UNPOOLED>" npm run prisma:seed
 ```
-
-7. Trigger a deployment.
-
-## Notes
-
-- Compliance/SSO not included in this pilot scope.
-- Leader dashboard UI is minimal; endpoint logic is implemented.
-- Assessment authoring is basic and optimized for speed to launch.
