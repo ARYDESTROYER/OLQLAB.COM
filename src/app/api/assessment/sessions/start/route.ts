@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/api-auth";
 import { archiveCurrentAttempt } from "@/lib/report-archive";
 import { isMissingTableError } from "@/lib/prisma-errors";
+import { resolveAssessmentAccess } from "@/lib/assessment-access";
+import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 export async function POST(req: NextRequest) {
   const check = await requireSession();
@@ -19,9 +21,38 @@ export async function POST(req: NextRequest) {
   if (!assessmentId) {
     return NextResponse.json({ error: "assessmentId is required." }, { status: 400 });
   }
+
   const userId = check.session.user.id;
 
-  const user = await db.user.findUnique({ where: { id: userId } });
+  await runDueUnenrollJobs({
+    assessmentId,
+    userId,
+  });
+
+  const access = await resolveAssessmentAccess(userId, assessmentId);
+  if (!access.assessmentExists) {
+    return NextResponse.json({ error: "Assessment unavailable" }, { status: 404 });
+  }
+
+  if (!access.canStartAssessment) {
+    return NextResponse.json(
+      {
+        error: "You are not enrolled in this assessment.",
+        access,
+      },
+      { status: 403 },
+    );
+  }
+
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      tenantId: true,
+      email: true,
+    },
+  });
+
   if (!user) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
@@ -29,7 +60,6 @@ export async function POST(req: NextRequest) {
   const assessment = await db.assessment.findFirst({
     where: {
       id: assessmentId,
-      tenantId: user.tenantId,
       isPublished: true,
     },
     include: {
@@ -42,7 +72,10 @@ export async function POST(req: NextRequest) {
             orderBy: { displayOrder: "asc" },
             include: {
               impacts: {
-                include: { competency: true },
+                include: {
+                  competency: true,
+                  assessmentCompetency: true,
+                },
               },
             },
           },
@@ -55,6 +88,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Assessment unavailable" }, { status: 404 });
   }
 
+  // Keep seat assignment synchronized when seat record exists for this user's tenant.
   const seat = await db.seat.findUnique({
     where: {
       tenantId_userEmail: {
@@ -64,11 +98,7 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  if (!seat) {
-    return NextResponse.json({ error: "You are not assigned to this assessment tenant." }, { status: 403 });
-  }
-
-  if (!seat.assigned) {
+  if (seat && !seat.assigned) {
     await db.seat.update({
       where: {
         tenantId_userEmail: {

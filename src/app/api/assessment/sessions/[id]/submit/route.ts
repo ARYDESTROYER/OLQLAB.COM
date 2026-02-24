@@ -24,6 +24,7 @@ export async function POST(
                   impacts: {
                     include: {
                       competency: true,
+                      assessmentCompetency: true,
                     },
                   },
                 },

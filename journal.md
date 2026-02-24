@@ -144,3 +144,149 @@ This file is the append-only engineering diary for implementation work in this r
 - Next step:
   - Final implementation delivery to user.
 
+
+## Entry 2026-02-24-08
+- Timestamp (UTC): 2026-02-24T17:35:12Z
+- Timestamp (Local): 2026-02-24 23:05:12 IST (+0530)
+- Task: Implement global-assessment schema and explicit enrollment entities.
+- Why: The previous tenant-coupled model (`Assessment.tenantId`) does not scale for reusable assessments and explicit access governance.
+- What changed:
+  - Added Prisma enums: `TenantType`, `EnrollmentScope`, `ReportAccessMode`, `UnenrollJobStatus`.
+  - Added models: `AssessmentCompetency`, `AssessmentTenantEnrollment`, `AssessmentUserEnrollment`, `AssessmentUnenrollJob`, `AssessmentReportAccessOverride`, `AssessmentReportShareToken`.
+  - Updated `Tenant`, `Assessment`, and `OptionImpact` for the new model.
+  - Added migration `20260224100000_global_assessment_enrollments`.
+- How:
+  - Updated `prisma/schema.prisma` and created SQL migration with indices/FKs/enum DDL.
+  - Preserved legacy compatibility fields where required.
+- Validation/output:
+  - `prisma generate` succeeds inside `npm run build` pipeline.
+- Risks/unknowns:
+  - Existing data requires backfill to activate new enrollment graph for old assessments.
+- Next step:
+  - Add migration backfill and rollback scripts.
+
+## Entry 2026-02-24-09
+- Timestamp (UTC): 2026-02-24T17:42:26Z
+- Timestamp (Local): 2026-02-24 23:12:26 IST (+0530)
+- Task: Add migration backfill and rollback tooling.
+- Why: Existing assessments and impacts must be remapped to the new enrollment/competency model without data loss.
+- What changed:
+  - Added `prisma/scripts/backfill-global-assessment-enrollments.ts`.
+  - Added `prisma/scripts/rollback-global-assessment-enrollments.ts`.
+  - Added scripts in `package.json`:
+    - `prisma:backfill:global-assessments`
+    - `prisma:rollback:global-assessments`
+- How:
+  - Backfill tags records for idempotent rollback.
+  - Script seeds tenant enrollments from legacy assessment linkage and remaps option impacts.
+- Validation/output:
+  - Build-time TypeScript compile includes updated script references with no package-script errors.
+- Risks/unknowns:
+  - Backfill execution should be run in controlled order in shared environments.
+- Next step:
+  - Switch runtime/API access checks to enrollment resolver.
+
+## Entry 2026-02-24-10
+- Timestamp (UTC): 2026-02-24T17:53:19Z
+- Timestamp (Local): 2026-02-24 23:23:19 IST (+0530)
+- Task: Implement access resolution and unenroll execution core services.
+- Why: Access behavior must be deterministic and centralized for all participant/admin routes.
+- What changed:
+  - Added `src/lib/assessment-access.ts` with `resolveAssessmentAccess`, `listResolvedAssessmentUsers`, and participation helpers.
+  - Added `src/lib/unenroll-jobs.ts` for due-job execution, override application, token issuance/lookup/consume, and optional email dispatch.
+  - Added env support in `src/lib/env.ts` and `.env.example`:
+    - `INTERNAL_JOB_SECRET`
+    - `REPORT_SHARE_BASE_URL`
+- How:
+  - Applied union enrollment logic with override precedence.
+  - Implemented lazy + forced job execution support.
+- Validation/output:
+  - Runtime and API modules compile through `next build` TypeScript checks.
+- Risks/unknowns:
+  - Production cron scheduling still depends on infrastructure-level invocation.
+- Next step:
+  - Rewire admin and participant endpoints to use these services.
+
+## Entry 2026-02-24-11
+- Timestamp (UTC): 2026-02-24T18:02:03Z
+- Timestamp (Local): 2026-02-24 23:32:03 IST (+0530)
+- Task: Deliver admin API redesign for users/tenants/assessments/jobs.
+- Why: Admin console needed explicit section endpoints and canonical enrollment/unenroll contracts.
+- What changed:
+  - Added assessment access/enrollment/unenroll/jobs APIs.
+  - Added users tests/access/enrollments APIs and user patch operations (move tenant, convert solo).
+  - Added tenants access/users/enrollments/patch APIs.
+  - Added internal job run endpoints and shared-link report endpoints.
+  - Updated assessment create/list/detail APIs to global model and participant stats.
+- How:
+  - Implemented admin guards and payload validation.
+  - Added immediate execution for due unenroll jobs and dry-run preview mode.
+- Validation/output:
+  - Route generation in build output includes all new endpoints under `/api/admin/*`, `/api/internal/*`, and `/api/reports/shared/*`.
+- Risks/unknowns:
+  - Legacy consumers should be migrated to canonical endpoints over time.
+- Next step:
+  - Complete admin UI section pages and detail workflows.
+
+## Entry 2026-02-24-12
+- Timestamp (UTC): 2026-02-24T18:08:47Z
+- Timestamp (Local): 2026-02-24 23:38:47 IST (+0530)
+- Task: Restructure admin UI into sectioned console and assessment detail workflows.
+- Why: Monolithic admin UI did not map to operational workflows and made future scaling difficult.
+- What changed:
+  - Added `src/app/(app)/admin/layout.tsx` with section navigation.
+  - Replaced `/admin` with overview KPIs and pending-job visibility.
+  - Implemented `/admin/users`, `/admin/tenants`, `/admin/assessments` clients.
+  - Implemented `/admin/assessments/[id]` detail screen with tabs and unenroll wizard.
+  - Removed obsolete monolithic component `src/app/(app)/admin/AdminClient.tsx`.
+- How:
+  - Connected section UIs to new admin APIs.
+  - Added participant actions (regenerate, retest, reset) inside assessment detail.
+- Validation/output:
+  - Build route manifest includes `/admin`, `/admin/users`, `/admin/tenants`, `/admin/assessments`, `/admin/assessments/[id]`.
+- Risks/unknowns:
+  - Further UI refinement can improve ergonomics for very large datasets.
+- Next step:
+  - Finish participant/report runtime alignment and run full quality gates.
+
+## Entry 2026-02-24-13
+- Timestamp (UTC): 2026-02-24T18:13:41Z
+- Timestamp (Local): 2026-02-24 23:43:41 IST (+0530)
+- Task: Align participant/report runtime and link-based report access logic.
+- Why: Access checks had to move from tenant equality to resolver-driven behavior.
+- What changed:
+  - Updated `/api/assessment/sessions/start` to enforce resolver access and lazy job checks.
+  - Updated `/assessment/current` and `/reports/current` pages to resolve active visibility under the new model.
+  - Updated `/api/reports/me/:assessmentId` and `/pdf` for override/report-mode behavior.
+  - Added link endpoints for tokenized report payload and PDF retrieval.
+  - Updated score engine mapping to support `assessmentCompetency` fallback from legacy competency links.
+- How:
+  - Routed access-sensitive paths through `resolveAssessmentAccess` and `runDueUnenrollJobs`.
+  - Maintained existing retest/reset/regeneration behavior while removing tenant-coupled assumptions.
+- Validation/output:
+  - TypeScript compilation in `npm run build` confirms runtime route compatibility.
+- Risks/unknowns:
+  - Email-delivery behavior depends on external provider configuration.
+- Next step:
+  - Update README/guide with final architecture and run final lint/build validation.
+
+## Entry 2026-02-24-14
+- Timestamp (UTC): 2026-02-24T18:16:23Z
+- Timestamp (Local): 2026-02-24 23:46:23 IST (+0530)
+- Task: Documentation cutover and final validation.
+- Why: User requested explicit planning/documentation alignment with implemented architecture.
+- What changed:
+  - Rewrote `README.md` for global assessments + explicit enrollment model.
+  - Rewrote `guide.md` to document schema, API contracts, runtime flow, unenroll jobs, and share-link security.
+  - Appended this phase journal with implementation and validation outcomes.
+- How:
+  - Reconciled docs against current routes/services/schema.
+  - Captured quality-gate output and route generation evidence.
+- Validation/output:
+  - `npm run lint` -> passed.
+  - `npm run build` -> passed.
+  - Build route output includes new admin sections and shared-link/internal-job endpoints.
+- Risks/unknowns:
+  - Manual end-to-end browser smoke for invite/start/submit/report and scheduled unenroll timing still recommended.
+- Next step:
+  - Execute scenario-based manual QA and then plan legacy endpoint deprecation timeline.

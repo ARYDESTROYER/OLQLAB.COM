@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
                   impacts: {
                     include: {
                       competency: true,
+                      assessmentCompetency: true,
                     },
                   },
                 },
@@ -55,10 +56,6 @@ export async function POST(req: NextRequest) {
 
   if (!session) {
     return NextResponse.json({ error: "Assessment session not found." }, { status: 404 });
-  }
-
-  if (session.assessment.tenantId !== check.session.user.tenantId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   if (session.status !== "SUBMITTED") {

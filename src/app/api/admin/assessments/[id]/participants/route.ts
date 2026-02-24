@@ -2,59 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { isMissingTableError } from "@/lib/prisma-errors";
+import { listResolvedAssessmentUsers } from "@/lib/assessment-access";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-async function getAssessmentScope(id: string) {
-  return db.assessment.findUnique({
-    where: { id },
-    select: {
-      id: true,
-      tenantId: true,
-      tenant: {
-        select: {
-          id: true,
-          name: true,
-          seatLimit: true,
-        },
-      },
-    },
-  });
-}
+async function listParticipants(assessmentId: string, q?: string) {
+  const users = await listResolvedAssessmentUsers(assessmentId, q);
+  const userIds = users.map((user) => user.userId);
 
-async function listParticipants(assessmentId: string, tenantId: string, q?: string) {
-  const users = await db.user.findMany({
-    where: {
-      tenantId,
-      role: { in: ["EMPLOYEE", "LEADER"] },
-      ...(q
-        ? {
-            OR: [
-              { firstName: { contains: q, mode: "insensitive" } },
-              { lastName: { contains: q, mode: "insensitive" } },
-              { email: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-      manager: {
-        select: {
-          email: true,
-        },
-      },
-    },
-    orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
-  });
-
-  const userIds = users.map((user) => user.id);
   const sessions = userIds.length
     ? await db.quizSession.findMany({
         where: {
@@ -96,21 +53,23 @@ async function listParticipants(assessmentId: string, tenantId: string, q?: stri
   const now = new Date();
 
   return users.map((user) => {
-    const userSession = sessionByUser.get(user.id);
-    const retestEligibleAt = retestByUser.get(user.id) || null;
+    const userSession = sessionByUser.get(user.userId);
+    const retestEligibleAt = retestByUser.get(user.userId) || null;
     const canRetestNow = retestEligibleAt ? now >= retestEligibleAt : false;
+
     return {
-      userId: user.id,
+      userId: user.userId,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
       role: user.role,
-      managerEmail: user.manager?.email || null,
+      managerEmail: user.managerEmail,
       status: userSession?.status || "NOT_STARTED",
       startedAt: userSession?.startedAt || null,
       submittedAt: userSession?.submittedAt || null,
       retestEligibleAt,
       canRetestNow,
+      sources: user.sources,
     };
   });
 }
@@ -122,15 +81,19 @@ export async function GET(
   const check = await requireAdmin();
   if ("error" in check) return check.error;
 
-  const { id } = await params;
+  const { id: assessmentId } = await params;
   const q = req.nextUrl.searchParams.get("q")?.trim();
 
-  const assessment = await getAssessmentScope(id);
+  const assessment = await db.assessment.findUnique({
+    where: { id: assessmentId },
+    select: { id: true },
+  });
+
   if (!assessment) {
-    return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
+    return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
   }
 
-  const participants = await listParticipants(id, assessment.tenantId, q);
+  const participants = await listParticipants(assessmentId, q);
   return NextResponse.json({ participants });
 }
 
@@ -141,9 +104,11 @@ export async function POST(
   const check = await requireAdmin();
   if ("error" in check) return check.error;
 
-  const { id } = await params;
+  const { id: assessmentId } = await params;
   const body = (await req.json().catch(() => null)) as
     | {
+        userId?: string;
+        tenantId?: string;
         email?: string;
         firstName?: string;
         lastName?: string;
@@ -152,211 +117,178 @@ export async function POST(
       }
     | null;
 
-  const normalizedEmail = body?.email ? normalizeEmail(body.email) : "";
-  if (!normalizedEmail || !normalizedEmail.includes("@")) {
-    return NextResponse.json({ error: "A valid participant email is required." }, { status: 400 });
-  }
-
-  const assessment = await getAssessmentScope(id);
-  if (!assessment) {
-    return NextResponse.json({ error: "Assessment not found" }, { status: 404 });
-  }
-
-  const existingUser = await db.user.findUnique({
-    where: { email: normalizedEmail },
+  const assessment = await db.assessment.findUnique({
+    where: { id: assessmentId },
     select: {
       id: true,
-      tenantId: true,
-      tenant: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
+      ownerTenantId: true,
     },
   });
 
-  if (existingUser && existingUser.tenantId !== assessment.tenantId) {
-    return NextResponse.json(
-      {
-        error:
-          "This email belongs to a different client. Cross-client reassignment is blocked.",
-        existingTenantId: existingUser.tenant.id,
-        existingTenantName: existingUser.tenant.name,
-        assessmentTenantId: assessment.tenant.id,
-        assessmentTenantName: assessment.tenant.name,
-      },
-      { status: 409 },
-    );
+  if (!assessment) {
+    return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
   }
 
-  const manager = body?.managerEmail
-    ? await db.user.findFirst({
-        where: {
-          tenantId: assessment.tenantId,
-          email: normalizeEmail(body.managerEmail),
-        },
-        select: {
-          id: true,
-        },
-      })
-    : null;
+  let userId = body?.userId?.trim();
 
-  const role = body?.role === "LEADER" ? "LEADER" : "EMPLOYEE";
-  const firstName = body?.firstName?.trim() || "Participant";
-  const lastName = body?.lastName?.trim() || "User";
-
-  let result:
-    | {
-        user: {
-          id: string;
-          email: string;
-          firstName: string;
-          lastName: string;
-          role: "ADMIN" | "EMPLOYEE" | "LEADER";
-          manager: { email: string } | null;
-        };
-        session: {
-          status: "IN_PROGRESS" | "SUBMITTED";
-          startedAt: Date;
-          submittedAt: Date | null;
-        } | null;
-        retestEligibleAt: Date | null;
-      }
-    | null = null;
-
-  try {
-    result = await db.$transaction(async (tx) => {
-      const seat = await tx.seat.findUnique({
-        where: {
-          tenantId_userEmail: {
-            tenantId: assessment.tenantId,
-            userEmail: normalizedEmail,
-          },
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      if (!seat) {
-        const seatCount = await tx.seat.count({
-          where: { tenantId: assessment.tenantId },
-        });
-        if (seatCount >= assessment.tenant.seatLimit) {
-          throw new Error("SEAT_LIMIT_REACHED");
-        }
-
-        await tx.seat.create({
-          data: {
-            tenantId: assessment.tenantId,
-            userEmail: normalizedEmail,
-            assigned: false,
-          },
-        });
-      }
-
-      const user = await tx.user.upsert({
-        where: { email: normalizedEmail },
-        create: {
-          email: normalizedEmail,
-          firstName,
-          lastName,
-          role,
-          tenantId: assessment.tenantId,
-          managerId: manager?.id,
-        },
-        update: {
-          firstName,
-          lastName,
-          role,
-          tenantId: assessment.tenantId,
-          managerId: manager?.id,
-        },
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          manager: {
-            select: {
-              email: true,
-            },
-          },
-        },
-      });
-
-      const session = await tx.quizSession.findUnique({
-        where: {
-          assessmentId_userId: {
-            assessmentId: assessment.id,
-            userId: user.id,
-          },
-        },
-        select: {
-          status: true,
-          startedAt: true,
-          submittedAt: true,
-        },
-      });
-
-      let retestEligibleAt: Date | null = null;
-      try {
-        const retestEligibility = await tx.retestEligibility.findUnique({
-          where: {
-            assessmentId_userId: {
-              assessmentId: assessment.id,
-              userId: user.id,
-            },
-          },
-          select: {
-            eligibleAt: true,
-          },
-        });
-        retestEligibleAt = retestEligibility?.eligibleAt || null;
-      } catch (error) {
-        if (!isMissingTableError(error, "retesteligibility")) throw error;
-      }
-
-      return {
-        user,
-        session,
-        retestEligibleAt,
-      };
-    });
-  } catch (error) {
-    if (error instanceof Error && error.message === "SEAT_LIMIT_REACHED") {
+  if (!userId) {
+    const email = body?.email ? normalizeEmail(body.email) : "";
+    if (!email || !email.includes("@")) {
       return NextResponse.json(
-        {
-          error: `Seat limit reached (${assessment.tenant.seatLimit}). Increase seats before adding more users.`,
-        },
+        { error: "Either userId or a valid participant email is required." },
         { status: 400 },
       );
     }
-    throw error;
+
+    const existingUser = await db.user.findUnique({
+      where: { email },
+      select: { id: true, tenantId: true, role: true },
+    });
+
+    if (existingUser?.role === "ADMIN") {
+      return NextResponse.json(
+        { error: "Admin users cannot be enrolled as participants." },
+        { status: 400 },
+      );
+    }
+
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      const tenantId = body?.tenantId?.trim() || assessment.ownerTenantId;
+      if (!tenantId) {
+        return NextResponse.json(
+          {
+            error:
+              "This assessment has no owner tenant. Create the user first from Users admin and enroll by userId.",
+          },
+          { status: 400 },
+        );
+      }
+
+      const tenant = await db.tenant.findUnique({
+        where: { id: tenantId },
+        select: {
+          id: true,
+          seatLimit: true,
+        },
+      });
+
+      if (!tenant) {
+        return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+      }
+
+      const seatCount = await db.seat.count({ where: { tenantId } });
+      if (seatCount >= tenant.seatLimit) {
+        return NextResponse.json(
+          {
+            error: `Seat limit reached (${tenant.seatLimit}). Increase seats before adding more users.`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const manager = body?.managerEmail
+        ? await db.user.findFirst({
+            where: {
+              tenantId,
+              email: normalizeEmail(body.managerEmail),
+            },
+            select: {
+              id: true,
+            },
+          })
+        : null;
+
+      const role = body?.role === "LEADER" ? "LEADER" : "EMPLOYEE";
+      const createdUser = await db.user.create({
+        data: {
+          email,
+          firstName: body?.firstName?.trim() || "Participant",
+          lastName: body?.lastName?.trim() || "User",
+          role,
+          tenantId,
+          managerId: manager?.id,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      await db.seat.upsert({
+        where: {
+          tenantId_userEmail: {
+            tenantId,
+            userEmail: email,
+          },
+        },
+        create: {
+          tenantId,
+          userEmail: email,
+          assigned: false,
+        },
+        update: {
+          assigned: false,
+        },
+      });
+
+      userId = createdUser.id;
+    }
   }
 
-  if (!result) {
-    return NextResponse.json({ error: "Unable to add participant." }, { status: 500 });
+  if (!userId) {
+    return NextResponse.json({ error: "Unable to resolve participant user." }, { status: 500 });
   }
 
-  const canRetestNow = result.retestEligibleAt ? new Date() >= result.retestEligibleAt : false;
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      role: true,
+    },
+  });
+
+  if (!user || user.role === "ADMIN") {
+    return NextResponse.json(
+      { error: "Target participant is invalid." },
+      { status: 400 },
+    );
+  }
+
+  await db.assessmentUserEnrollment.upsert({
+    where: {
+      assessmentId_userId: {
+        assessmentId,
+        userId,
+      },
+    },
+    create: {
+      assessmentId,
+      userId,
+      active: true,
+      createdByAdminId: check.session.user.id,
+    },
+    update: {
+      active: true,
+      createdByAdminId: check.session.user.id,
+    },
+  });
+
+  const [participants] = await Promise.all([
+    listParticipants(assessmentId),
+    db.assessmentReportAccessOverride.deleteMany({
+      where: {
+        assessmentId,
+        userId,
+      },
+    }),
+  ]);
+
+  const participant = participants.find((item) => item.userId === userId) || null;
+
   return NextResponse.json({
     ok: true,
-    assessmentId: assessment.id,
-    participant: {
-      userId: result.user.id,
-      email: result.user.email,
-      firstName: result.user.firstName,
-      lastName: result.user.lastName,
-      role: result.user.role,
-      managerEmail: result.user.manager?.email || null,
-      status: result.session?.status || "NOT_STARTED",
-      startedAt: result.session?.startedAt || null,
-      submittedAt: result.session?.submittedAt || null,
-      retestEligibleAt: result.retestEligibleAt,
-      canRetestNow,
-    },
+    assessmentId,
+    participant,
   });
 }

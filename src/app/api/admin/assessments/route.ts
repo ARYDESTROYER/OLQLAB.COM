@@ -62,16 +62,79 @@ function pickSectionKind(input?: string) {
   return input === "SCENARIO" ? "SCENARIO" : "PERSONALITY";
 }
 
+async function countEligibleUsersForAssessment(assessmentId: string) {
+  const [directEnrollments, tenantEnrollments] = await Promise.all([
+    db.assessmentUserEnrollment.findMany({
+      where: {
+        assessmentId,
+        active: true,
+      },
+      select: {
+        userId: true,
+      },
+    }),
+    db.assessmentTenantEnrollment.findMany({
+      where: {
+        assessmentId,
+        active: true,
+      },
+      select: {
+        tenantId: true,
+        includeFutureUsers: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  const directUserIds = new Set(directEnrollments.map((enrollment) => enrollment.userId));
+  const tenantUserIds = new Set<string>();
+
+  for (const enrollment of tenantEnrollments) {
+    const tenantUsers = await db.user.findMany({
+      where: {
+        tenantId: enrollment.tenantId,
+        role: { in: ["EMPLOYEE", "LEADER"] },
+        ...(enrollment.includeFutureUsers
+          ? {}
+          : {
+              createdAt: {
+                lte: enrollment.createdAt,
+              },
+            }),
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    for (const user of tenantUsers) {
+      tenantUserIds.add(user.id);
+    }
+  }
+
+  for (const userId of directUserIds) {
+    tenantUserIds.add(userId);
+  }
+
+  return tenantUserIds.size;
+}
+
 export async function GET(req: NextRequest) {
   const check = await requireAdmin();
   if ("error" in check) return check.error;
 
-  const tenantId = req.nextUrl.searchParams.get("tenantId")?.trim();
+  const ownerTenantId =
+    req.nextUrl.searchParams.get("ownerTenantId")?.trim() ||
+    req.nextUrl.searchParams.get("tenantId")?.trim();
   const q = req.nextUrl.searchParams.get("q")?.trim();
 
   const assessments = await db.assessment.findMany({
     where: {
-      ...(tenantId ? { tenantId } : {}),
+      ...(ownerTenantId
+        ? {
+            ownerTenantId,
+          }
+        : {}),
       ...(q
         ? {
             title: {
@@ -83,32 +146,29 @@ export async function GET(req: NextRequest) {
     },
     include: {
       policy: true,
+      ownerTenant: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
       _count: {
         select: {
           questions: true,
           sessions: true,
+          userEnrollments: true,
+          tenantEnrollments: true,
         },
       },
     },
     orderBy: { createdAt: "desc" },
-    take: 20,
+    take: 30,
   });
 
-  const tenantParticipantCount = new Map<string, number>();
   const withStats = await Promise.all(
     assessments.map(async (assessment) => {
-      if (!tenantParticipantCount.has(assessment.tenantId)) {
-        const total = await db.user.count({
-          where: {
-            tenantId: assessment.tenantId,
-            role: { in: ["EMPLOYEE", "LEADER"] },
-          },
-        });
-        tenantParticipantCount.set(assessment.tenantId, total);
-      }
-
-      const totalParticipants = tenantParticipantCount.get(assessment.tenantId) || 0;
-      const [completed, inProgress] = await Promise.all([
+      const [eligibleUsers, completed, inProgress] = await Promise.all([
+        countEligibleUsersForAssessment(assessment.id),
         db.quizSession.count({
           where: { assessmentId: assessment.id, status: "SUBMITTED" },
         }),
@@ -117,14 +177,14 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
-      const notStarted = Math.max(totalParticipants - completed - inProgress, 0);
+      const notStarted = Math.max(eligibleUsers - completed - inProgress, 0);
       const completionRate =
-        totalParticipants === 0 ? 0 : Math.round((completed / totalParticipants) * 100);
+        eligibleUsers === 0 ? 0 : Math.round((completed / eligibleUsers) * 100);
 
       return {
         ...assessment,
         participantCounts: {
-          total: totalParticipants,
+          total: eligibleUsers,
           completed,
           inProgress,
           notStarted,
@@ -142,8 +202,9 @@ export async function POST(req: NextRequest) {
   if ("error" in check) return check.error;
 
   const body = (await req.json()) as {
-    tenantId: string;
-    title: string;
+    ownerTenantId?: string;
+    tenantId?: string;
+    title?: string;
     policy?: {
       showResultsToEmployee?: boolean;
       resultReleaseDelayHours?: number;
@@ -152,21 +213,43 @@ export async function POST(req: NextRequest) {
     };
     competencies?: CompetencyInput[];
     sections?: SectionInput[];
-    // Backward compatibility with initial MVP payload.
     questions?: Array<{ prompt: string; trait: string; reverse?: boolean }>;
   };
 
-  if (!body.tenantId || !body.title) {
-    return NextResponse.json(
-      { error: "tenantId and title are required" },
-      { status: 400 },
-    );
+  const title = body.title?.trim();
+  const ownerTenantId = body.ownerTenantId?.trim() || body.tenantId?.trim() || null;
+
+  if (!title) {
+    return NextResponse.json({ error: "title is required" }, { status: 400 });
   }
 
-  const tenant = await db.tenant.findUnique({ where: { id: body.tenantId } });
-  if (!tenant) {
-    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  if (ownerTenantId) {
+    const tenant = await db.tenant.findUnique({ where: { id: ownerTenantId } });
+    if (!tenant) {
+      return NextResponse.json(
+        { error: "ownerTenantId references an unknown tenant" },
+        { status: 404 },
+      );
+    }
   }
+
+  const assessment = await db.assessment.create({
+    data: {
+      title,
+      ownerTenantId,
+      // Preserve legacy linkage for transition compatibility.
+      tenantId: ownerTenantId,
+      policy: {
+        create: {
+          showResultsToEmployee: body.policy?.showResultsToEmployee ?? true,
+          resultReleaseDelayHours: body.policy?.resultReleaseDelayHours ?? 0,
+          postSubmitMessage:
+            body.policy?.postSubmitMessage || "Thanks for completing your assessment.",
+          leaderCanViewFullReport: body.policy?.leaderCanViewFullReport ?? true,
+        },
+      },
+    },
+  });
 
   const competencyMap = new Map<string, string>();
 
@@ -174,44 +257,49 @@ export async function POST(req: NextRequest) {
     const code = toCode(competency.code);
     if (!code) continue;
 
-    const saved = await db.competency.upsert({
+    const saved = await db.assessmentCompetency.upsert({
       where: {
-        tenantId_code: {
-          tenantId: body.tenantId,
+        assessmentId_code: {
+          assessmentId: assessment.id,
           code,
         },
       },
       create: {
-        tenantId: body.tenantId,
+        assessmentId: assessment.id,
         code,
         name: competency.name?.trim() || titleizeCode(code),
-        description: competency.description,
+        description: competency.description?.trim() || undefined,
       },
       update: {
         name: competency.name?.trim() || titleizeCode(code),
-        description: competency.description,
+        description: competency.description?.trim() || undefined,
       },
     });
 
     competencyMap.set(code, saved.id);
-  }
 
-  const assessment = await db.assessment.create({
-    data: {
-      tenantId: body.tenantId,
-      title: body.title,
-      policy: {
-        create: {
-          showResultsToEmployee: body.policy?.showResultsToEmployee ?? true,
-          resultReleaseDelayHours: body.policy?.resultReleaseDelayHours ?? 0,
-          postSubmitMessage:
-            body.policy?.postSubmitMessage ||
-            "Thanks for completing your assessment.",
-          leaderCanViewFullReport: body.policy?.leaderCanViewFullReport ?? true,
+    // Keep legacy tenant competency records when owner tenant exists.
+    if (ownerTenantId) {
+      await db.competency.upsert({
+        where: {
+          tenantId_code: {
+            tenantId: ownerTenantId,
+            code,
+          },
         },
-      },
-    },
-  });
+        create: {
+          tenantId: ownerTenantId,
+          code,
+          name: competency.name?.trim() || titleizeCode(code),
+          description: competency.description?.trim() || undefined,
+        },
+        update: {
+          name: competency.name?.trim() || titleizeCode(code),
+          description: competency.description?.trim() || undefined,
+        },
+      });
+    }
+  }
 
   const sectionsToPersist: SectionInput[] =
     body.sections && body.sections.length > 0
@@ -281,30 +369,30 @@ export async function POST(req: NextRequest) {
           const impactCode = toCode(impact.competencyCode);
           if (!impactCode) continue;
 
-          let competencyId = competencyMap.get(impactCode);
-          if (!competencyId) {
-            const autoCompetency = await db.competency.upsert({
+          let assessmentCompetencyId = competencyMap.get(impactCode);
+          if (!assessmentCompetencyId) {
+            const autoCompetency = await db.assessmentCompetency.upsert({
               where: {
-                tenantId_code: {
-                  tenantId: body.tenantId,
+                assessmentId_code: {
+                  assessmentId: assessment.id,
                   code: impactCode,
                 },
               },
               create: {
-                tenantId: body.tenantId,
+                assessmentId: assessment.id,
                 code: impactCode,
                 name: titleizeCode(impactCode),
               },
               update: {},
             });
-            competencyId = autoCompetency.id;
-            competencyMap.set(impactCode, competencyId);
+            assessmentCompetencyId = autoCompetency.id;
+            competencyMap.set(impactCode, assessmentCompetencyId);
           }
 
           await db.optionImpact.create({
             data: {
               optionId: savedOption.id,
-              competencyId,
+              assessmentCompetencyId,
               delta: Number(impact.delta) || 0,
             },
           });
@@ -317,6 +405,13 @@ export async function POST(req: NextRequest) {
     where: { id: assessment.id },
     include: {
       policy: true,
+      ownerTenant: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      assessmentCompetencies: true,
       sections: {
         orderBy: { sortOrder: "asc" },
       },
@@ -327,7 +422,10 @@ export async function POST(req: NextRequest) {
             orderBy: { displayOrder: "asc" },
             include: {
               impacts: {
-                include: { competency: true },
+                include: {
+                  competency: true,
+                  assessmentCompetency: true,
+                },
               },
             },
           },
@@ -336,5 +434,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(fullAssessment);
+  return NextResponse.json(fullAssessment, { status: 201 });
 }

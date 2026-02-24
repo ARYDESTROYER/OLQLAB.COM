@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { isMissingTableError } from "@/lib/prisma-errors";
+import { hasAnyAssessmentParticipation } from "@/lib/assessment-access";
 
 async function validateParticipantScope(assessmentId: string, userId: string) {
-  const [assessment, participant] = await Promise.all([
+  const [assessment, participant, hasParticipation] = await Promise.all([
     db.assessment.findUnique({
       where: { id: assessmentId },
-      select: { id: true, tenantId: true },
+      select: { id: true },
     }),
     db.user.findUnique({
       where: { id: userId },
-      select: { id: true, tenantId: true, role: true },
+      select: { id: true, role: true },
     }),
+    hasAnyAssessmentParticipation(assessmentId, userId),
   ]);
 
   if (!assessment) {
@@ -21,7 +23,7 @@ async function validateParticipantScope(assessmentId: string, userId: string) {
     };
   }
 
-  if (!participant || participant.tenantId !== assessment.tenantId) {
+  if (!participant) {
     return {
       error: NextResponse.json({ error: "Participant not found." }, { status: 404 }),
     };
@@ -31,6 +33,15 @@ async function validateParticipantScope(assessmentId: string, userId: string) {
     return {
       error: NextResponse.json(
         { error: "Retest controls apply only to employee or leader accounts." },
+        { status: 400 },
+      ),
+    };
+  }
+
+  if (!hasParticipation) {
+    return {
+      error: NextResponse.json(
+        { error: "Participant is not currently enrolled and has no attempt history." },
         { status: 400 },
       ),
     };

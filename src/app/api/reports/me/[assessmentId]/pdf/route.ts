@@ -2,7 +2,9 @@ import { addHours, format } from "date-fns";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { NextResponse } from "next/server";
 import { requireSession } from "@/lib/api-auth";
+import { resolveAssessmentAccess } from "@/lib/assessment-access";
 import { db } from "@/lib/db";
+import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 type TraitBand = "high" | "moderate" | "emerging";
 
@@ -671,6 +673,11 @@ export async function GET(
   if ("error" in check) return check.error;
   const { assessmentId } = await params;
 
+  await runDueUnenrollJobs({
+    assessmentId,
+    userId: check.session.user.id,
+  });
+
   const session = await db.quizSession.findUnique({
     where: {
       assessmentId_userId: {
@@ -686,6 +693,18 @@ export async function GET(
 
   if (!session || session.status !== "SUBMITTED") {
     return NextResponse.json({ error: "No submitted report" }, { status: 404 });
+  }
+
+  const access = await resolveAssessmentAccess(check.session.user.id, assessmentId);
+  if (!access.canViewAppReport) {
+    return NextResponse.json(
+      {
+        error: access.canViewViaLinkOnly
+          ? "App access to this report is disabled. Use your secure share link from email."
+          : "Your access to this report has been revoked by your administrator.",
+      },
+      { status: 403 },
+    );
   }
 
   const policy = session.assessment.policy;

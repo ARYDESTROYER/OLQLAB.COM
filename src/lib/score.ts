@@ -66,7 +66,11 @@ type ScoringQuestion = {
       competency: {
         code: string;
         name: string;
-      };
+      } | null;
+      assessmentCompetency: {
+        code: string;
+        name: string;
+      } | null;
     }>;
   }>;
 };
@@ -413,13 +417,16 @@ export function computeScores(
       if (!option) continue;
 
       for (const impact of option.impacts) {
-        const existing = competencyMap.get(impact.competency.code) || {
-          code: impact.competency.code,
-          name: impact.competency.name,
+        const linkedCompetency = impact.assessmentCompetency || impact.competency;
+        if (!linkedCompetency) continue;
+
+        const existing = competencyMap.get(linkedCompetency.code) || {
+          code: linkedCompetency.code,
+          name: linkedCompetency.name,
           score: 0,
         };
         existing.score += impact.delta;
-        competencyMap.set(impact.competency.code, existing);
+        competencyMap.set(linkedCompetency.code, existing);
       }
     }
   }

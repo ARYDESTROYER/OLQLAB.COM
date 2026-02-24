@@ -3,10 +3,14 @@ import { redirect } from "next/navigation";
 import { addHours } from "date-fns";
 import { getServerAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { resolveAssessmentAccess } from "@/lib/assessment-access";
+import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 export default async function CurrentReportsPage() {
   const session = await getServerAuthSession();
   if (!session?.user?.id) redirect("/signin");
+
+  await runDueUnenrollJobs({ userId: session.user.id });
 
   const reports = await db.quizSession.findMany({
     where: {
@@ -30,13 +34,27 @@ export default async function CurrentReportsPage() {
     orderBy: { submittedAt: "desc" },
   });
 
+  const accessResults = await Promise.all(
+    reports.map(async (item) => {
+      const access = await resolveAssessmentAccess(session.user.id, item.assessment.id);
+      return {
+        item,
+        access,
+      };
+    }),
+  );
+
+  const visibleReports = accessResults
+    .filter((entry) => entry.access.canViewAppReport)
+    .map((entry) => entry.item);
+
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
       <header className="rounded-3xl border border-slate-200 bg-white/88 p-7 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Report Hub</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">My Reports</h1>
         <p className="mt-2 text-sm text-slate-700">
-          This page only lists completed assessments and report downloads.
+          This page only lists completed assessments where app access is currently allowed.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
@@ -54,11 +72,11 @@ export default async function CurrentReportsPage() {
         </div>
       </header>
 
-      {reports.length === 0 ? (
+      {visibleReports.length === 0 ? (
         <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">No reports yet</h2>
+          <h2 className="text-lg font-semibold">No app-visible reports yet</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Complete at least one assessment to generate your report.
+            Complete an assessment or ask your admin to restore app report access.
           </p>
           <Link
             href="/assessment/current"
@@ -69,7 +87,7 @@ export default async function CurrentReportsPage() {
         </section>
       ) : (
         <section className="space-y-4">
-          {reports.map((item) => {
+          {visibleReports.map((item) => {
             const delayHours = item.assessment.policy?.resultReleaseDelayHours || 0;
             const showResults = item.assessment.policy?.showResultsToEmployee ?? true;
             const releaseAt =

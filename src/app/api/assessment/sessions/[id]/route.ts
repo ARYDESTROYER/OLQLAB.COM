@@ -24,7 +24,10 @@ export async function GET(
                 orderBy: { displayOrder: "asc" },
                 include: {
                   impacts: {
-                    include: { competency: true },
+                    include: {
+                      competency: true,
+                      assessmentCompetency: true,
+                    },
                   },
                 },
               },

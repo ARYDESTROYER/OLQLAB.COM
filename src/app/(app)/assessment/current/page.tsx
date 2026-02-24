@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isMissingTableError } from "@/lib/prisma-errors";
+import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 export default async function CurrentAssessmentPage() {
   const session = await getServerAuthSession();
@@ -14,6 +15,7 @@ export default async function CurrentAssessmentPage() {
       id: true,
       email: true,
       tenantId: true,
+      createdAt: true,
       tenant: {
         select: {
           name: true,
@@ -22,30 +24,56 @@ export default async function CurrentAssessmentPage() {
     },
   });
 
-  if (!currentUser?.tenantId) redirect("/signin");
+  if (!currentUser) redirect("/signin");
 
-  const seat = await db.seat.findUnique({
-    where: {
-      tenantId_userEmail: {
-        tenantId: currentUser.tenantId,
-        userEmail: currentUser.email.toLowerCase(),
-      },
-    },
-    select: {
-      id: true,
-      assigned: true,
-    },
-  });
+  await runDueUnenrollJobs({ userId: currentUser.id });
 
   const assessments = await db.assessment
     .findMany({
       where: {
-        tenantId: currentUser.tenantId,
         isPublished: true,
+        OR: [
+          {
+            userEnrollments: {
+              some: {
+                userId: currentUser.id,
+                active: true,
+              },
+            },
+          },
+          {
+            tenantEnrollments: {
+              some: {
+                tenantId: currentUser.tenantId,
+                active: true,
+              },
+            },
+          },
+        ],
       },
       include: {
         questions: {
           select: { id: true },
+        },
+        userEnrollments: {
+          where: {
+            userId: currentUser.id,
+            active: true,
+          },
+          select: {
+            id: true,
+          },
+        },
+        tenantEnrollments: {
+          where: {
+            tenantId: currentUser.tenantId,
+            active: true,
+          },
+          select: {
+            id: true,
+            includeFutureUsers: true,
+            createdAt: true,
+          },
         },
         sessions: {
           where: {
@@ -75,12 +103,49 @@ export default async function CurrentAssessmentPage() {
 
       const fallbackAssessments = await db.assessment.findMany({
         where: {
-          tenantId: currentUser.tenantId,
           isPublished: true,
+          OR: [
+            {
+              userEnrollments: {
+                some: {
+                  userId: currentUser.id,
+                  active: true,
+                },
+              },
+            },
+            {
+              tenantEnrollments: {
+                some: {
+                  tenantId: currentUser.tenantId,
+                  active: true,
+                },
+              },
+            },
+          ],
         },
         include: {
           questions: {
             select: { id: true },
+          },
+          userEnrollments: {
+            where: {
+              userId: currentUser.id,
+              active: true,
+            },
+            select: {
+              id: true,
+            },
+          },
+          tenantEnrollments: {
+            where: {
+              tenantId: currentUser.tenantId,
+              active: true,
+            },
+            select: {
+              id: true,
+              includeFutureUsers: true,
+              createdAt: true,
+            },
           },
           sessions: {
             where: {
@@ -103,6 +168,15 @@ export default async function CurrentAssessmentPage() {
       }));
     });
 
+  const eligibleAssessments = assessments.filter((assessment) => {
+    const hasDirectEnrollment = assessment.userEnrollments.length > 0;
+    const hasTenantEnrollment = assessment.tenantEnrollments.some(
+      (enrollment) =>
+        enrollment.includeFutureUsers || currentUser.createdAt <= enrollment.createdAt,
+    );
+    return hasDirectEnrollment || hasTenantEnrollment;
+  });
+
   const tenantLabel = currentUser.tenant?.name || currentUser.tenantId;
 
   return (
@@ -111,7 +185,7 @@ export default async function CurrentAssessmentPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Assessment Hub</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Assessment Center</h1>
         <p className="mt-2 text-sm text-slate-700">
-          Start and continue assigned assessments from this page.
+          Start and continue assessments where you have active access.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
@@ -129,24 +203,16 @@ export default async function CurrentAssessmentPage() {
         </div>
       </header>
 
-      {!seat ? (
-        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">Account access is out of sync</h2>
-          <p className="mt-2 text-sm text-amber-900">
-            Your seat assignment for <span className="font-semibold">{tenantLabel}</span> is missing.
-            Ask your admin to re-add you from the selected assessment or re-send your invite.
-          </p>
-        </section>
-      ) : assessments.length === 0 ? (
+      {eligibleAssessments.length === 0 ? (
         <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold">No published assessments yet</h2>
+          <h2 className="text-lg font-semibold">No active assessment access</h2>
           <p className="mt-2 text-sm text-slate-600">
-            No published assessments were found for <span className="font-semibold">{tenantLabel}</span>.
+            You currently have no published assessments assigned from your organization ({tenantLabel}).
           </p>
         </section>
       ) : (
         <section className="space-y-4">
-          {assessments.map((assessment) => {
+          {eligibleAssessments.map((assessment) => {
             const mySession = assessment.sessions[0] || null;
             const myRetestEligibility = assessment.retestEligibilities[0] || null;
             const status = mySession?.status || "NOT_STARTED";
@@ -160,8 +226,8 @@ export default async function CurrentAssessmentPage() {
                 : status === "SUBMITTED"
                 ? "Completed"
                 : status === "IN_PROGRESS"
-                  ? "In Progress"
-                  : "Not Started";
+                ? "In Progress"
+                : "Not Started";
 
             const actionHref =
               retestAvailableNow
@@ -175,8 +241,8 @@ export default async function CurrentAssessmentPage() {
                 : status === "SUBMITTED"
                 ? "View Report"
                 : status === "IN_PROGRESS"
-                  ? "Resume"
-                  : "Start";
+                ? "Resume"
+                : "Start";
 
             return (
               <article
@@ -196,8 +262,8 @@ export default async function CurrentAssessmentPage() {
                         : status === "SUBMITTED"
                         ? "bg-emerald-100 text-emerald-800"
                         : status === "IN_PROGRESS"
-                          ? "bg-amber-100 text-amber-800"
-                          : "bg-slate-100 text-slate-700"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-100 text-slate-700"
                     }`}
                   >
                     {statusLabel}
@@ -221,13 +287,11 @@ export default async function CurrentAssessmentPage() {
                       Submitted: {mySession.submittedAt.toLocaleString()}
                     </p>
                   )}
-                  {status === "SUBMITTED" &&
-                    myRetestEligibility &&
-                    !retestAvailableNow && (
-                      <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                        Retake unlocks: {myRetestEligibility.eligibleAt.toLocaleString()}
-                      </p>
-                    )}
+                  {status === "SUBMITTED" && myRetestEligibility && !retestAvailableNow && (
+                    <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Retake unlocks: {myRetestEligibility.eligibleAt.toLocaleString()}
+                    </p>
+                  )}
                 </div>
               </article>
             );

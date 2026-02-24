@@ -28,19 +28,46 @@ enum QuestionType {
   SJT_SINGLE
 }
 
-model Tenant {
-  id        String   @id @default(cuid())
-  name      String
-  seatLimit Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum TenantType {
+  ORGANIZATION
+  SOLO
+}
 
-  users       User[]
-  assessments Assessment[]
-  seats       Seat[]
-  invites     Invite[]
-  auditLogs   AuditLog[]
-  competencies Competency[]
+enum EnrollmentScope {
+  USER
+  TENANT
+}
+
+enum ReportAccessMode {
+  KEEP_APP_ACCESS
+  LINK_ONLY
+  REVOKE
+}
+
+enum UnenrollJobStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Tenant {
+  id         String     @id @default(cuid())
+  name       String
+  type       TenantType @default(ORGANIZATION)
+  seatLimit  Int
+  isArchived Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  users              User[]
+  assessments        Assessment[]               @relation("LegacyAssessmentTenant")
+  ownedAssessments   Assessment[]               @relation("AssessmentOwnerTenant")
+  tenantEnrollments  AssessmentTenantEnrollment[]
+  seats              Seat[]
+  invites            Invite[]
+  auditLogs          AuditLog[]
+  competencies       Competency[]
 }
 
 model User {
@@ -55,14 +82,17 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  manager            User?         @relation("UserManager", fields: [managerId], references: [id])
-  reports            User[]        @relation("UserManager")
-  assessmentSessions QuizSession[]
-  retestEligibilities RetestEligibility[]
-  reportArchives      ReportArchive[]
-  accounts           Account[]
-  sessions           Session[]
+  tenant                 Tenant                         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  manager                User?                          @relation("UserManager", fields: [managerId], references: [id])
+  reports                User[]                         @relation("UserManager")
+  assessmentSessions     QuizSession[]
+  userEnrollments        AssessmentUserEnrollment[]
+  reportAccessOverrides  AssessmentReportAccessOverride[]
+  reportShareTokens      AssessmentReportShareToken[]
+  retestEligibilities    RetestEligibility[]
+  reportArchives         ReportArchive[]
+  accounts               Account[]
+  sessions               Session[]
 
   @@index([tenantId])
   @@index([managerId])
@@ -96,25 +126,51 @@ model Competency {
   @@index([tenantId])
 }
 
-model Assessment {
+model AssessmentCompetency {
   id          String   @id @default(cuid())
-  tenantId    String
-  title       String
-  isPublished Boolean  @default(false)
+  assessmentId String
+  code        String
+  name        String
+  description String?
+  backfillTag String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  tenant    Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  policy    AssessmentPolicy?
-  sections  AssessmentSection[]
-  questions Question[]
-  sessions  QuizSession[]
-  scores    Score[]
-  reports   Report[]
-  retestEligibilities RetestEligibility[]
-  reportArchives      ReportArchive[]
+  assessment Assessment   @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  impacts    OptionImpact[]
+
+  @@unique([assessmentId, code])
+  @@index([assessmentId])
+}
+
+model Assessment {
+  id            String   @id @default(cuid())
+  tenantId      String?
+  ownerTenantId String?
+  title         String
+  isPublished   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant                Tenant?                          @relation("LegacyAssessmentTenant", fields: [tenantId], references: [id], onDelete: SetNull)
+  ownerTenant           Tenant?                          @relation("AssessmentOwnerTenant", fields: [ownerTenantId], references: [id], onDelete: SetNull)
+  policy                AssessmentPolicy?
+  sections              AssessmentSection[]
+  questions             Question[]
+  sessions              QuizSession[]
+  scores                Score[]
+  reports               Report[]
+  retestEligibilities   RetestEligibility[]
+  reportArchives        ReportArchive[]
+  assessmentCompetencies AssessmentCompetency[]
+  tenantEnrollments     AssessmentTenantEnrollment[]
+  userEnrollments       AssessmentUserEnrollment[]
+  unenrollJobs          AssessmentUnenrollJob[]
+  reportAccessOverrides AssessmentReportAccessOverride[]
+  reportShareTokens     AssessmentReportShareToken[]
 
   @@index([tenantId])
+  @@index([ownerTenantId])
 }
 
 model AssessmentSection {
@@ -181,17 +237,122 @@ model QuestionOption {
 }
 
 model OptionImpact {
-  id           String @id @default(cuid())
-  optionId     String
-  competencyId String
-  delta        Float
+  id                    String  @id @default(cuid())
+  optionId              String
+  competencyId          String?
+  assessmentCompetencyId String?
+  delta                 Float
 
-  option     QuestionOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  competency Competency     @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  option               QuestionOption       @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  competency           Competency?          @relation(fields: [competencyId], references: [id], onDelete: Cascade)
+  assessmentCompetency AssessmentCompetency? @relation(fields: [assessmentCompetencyId], references: [id], onDelete: Cascade)
 
   @@unique([optionId, competencyId])
+  @@unique([optionId, assessmentCompetencyId])
   @@index([optionId])
   @@index([competencyId])
+  @@index([assessmentCompetencyId])
+}
+
+model AssessmentTenantEnrollment {
+  id                 String   @id @default(cuid())
+  assessmentId       String
+  tenantId           String
+  includeFutureUsers Boolean  @default(true)
+  active             Boolean  @default(true)
+  createdByAdminId   String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, tenantId])
+  @@index([assessmentId])
+  @@index([tenantId])
+  @@index([assessmentId, active])
+}
+
+model AssessmentUserEnrollment {
+  id               String   @id @default(cuid())
+  assessmentId     String
+  userId           String
+  active           Boolean  @default(true)
+  createdByAdminId String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, userId])
+  @@index([assessmentId])
+  @@index([userId])
+  @@index([assessmentId, active])
+}
+
+model AssessmentUnenrollJob {
+  id               String           @id @default(cuid())
+  assessmentId     String
+  targetScope      EnrollmentScope
+  targetId         String
+  effectiveAt      DateTime
+  reportMode       ReportAccessMode @default(KEEP_APP_ACCESS)
+  notifyByEmail    Boolean          @default(false)
+  linkTtlHours     Int?
+  status           UnenrollJobStatus @default(PENDING)
+  executedAt       DateTime?
+  errorMessage     String?
+  createdByAdminId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  assessment Assessment                     @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  overrides  AssessmentReportAccessOverride[]
+  shareTokens AssessmentReportShareToken[]
+
+  @@index([assessmentId])
+  @@index([status, effectiveAt])
+  @@index([assessmentId, status])
+}
+
+model AssessmentReportAccessOverride {
+  id               String         @id @default(cuid())
+  assessmentId     String
+  userId           String
+  mode             ReportAccessMode
+  sourceJobId      String?
+  createdByAdminId String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  assessment Assessment           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceJob  AssessmentUnenrollJob? @relation(fields: [sourceJobId], references: [id], onDelete: SetNull)
+
+  @@unique([assessmentId, userId])
+  @@index([assessmentId])
+  @@index([userId])
+}
+
+model AssessmentReportShareToken {
+  id            String   @id @default(cuid())
+  tokenHash     String   @unique
+  assessmentId  String
+  userId        String
+  expiresAt     DateTime
+  maxDownloads  Int      @default(5)
+  downloadsUsed Int      @default(0)
+  revokedAt     DateTime?
+  sourceJobId   String?
+  createdAt     DateTime @default(now())
+
+  assessment Assessment           @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceJob  AssessmentUnenrollJob? @relation(fields: [sourceJobId], references: [id], onDelete: SetNull)
+
+  @@index([assessmentId, userId])
+  @@index([expiresAt])
 }
 
 model QuizSession {

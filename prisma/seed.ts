@@ -31,11 +31,13 @@ async function main() {
     where: { id: "demo-tenant" },
     update: {
       name: "Demo Corp",
+      type: "ORGANIZATION",
       seatLimit: 250,
     },
     create: {
       id: "demo-tenant",
       name: "Demo Corp",
+      type: "ORGANIZATION",
       seatLimit: 250,
     },
   });
@@ -64,15 +66,38 @@ async function main() {
   const assessment = await prisma.assessment.upsert({
     where: { id: "demo-assessment" },
     update: {
+      ownerTenantId: tenant.id,
       tenantId: tenant.id,
       title: recommendedTemplate40.title,
       isPublished: true,
     },
     create: {
       id: "demo-assessment",
+      ownerTenantId: tenant.id,
       tenantId: tenant.id,
       title: recommendedTemplate40.title,
       isPublished: true,
+    },
+  });
+
+  await prisma.assessmentTenantEnrollment.upsert({
+    where: {
+      assessmentId_tenantId: {
+        assessmentId: assessment.id,
+        tenantId: tenant.id,
+      },
+    },
+    create: {
+      assessmentId: assessment.id,
+      tenantId: tenant.id,
+      includeFutureUsers: true,
+      active: true,
+      createdByAdminId: "seed",
+    },
+    update: {
+      includeFutureUsers: true,
+      active: true,
+      createdByAdminId: "seed",
     },
   });
 
@@ -94,6 +119,7 @@ async function main() {
   });
 
   const competencyMap = new Map<string, string>();
+  const assessmentCompetencyMap = new Map<string, string>();
   for (const competency of recommendedTemplate40.competencies) {
     const code = normalizeCode(competency.code);
     const saved = await prisma.competency.upsert({
@@ -115,6 +141,26 @@ async function main() {
       },
     });
     competencyMap.set(code, saved.id);
+
+    const assessmentCompetency = await prisma.assessmentCompetency.upsert({
+      where: {
+        assessmentId_code: {
+          assessmentId: assessment.id,
+          code,
+        },
+      },
+      create: {
+        assessmentId: assessment.id,
+        code,
+        name: competency.name,
+        description: competency.description,
+      },
+      update: {
+        name: competency.name,
+        description: competency.description,
+      },
+    });
+    assessmentCompetencyMap.set(code, assessmentCompetency.id);
   }
 
   await prisma.question.deleteMany({ where: { assessmentId: assessment.id } });
@@ -178,12 +224,14 @@ async function main() {
       const impacts = parseImpacts(option.impacts);
       for (const impact of impacts) {
         const competencyId = competencyMap.get(impact.competencyCode);
-        if (!competencyId) continue;
+        const assessmentCompetencyId = assessmentCompetencyMap.get(impact.competencyCode);
+        if (!assessmentCompetencyId) continue;
 
         await prisma.optionImpact.create({
           data: {
             optionId: savedOption.id,
-            competencyId,
+            competencyId: competencyId || null,
+            assessmentCompetencyId,
             delta: impact.delta,
           },
         });

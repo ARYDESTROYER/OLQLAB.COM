@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.create({
       data: {
         name: tenantName,
+        type: "SOLO",
         seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : 1,
       },
     });
@@ -119,6 +120,12 @@ export async function POST(req: NextRequest) {
   const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+  }
+  if (tenant.isArchived) {
+    return NextResponse.json(
+      { error: "Tenant is archived. Restore it before adding users." },
+      { status: 400 },
+    );
   }
 
   const manager = body.managerEmail

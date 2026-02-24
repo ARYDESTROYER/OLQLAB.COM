@@ -1,764 +1,295 @@
-# OLQLAB Guide (Deep Technical Handover)
+# OLQLAB Guide (Global Assessments + Explicit Enrollment)
 
-This guide is the canonical implementation handover for the OLQLAB platform as it exists in this repository.
-It is intentionally detailed so a new engineer can operate, debug, extend, and deploy the system without additional tribal context.
+This is the technical handover for the current architecture after the admin-console rework.
 
-## 1. Product Purpose
+## 1. Scope
 
-OLQLAB is a corporate personality + workplace behavior assessment platform.
+The system now treats assessments as global objects and resolves participant access explicitly through enrollment records.
 
-The system combines:
-- trait-based personality items (`LIKERT_TRAIT`)
-- scenario judgment items (`SJT_SINGLE`) with competency impacts
+Old model (deprecated as access control):
+- `Assessment.tenantId` implied tenant access.
 
-And provides:
-- invite-only email sign-in
-- role-based access (`ADMIN`, `EMPLOYEE`, `LEADER`)
-- assessment assignment/completion workflow
-- participant and leader report views
-- multi-page PDF report export
-- admin tooling for tenant/user/assessment operations
-- admin-only report regeneration for submitted assessments
+Current model (canonical):
+- direct user enrollment
+- tenant enrollment
+- report-access overrides after unenroll
+- optional secure share links
 
-## 2. Role and Access Model
+## 2. Admin Information Architecture
 
-### 2.1 Roles
+Admin console is route-sectioned:
+- `/admin`: overview dashboard, KPIs, pending unenroll jobs, recent actions
+- `/admin/users`: directory + CRUD + tenant move + solo conversion + tests/access + direct enrollment actions
+- `/admin/tenants`: tenant CRUD + seat limits + archive + roster + tenant enrollment actions
+- `/admin/assessments`: global library + create/edit/delete/publish + access stats
+- `/admin/assessments/:id`: detail tabs
 
-- `ADMIN`
-  - Full access to `/admin`
-  - Tenant management, participant import, assessment authoring, publish policy, participation tracking
-  - Can regenerate reports for submitted sessions in their own tenant
+Assessment detail tabs:
+- `Content`
+- `Access`
+- `Participants`
+- `Policy`
+- `Jobs`
+
+The detail page includes a multi-step unenroll wizard:
+1. scope/target
+2. timing
+3. report mode
+4. email + TTL settings
+5. impacted-user preview + confirm
+
+## 3. Roles and security
+
+Roles:
+- `ADMIN`: global admin operations
 - `EMPLOYEE`
-  - Can complete published assessments in their tenant
-  - Can view own report based on assessment policy
 - `LEADER`
-  - Same as employee for own data
-  - Can view direct-report leader report when policy allows
 
-### 2.2 Core Access Guards
+Guards:
+- admin endpoints use `requireAdmin()`
+- participant endpoints use `requireSession()`
+- internal job endpoints require `INTERNAL_JOB_SECRET` unless admin-authenticated route variant is used
 
-- `requireSession()` ensures authenticated user
-- `requireAdmin()` ensures `session.user.role === "ADMIN"`
+## 4. Access Model and Resolution
 
-Access is validated server-side in route handlers; frontend UI is not relied on as security.
+Single source of truth:
+- `src/lib/assessment-access.ts`
+- function: `resolveAssessmentAccess(userId, assessmentId, atTime)`
 
-## 3. Data Model (Prisma)
+Resolution fields:
+- `hasDirectEnrollment`
+- `hasTenantEnrollment`
+- `hasActiveEnrollment`
+- `overrideMode`
+- `canStartAssessment`
+- `canViewAppReport`
+- `canViewViaLinkOnly`
+- `isRevoked`
+- `sources`
 
-Primary models relevant to assessment and reporting:
+Rules:
+- Access union is `direct OR tenant`.
+- Tenant enrollment respects `includeFutureUsers`.
+- `canStartAssessment` requires published assessment and active enrollment.
+- Restrictive override applies only when no active enrollment.
+- Precedence: active enrollment wins over restrictive override.
+
+## 5. Data Model (Prisma)
+
+### 5.1 New enums
+- `TenantType`: `ORGANIZATION | SOLO`
+- `EnrollmentScope`: `USER | TENANT`
+- `ReportAccessMode`: `KEEP_APP_ACCESS | LINK_ONLY | REVOKE`
+- `UnenrollJobStatus`: `PENDING | COMPLETED | FAILED | CANCELLED`
+
+### 5.2 Updated existing models
 - `Tenant`
-- `User`
-- `Seat`
+  - added: `type`, `isArchived`
 - `Assessment`
-- `AssessmentSection`
-- `Question`
-- `QuestionOption`
+  - legacy `tenantId` retained but nullable
+  - added: `ownerTenantId` (lineage/ownership)
+  - added relations for enrollments/jobs/overrides/tokens/assessment-competencies
 - `OptionImpact`
-- `QuizSession`
-- `Answer`
-- `Score`
-- `Report`
-- `RetestEligibility`
-- `ReportArchive`
+  - added `assessmentCompetencyId`
+  - legacy `competencyId` made optional
 
-### 3.1 Runtime Entities
+### 5.3 New models
+- `AssessmentCompetency`
+- `AssessmentTenantEnrollment`
+- `AssessmentUserEnrollment`
+- `AssessmentUnenrollJob`
+- `AssessmentReportAccessOverride`
+- `AssessmentReportShareToken`
 
-- `QuizSession` is unique per (`assessmentId`, `userId`)
-- `QuizSession.status` transitions:
-  - `IN_PROGRESS` -> `SUBMITTED`
-- `Score` stores numeric outputs:
-  - Big Five trait percentages
-  - `competencyJson` raw competency deltas
-- `Report` stores narrative JSON (`narrativeJson`) consumed by web and PDF report outputs
-- `RetestEligibility` stores per-user, per-assessment retake unlock timestamps
-- `ReportArchive` stores historical score/narrative snapshots before reset/retest/regeneration replacement
+## 6. Migration and backfill strategy
 
-## 4. End-to-End Runtime Flow
+Applied migration:
+- `prisma/migrations/20260224100000_global_assessment_enrollments/migration.sql`
 
-### 4.1 Sign-in
+It adds new enums/tables/columns, makes `Assessment.tenantId` nullable, and sets `ownerTenantId` from legacy tenant linkage.
 
-1. User requests magic link at `/signin`
-2. NextAuth callback validates:
-   - user exists
-   - seat exists in same tenant
-3. seat marked `assigned=true` on successful sign-in
-4. successful sign-in flow redirects to `/dashboard`
-5. `/` remains the public landing route even for signed-in users
+Backfill script:
+- `prisma/scripts/backfill-global-assessment-enrollments.ts`
+- command: `npm run prisma:backfill:global-assessments`
 
-### 4.2 Assessment
+Backfill behavior:
+- create one active tenant enrollment for each legacy assessment
+- copy legacy tenant to `ownerTenantId`
+- create assessment-scoped competencies from legacy impact usage
+- repoint `OptionImpact` to `assessmentCompetencyId`
 
-1. User opens `/assessment/current`
-2. Published assessments for user tenant are listed with status:
-   - `Not Started`
-   - `In Progress`
-   - `Completed`
-   - `Retake Available` (when admin unlocks retest and user previously submitted)
-3. Start/resume creates or reuses session
-4. If session is `SUBMITTED`, start flow checks `RetestEligibility`:
-   - not eligible yet: user is redirected to current report and shown unlock timestamp
-   - eligible now: previous report payload is archived, score/report/answers are reset, and session reopens in `IN_PROGRESS`
-5. Answers persist by question
-6. Submit route computes score + narrative and stores current `Score` + `Report`
+Rollback script:
+- `prisma/scripts/rollback-global-assessment-enrollments.ts`
+- command: `npm run prisma:rollback:global-assessments`
 
-### 4.3 Reporting
+Rollback behavior:
+- remove backfill-tagged enrollments/competencies and detach mapped impact links
 
-- `/reports/current` lists submitted assessments
-- `/reports/me/[assessmentId]` renders participant report
-- `/reports/leader/[userId]/[assessmentId]` renders leader view when policy allows
-- `/api/reports/me/[assessmentId]/pdf` exports participant PDF
+## 7. Admin API redesign
 
-Policy gates are enforced before report access:
-- `showResultsToEmployee`
-- `resultReleaseDelayHours`
-- `leaderCanViewFullReport` (for leader route)
+### 7.1 Assessments
+- `GET /api/admin/assessments`
+- `POST /api/admin/assessments` (tenant not required)
+- `GET /api/admin/assessments/:id`
+- `PATCH /api/admin/assessments/:id`
+- `DELETE /api/admin/assessments/:id`
+- `POST /api/admin/assessments/:id/publish`
+- `GET /api/admin/assessments/:id/access`
+- `POST /api/admin/assessments/:id/enrollments`
+- `POST /api/admin/assessments/:id/unenroll`
+- `GET /api/admin/assessments/:id/jobs`
 
-## 5. Report Architecture (v2)
+### 7.2 Users
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+- `PATCH /api/admin/users/:id`
+- `DELETE /api/admin/users/:id`
+- `GET /api/admin/users/:id/tests`
+- `GET /api/admin/users/:id/access`
+- `POST /api/admin/users/:id/enrollments`
 
-The report system is now a long-form narrative model designed for premium deliverables.
+### 7.3 Tenants
+- `GET /api/admin/tenants`
+- `POST /api/admin/tenants`
+- `PATCH /api/admin/tenants/:id`
+- `GET /api/admin/tenants/:id/users`
+- `GET /api/admin/tenants/:id/access`
+- `POST /api/admin/tenants/:id/enrollments`
 
-### 5.1 Scoring Layer (`src/lib/score.ts`)
+### 7.4 Jobs and links
+- `POST /api/internal/jobs/unenrollments/run`
+- `POST /api/internal/jobs/unenrollments/:id/run`
+- `GET /api/reports/shared/:token`
+- `GET /api/reports/shared/:token/pdf`
 
-`computeScores(questions, answers)`:
-- Trait scoring:
-  - Normalizes LIKERT values to 0..1, handles reverse scoring
-  - Aggregates and scales to 0..100 percentages
-- Competency scoring:
-  - Resolves selected SJT option
-  - Sums `OptionImpact.delta` per competency
+## 8. Canonical payload contracts
 
-Output:
-- `traits`: Big Five percentages
-- `competencies`: sorted competency deltas
+Enrollment payload (`POST /api/admin/assessments/:id/enrollments`):
 
-### 5.2 Narrative Layer (`generateNarrative`)
-
-`generateNarrative(traits, competencies)` now returns a structured `GeneratedNarrative` payload:
-- `reportVersion: "v2"`
-- `profileHeadline`
-- `summary`
-- `strengths`
-- `growthAreas`
-- `actions`
-- `workplaceSignals`
-- `reflectionPrompts`
-- `managerDiscussionGuide`
-- `traitNarratives` (per trait)
-- `competencyThemes` (named themes, strength/focus)
-- `competencyBreakdown` (stored raw, not shown as score table in participant report)
-
-### 5.3 Trait Narrative Rules
-
-Each trait gets:
-- qualitative band (`high`, `moderate`, `emerging`)
-- contextual interpretation
-- leverage guidance
-- development focus
-
-This replaces the old score-only bullet style and produces actionable context per trait.
-
-### 5.4 AI Enrichment Layer (`src/lib/ai-report.ts`)
-
-`generateAiNarrative(...)` is optional (requires `OPENAI_API_KEY`).
-
-Prompt constraints:
-- no clinical/medical framing
-- no numeric score output in narrative
-- no “AI” mention in generated prose
-- workplace-specific examples preferred
-
-If model output fails JSON parse, fallback narrative is used.
-
-### 5.5 Narrative Metadata
-
-At submit (and admin regeneration), narrative stores:
-- `assessmentTakenAt`
-- `assessmentTitle`
-- `participantName`
-- optional `aiNarrative`
-
-When admin regeneration is used, metadata also includes:
-- `regeneratedAt`
-- `regeneratedByAdminId`
-
-## 6. PDF Architecture (3-page minimum)
-
-PDF route:
-- `GET /api/reports/me/:assessmentId/pdf`
-
-Characteristics:
-- minimum 3 pages with dynamic continuation pages for extended sections
-- explicit `Test Taken` timestamp in identity block
-- premium typography scale and denser page utilization
-- trait signal bar graphs (visual only, no numeric labels)
-- competency signal bar graphs (visual only, no numeric labels)
-- extended insight cards that continue across pages when needed
-- no raw competency +/- table shown to participant
-
-Page structure:
-- Page 1:
-  - title and assessment identity card
-  - participant identity
-  - test taken date/time
-  - personalized summary panel
-  - trait signal map with qualitative bands
-  - profile focus card
-- Page 2:
-  - strengths and development split cards
-  - competency signal bars
-  - scenario behavior themes
-- Page 3:
-  - action plan
-  - workplace signals
-  - reflection prompts (if present)
-  - manager discussion guide (if present)
-- Page 4+ (conditional):
-  - extended narrative sections
-  - roadmap
-  - interpretation notes
-
-## 7. Admin Report Regeneration (New)
-
-### 7.1 Purpose
-
-Allows admins to rebuild report outputs for already submitted assessments after:
-- report logic updates
-- narrative style changes
-- prompt improvements
-- bug fixes in scoring or formatting
-
-### 7.2 Route
-
-- `POST /api/admin/reports/regenerate`
-
-Request body:
 ```json
 {
-  "assessmentId": "<assessment-id>",
-  "userId": "<participant-user-id>"
+  "scope": "USER | TENANT",
+  "targetId": "string",
+  "includeFutureUsers": true
 }
 ```
 
-### 7.3 Security and Scope
+Unenroll payload (`POST /api/admin/assessments/:id/unenroll`):
 
-Route enforces:
-- authenticated admin (`requireAdmin`)
-- assessment session exists for provided `assessmentId` + `userId`
-- assessment tenant matches admin tenant
-- session status is `SUBMITTED`
-
-### 7.4 Regeneration Steps
-
-1. Load submitted `QuizSession` with questions/options/impacts/answers/user
-2. Recompute `traits` + `competencies` via `computeScores`
-3. Rebuild base narrative via `generateNarrative`
-4. Optionally generate enrichment via `generateAiNarrative`
-5. Archive current score/report payload to `ReportArchive` (`archiveCurrentAttempt`)
-6. Upsert `Score`
-7. Upsert `Report` with fresh `narrativeJson`
-
-### 7.5 User Impact
-
-No migration needed.
-
-Because participant report endpoints always load current `Report` row:
-- regenerated report is immediately visible to participant and leader views
-- PDF export immediately reflects new content
-
-## 8. Admin UI Behavior
-
-File:
-- `src/app/admin/AdminClient.tsx`
-
-Participation tracker includes:
-- filter by status (`ALL`, `SUBMITTED`, `IN_PROGRESS`, `NOT_STARTED`)
-- per-participant status and timestamps
-- retest eligibility visibility (`Scheduled` or `Eligible now`)
-- `Regenerate` action for `SUBMITTED` rows
-- `Retest Now` action for `SUBMITTED` rows
-- `Set Date` action for `SUBMITTED` rows (datetime-local input)
-- `Clear Retest` action when a retest schedule exists
-- `Reset Stats` action for `SUBMITTED`/`IN_PROGRESS` rows (archives old payload and forces retake path)
-
-Directory section includes:
-- `Delete User` action for non-admin users
-
-Actions send:
-- `POST /api/admin/reports/regenerate`
-- `POST /api/admin/assessments/:id/participants/:userId/retest`
-- `DELETE /api/admin/assessments/:id/participants/:userId/retest`
-- `POST /api/admin/assessments/:id/participants/:userId/reset`
-- `DELETE /api/admin/users/:id`
-
-Response is displayed in the admin panel for operator feedback.
-
-## 9. API Catalog
-
-### 9.1 Admin
-
-- `GET /api/admin/tenants`
-- `POST /api/admin/tenants`
-- `GET /api/admin/overview`
-- `GET /api/admin/users`
-- `POST /api/admin/users`
-- `DELETE /api/admin/users/:id`
-- `POST /api/admin/users/import-csv`
-- `POST /api/admin/invites/send`
-- `GET /api/admin/assessments`
-- `POST /api/admin/assessments`
-- `POST /api/admin/assessments/:id/publish`
-- `GET /api/admin/assessments/:id/participants`
-- `POST /api/admin/assessments/:id/participants/:userId/retest`
-- `DELETE /api/admin/assessments/:id/participants/:userId/retest`
-- `POST /api/admin/assessments/:id/participants/:userId/reset`
-- `POST /api/admin/reports/regenerate`
-
-### 9.2 Assessment Runtime
-
-- `POST /api/assessment/sessions/start`
-- `GET /api/assessment/sessions/:id`
-- `POST /api/assessment/sessions/:id/answer`
-- `POST /api/assessment/sessions/:id/submit`
-
-### 9.3 Reports
-
-- `GET /api/reports/me/:assessmentId`
-- `GET /api/reports/me/:assessmentId/pdf`
-- `GET /api/reports/leader/:userId/:assessmentId`
-
-### 9.4 Auth
-
-- `GET/POST /api/auth/[...nextauth]`
-
-## 10. Environment Variables
-
-Required:
-- `DATABASE_URL`
-- `NEXTAUTH_SECRET`
-- `NEXTAUTH_URL`
-- `RESEND_API_KEY`
-- `EMAIL_FROM`
-
-Optional:
-- `OPENAI_API_KEY`
-- `REPORT_LLM_MODEL` (default: `gpt-4o-mini`)
-
-## 11. Local Setup and Quality Gates
-
-```bash
-cd "/Users/ary/Documents/New project"
-npm install
-npx prisma generate
-npx prisma migrate dev --name init
-npm run prisma:seed
-npm run dev
+```json
+{
+  "scope": "USER | TENANT",
+  "targetId": "string",
+  "effectiveAt": "2026-02-24T18:00:00.000Z",
+  "reportMode": "KEEP_APP_ACCESS | LINK_ONLY | REVOKE",
+  "notifyByEmail": false,
+  "linkTtlHours": 168
+}
 ```
 
-Quality checks:
+## 9. Participant runtime updates
+
+Updated runtime behavior:
+- `/assessment/current` lists only published assessments with active resolved enrollment.
+- `/api/assessment/sessions/start` gates via resolver (not tenant-id match).
+- `/reports/current` lists only submitted reports with app access allowed.
+- `/api/reports/me/:assessmentId` and `/pdf` enforce override/report-mode logic.
+
+Leader/admin visibility:
+- participant self-access restrictions do not automatically remove leader/admin-level visibility gates.
+
+Retest/reset/regeneration:
+- existing behaviors remain, but participant validity checks now rely on enrollment/participation logic rather than legacy tenant coupling.
+
+## 10. Unenroll execution engine
+
+Implementation:
+- `src/lib/unenroll-jobs.ts`
+
+Job execution flow (`runDueUnenrollJobs`):
+1. fetch due jobs (`PENDING` + `effectiveAt <= now`) or forced job
+2. deactivate matching enrollment records
+3. compute impacted users snapshot
+4. upsert `AssessmentReportAccessOverride`
+5. for `LINK_ONLY`, mint signed tokens in `AssessmentReportShareToken`
+6. optionally send email (Resend)
+7. mark job as `COMPLETED` or `FAILED`
+
+Execution modes:
+- lazy: participant/report access routes trigger due-job checks
+- fallback: internal cron endpoint processes due jobs
+
+## 11. Share-link security model
+
+Token table:
+- hash only stored (`tokenHash`), never plaintext
+- expiration (`expiresAt`)
+- revocation (`revokedAt`)
+- download cap (`maxDownloads`, `downloadsUsed`)
+
+Validation rules:
+- invalid, expired, revoked, or exhausted tokens are denied
+- token-bound payload is restricted to its assessment/user
+- `/pdf` consumes a download and returns downloadable PDF bytes
+
+## 12. Admin UX behavior details
+
+### 12.1 Users section
+- create user
+- delete user (non-admin)
+- move user between tenants (seat checks)
+- convert to solo (creates `SOLO` tenant)
+- inspect tests/access
+- direct enroll/unenroll wrapper actions
+
+### 12.2 Tenants section
+- create/edit tenant
+- manage seat limit/type/archive
+- inspect tenant users/access
+- tenant enrollment and unenrollment wrappers
+
+### 12.3 Assessments section
+- create global assessment (optional owner tenant)
+- publish/unpublish
+- open detail view
+- manage explicit user/tenant enrollments
+- run unenroll wizard with scheduling and report mode controls
+- inspect and manually run jobs
+
+## 13. Validation checklist
+
+Primary quality gates:
+
 ```bash
 npm run lint
 npm run build
 ```
 
-## 12. Production Deployment Runbook
-
-1. Push repository to GitHub
-2. Import in Vercel
-3. Attach Neon Postgres
-4. Set all required environment variables
-5. Deploy
-6. Run migrations:
-```bash
-DATABASE_URL="<PROD_DATABASE_URL_UNPOOLED>" npx prisma migrate deploy
-```
-7. Optional seed:
-```bash
-DATABASE_URL="<PROD_DATABASE_URL_UNPOOLED>" npm run prisma:seed
-```
-
-## 13. Smoke Tests (Post Deploy)
-
-### 13.1 Core Runtime
-
-1. Admin sign-in
-2. Client select/create
-3. Add participant(s)
-4. Send invite
-5. Publish assessment
-6. Participant starts and submits assessment
-7. Participant views report and downloads PDF
-8. Leader views report (if policy allows)
-
-### 13.2 Regeneration Runtime
-
-1. Admin opens participation tracker
-2. Select submitted participant
-3. Trigger `Regenerate Report`
-4. Confirm success payload in admin UI
-5. Open participant report URL and verify refreshed narrative
-6. Re-download PDF and verify refreshed content and test timestamp
-
-## 14. Troubleshooting
-
-### 14.1 Report missing for participant
-
-Check:
-- session exists and `status=SUBMITTED`
-- assessment policy `showResultsToEmployee=true`
-- release delay elapsed (`resultReleaseDelayHours`)
-- `Score` and `Report` rows exist for (`assessmentId`, `userId`)
-
-### 14.2 Regeneration fails with 400
-
-Likely causes:
-- `assessmentId` or `userId` missing in request body
-- session not in `SUBMITTED` status
-
-### 14.3 Regeneration fails with 403
-
-Likely cause:
-- admin tenant does not match assessment tenant
-
-### 14.4 Regeneration succeeds but text feels old
-
-Check:
-- participant is opening correct assessment report
-- regenerate was run for correct (`assessmentId`, `userId`)
-- optional AI key/model config if expecting enriched sections
-
-### 14.5 PDF still looks short
-
-Ensure request is hitting updated route version and deployment is current.
-Current implementation always creates 3 pages in the PDF endpoint.
-
-## 15. Extension Notes
-
-Recommended next extensions:
-- audit log entry for regeneration events (`who`, `when`, `which report`)
-- optional batch regeneration endpoint by assessment
-- admin preview diff (before/after narrative)
-- queue-backed regeneration for high-volume tenants
-- report version pinning by assessment policy
-
-## 16. Security and Maintenance
-
-- Keep all secrets in environment variables only
-- Rotate credentials after sharing/testing
-- Do not commit `.env.local`
-- Run lint/build before every deploy
-- Keep Prisma + Next.js dependencies aligned with runtime Node version
-
-## 17. File Reference Map
-
-Primary files for report and regeneration behavior:
-- `src/lib/score.ts`
-- `src/lib/ai-report.ts`
-- `src/app/api/assessment/sessions/[id]/submit/route.ts`
-- `src/app/api/admin/reports/regenerate/route.ts`
-- `src/app/api/reports/me/[assessmentId]/route.ts`
-- `src/app/api/reports/leader/[userId]/[assessmentId]/route.ts`
-- `src/app/api/reports/me/[assessmentId]/pdf/route.ts`
-- `src/app/reports/me/[assessmentId]/page.tsx`
-- `src/app/reports/leader/[userId]/[assessmentId]/page.tsx`
-- `src/app/admin/AdminClient.tsx`
-
-## 18. Journey Update (Report Visual Upgrade)
-
-Date:
-- `2026-02-24` (implementation pass)
-
-Summary of this pass:
-- Upgraded report presentation quality in both web and PDF outputs.
-- Added stronger visual cues (trait signal bars/visual maps) without exposing numeric trait scores.
-- Improved personalization by addressing the participant by name in report surfaces.
-- Expanded PDF readability and section sizing, including a dedicated extended-insights page when data exists.
-- Renamed report section title from `12-Week Action Plan` to `Action Plan`.
-
-Technical details:
-1. Narrative text update
-- Removed timeboxed phrasing in generated action steps to keep the section timeless and cleaner.
-- File: `src/lib/score.ts`
-
-2. AI narrative sanitization
-- Added cleanup logic to strip score-style output patterns from enrichment text if the model returns them.
-- File: `src/lib/ai-report.ts`
-
-3. Participant report UI visual refresh
-- Added `Trait Signal Map` with bar-style visual indicators and band labels only.
-- Removed numeric rendering from trait visuals.
-- Added participant-name personalization in the report hero.
-- Updated section title to `Action Plan`.
-- File: `src/app/reports/me/[assessmentId]/page.tsx`
-
-4. PDF redesign
-- Rebuilt PDF composition with stronger layout hierarchy and larger readable content blocks.
-- Added trait signal bars (visual only, no numeric labels).
-- Improved spacing, card structure, and narrative flow across pages.
-- Ensured extended insights are no longer compressed by allocating a dedicated full page when available.
-- Kept minimum report size at 3 pages, with optional 4th page for extended insights.
-- File: `src/app/api/reports/me/[assessmentId]/pdf/route.ts`
-
-Validation:
-- `npm run lint` passed
-- `npm run build` passed
-
-Operational note:
-- Existing reports reflect this new visual style in web/PDF immediately.
-- Narrative text improvements appear most fully after submit or admin regeneration.
-
-## 19. Retest Control and Archive System (Deep Dive)
-
-### 19.1 Why this layer exists
-
-Retest controls were added to support paid, high-touch report lifecycle management where admins can:
-- allow a participant to retake immediately
-- schedule retake eligibility for a future timestamp
-- reset participant stats when a fresh run is required
-- regenerate report text without losing previous report payloads
-
-The design goal is **current canonical report + preserved history snapshots**.
-
-### 19.2 New schema entities
-
-#### `RetestEligibility`
-Purpose:
-- Single row per (`assessmentId`, `userId`) indicating when retake is unlocked.
-
-Key fields:
-- `assessmentId`
-- `userId`
-- `eligibleAt`
-- `setByAdminId`
-- timestamps (`createdAt`, `updatedAt`)
-
-Behavior:
-- If row absent, participant cannot retake once already submitted.
-- If row present and `now >= eligibleAt`, retake is allowed.
-
-#### `ReportArchive`
-Purpose:
-- Immutable snapshot storage of report artifacts before replacement/reset.
-
-Key fields:
-- `assessmentId`
-- `userId`
-- `submittedAt` (from prior session)
-- `archivedAt`
-- `archivedById`
-- `archiveReason`
-- `scoreJson`
-- `narrativeJson`
-- optional metadata (`assessmentTitle`, `participantName`)
-
-### 19.3 Archival helper
-
-File:
-- `src/lib/report-archive.ts`
-
-`archiveCurrentAttempt(tx, input)` does:
-1. Read current session submitted timestamp
-2. Read current `Score`
-3. Read current `Report`
-4. If no report artifacts exist, no-op
-5. Parse report metadata (`assessmentTitle`, `participantName`) when possible
-6. Create `ReportArchive` row in same transaction
-
-### 19.4 Retest enforcement runtime
-
-File:
-- `src/app/api/assessment/sessions/start/route.ts`
-
-Submitted-session path:
-1. Load `RetestEligibility` for user+assessment
-2. If not eligible:
-   - return `alreadySubmitted=true`
-   - return `retestEligibleAt` (nullable)
-3. If eligible:
-   - archive current report payload
-   - clear `Answer` rows
-   - clear current `Score` and `Report`
-   - clear retest eligibility row
-   - reopen existing `QuizSession` as `IN_PROGRESS`
-
-This keeps one active session while preserving old artifacts in `ReportArchive`.
-
-### 19.5 Admin API control plane
-
-#### A) User deletion
-Route:
-- `DELETE /api/admin/users/:id`
-
-Behavior:
-- admin-only
-- blocks deleting `ADMIN` role users via this endpoint
-- deletes tenant seat assignment and then user record
-- cascades dependent entities through existing schema FKs
-
-#### B) Retest scheduling
-Route:
-- `POST /api/admin/assessments/:id/participants/:userId/retest`
-
-Body:
-- `{ "mode": "IMMEDIATE" }`
-- or `{ "mode": "DATE", "eligibleAt": "<ISO string>" }`
-
-Behavior:
-- validates participant belongs to assessment tenant
-- blocks admin-role participant rows
-- upserts `RetestEligibility`
-
-Clear route:
-- `DELETE /api/admin/assessments/:id/participants/:userId/retest`
-
-Behavior:
-- removes scheduled retest lock row
-
-#### C) Reset participant stats
-Route:
-- `POST /api/admin/assessments/:id/participants/:userId/reset`
-
-Behavior:
-1. archive current payload to `ReportArchive`
-2. clear `Score` and `Report`
-3. clear existing answers
-4. reopen/create `QuizSession` in `IN_PROGRESS`
-5. set retest eligibility immediate (`eligibleAt=now`)
-
-### 19.6 Regeneration archive behavior
-
-Route:
-- `POST /api/admin/reports/regenerate`
-
-Before writing new `Score`/`Report`, route now archives prior payload using `archiveCurrentAttempt` with reason `admin_regenerate_report`.
-
-### 19.7 Admin UI wiring
-
-File:
-- `src/app/admin/AdminClient.tsx`
-
-Directory section:
-- Added action column with `Delete User` button
-
-Participation tracker additions:
-- new `Retest Eligibility` column
-- row actions:
-  - `Regenerate`
-  - `Retest Now`
-  - `Set Date`
-  - `Clear Retest`
-  - `Reset Stats`
-- each action refreshes participant list and prints response payload for operator traceability
-
-### 19.8 Participant UI impact
-
-Files:
-- `src/app/assessment/current/page.tsx`
-- `src/app/assessment/[assessmentId]/page.tsx`
-
-Effects:
-- assessment center shows `Retake Available` badge when unlock active
-- future unlock timestamps are displayed when scheduled
-- start page informs participant when assessment is submitted but still locked
-
-### 19.9 Data integrity decisions
-
-Important implementation decisions:
-- old payloads are archived before destructive reset/regenerate operations
-- numeric trait/competency internals remain stored in DB but are not exposed in report narrative text
-- retest schedule is explicit and auditable by timestamp
-- retest unlock consumption clears schedule after retake starts
-
-### 19.10 Operational validation checklist
-
-After deployment:
-1. Run migration `20260224030000_retest_controls`
-2. Open `/admin` and verify tracker action buttons render
-3. For a submitted participant:
-   - set future date
-   - confirm participant sees unlock timestamp
-4. set immediate retest
-5. start assessment as participant and verify session reopens for retake
-6. regenerate and reset stats once each
-7. confirm `ReportArchive` rows are created for both operations
-8. confirm PDF still downloads and renders with new layout
-
-## 20. Journey Update (2026-02-24: Retest + PDF Quality Pass)
-
-Summary of this pass:
-- Implemented end-to-end retest control suite (admin APIs + UI + participant runtime behavior).
-- Added user deletion in admin directory.
-- Added report archival model and helper to preserve prior payloads before reset/regeneration/retest restart.
-- Rebuilt PDF layout engine for stronger visual quality and readability.
-- Added competency signal bar charts in PDF while keeping numeric values hidden.
-- Expanded extended-insight rendering with continuation pages to avoid cramped blocks.
-
-Files added:
-- `src/app/api/admin/users/[id]/route.ts`
-- `src/app/api/admin/assessments/[id]/participants/[userId]/retest/route.ts`
-- `src/app/api/admin/assessments/[id]/participants/[userId]/reset/route.ts`
-- `src/lib/report-archive.ts`
-- `prisma/migrations/20260224030000_retest_controls/migration.sql`
-
-Files updated (primary):
-- `prisma/schema.prisma`
-- `src/app/admin/AdminClient.tsx`
-- `src/app/api/admin/assessments/[id]/participants/route.ts`
-- `src/app/api/admin/reports/regenerate/route.ts`
-- `src/app/api/assessment/sessions/start/route.ts`
-- `src/app/assessment/current/page.tsx`
-- `src/app/assessment/[assessmentId]/page.tsx`
-- `src/app/api/reports/me/[assessmentId]/pdf/route.ts`
-
-Verification executed:
-- `npx prisma generate` -> passed
-- `npm run lint` -> passed
-- `npm run build` -> passed
-
-## 21. Journey Update (2026-02-24: PDF Overflow Fix + Additional Visuals)
-
-Summary:
-- Fixed PDF formatting defects where some long text tokens could overflow outside layout bounds.
-- Prevented scenario theme cards from rendering below footer by introducing overflow continuation pages.
-- Added a new visual block on page 1 while keeping all existing report sections:
-  - vertical bar graph (trait signal columns)
-  - trait mix pie chart
-- Kept numeric-score hiding behavior intact (visual signals only).
-
-Technical changes in `src/app/api/reports/me/[assessmentId]/pdf/route.ts`:
-1. Wrapping hardening
-- Added long-token splitting helper for wrap logic to avoid out-of-bounds rendering.
-
-2. Margin-safe label placement
-- Trait/competency band labels are now right-aligned inside printable width.
-
-3. Theme pagination
-- Scenario theme cards are capacity-limited on page 2 and overflow to continuation pages.
-
-4. Additional visual indicators
-- Added `Signal Visual Snapshot` section with:
-  - mini vertical bar chart
-  - mini pie chart
-
-Validation:
-- `npm run lint` -> passed
-- `npm run build` -> passed
-
-## 22. Engineering Journal Workflow (`journal.md`)
-
-The implementation diary now lives in:
-- [`journal.md`](./journal.md)
-
-Journal policy:
-- append-only chronological entries
-- each entry must include:
-  - `Timestamp (UTC)` in ISO 8601
-  - `Timestamp (Local)` with timezone + offset
-  - task
-  - why
-  - what changed
-  - how
-  - validation/output
-  - risks/unknowns
-  - next step
-
-Purpose:
-- preserve operational reasoning and implementation evidence per change pass
-- keep README/guide focused on reference documentation while `journal.md` captures day-by-day execution
+Architecture scenarios to validate manually:
+1. migration integrity for legacy assessments and impacts
+2. access union (direct-only, tenant-only, combined)
+3. no-enrollment invisibility for participants
+4. `includeFutureUsers` true/false behavior for newly created users
+5. unenroll mode behavior (`KEEP_APP_ACCESS`, `LINK_ONLY`, `REVOKE`)
+6. scheduled job behavior before and after effective time
+7. share-link security checks (invalid/expired/revoked/download-exhausted)
+8. admin section routing and actions under `/admin/users`, `/admin/tenants`, `/admin/assessments`
+
+## 14. Operational notes
+
+- Legacy endpoints remain available for transition compatibility where still referenced.
+- `Assessment.tenantId` remains for compatibility/history, but is not the canonical access gate.
+- Future hardening:
+  - move internal job execution to scheduled infrastructure (e.g., Vercel cron)
+  - add background retry and alerting for failed job notifications
+  - complete deprecation pass of any remaining legacy admin UI surfaces
+
+## 15. Journal policy
+
+Engineering activity is recorded append-only in `journal.md` with:
+- UTC timestamp
+- Local timestamp
+- task/why/changes/how
+- validation output
+- risks/unknowns
+- next step

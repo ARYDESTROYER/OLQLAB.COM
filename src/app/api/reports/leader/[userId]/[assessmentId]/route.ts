@@ -15,20 +15,24 @@ export async function GET(
   }
 
   const employee = await db.user.findUnique({ where: { id: userId } });
-  if (!employee || employee.tenantId !== check.session.user.tenantId) {
+  if (!employee) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (check.session.user.role === "LEADER" && employee.managerId !== check.session.user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (check.session.user.role === "LEADER") {
+    const sameTenant = employee.tenantId === check.session.user.tenantId;
+    const isManager = employee.managerId === check.session.user.id;
+    if (!sameTenant || !isManager) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
   }
 
   const assessment = await db.assessment.findUnique({
     where: { id: assessmentId },
-    select: { id: true, title: true, tenantId: true, policy: true },
+    select: { id: true, title: true, policy: true },
   });
 
-  if (!assessment || assessment.tenantId !== check.session.user.tenantId) {
+  if (!assessment) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
