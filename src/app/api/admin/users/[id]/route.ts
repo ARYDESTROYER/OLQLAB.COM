@@ -39,6 +39,22 @@ export async function DELETE(
   }
 
   await db.$transaction([
+    db.score.deleteMany({
+      where: {
+        userId: user.id,
+      },
+    }),
+    db.report.deleteMany({
+      where: {
+        userId: user.id,
+      },
+    }),
+    db.invite.deleteMany({
+      where: {
+        tenantId: user.tenantId,
+        email: normalizeEmail(user.email),
+      },
+    }),
     db.seat.deleteMany({
       where: {
         tenantId: user.tenantId,

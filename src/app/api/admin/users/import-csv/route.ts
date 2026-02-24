@@ -36,24 +36,38 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    const existingUser = await db.user.findUnique({
+      where: { email },
+      select: { id: true, tenantId: true },
+    });
+    if (existingUser && existingUser.tenantId !== tenantId) {
+      skipped.push({ email, reason: "belongs_to_other_tenant" });
+      continue;
+    }
+
     const existingSeat = await db.seat.findUnique({
       where: { tenantId_userEmail: { tenantId, userEmail: email } },
     });
 
-    if (existingSeat) {
+    if (existingSeat && existingUser) {
       skipped.push({ email, reason: "duplicate" });
       continue;
     }
 
-    if (seatCount >= tenant.seatLimit) {
+    const needsSeat = !existingSeat;
+    const repairingExistingUser = Boolean(existingUser && existingUser.tenantId === tenantId);
+
+    if (needsSeat && seatCount >= tenant.seatLimit && !repairingExistingUser) {
       skipped.push({ email, reason: "seat_limit_reached" });
       continue;
     }
 
-    await db.seat.create({
-      data: { tenantId, userEmail: email },
-    });
-    seatCount += 1;
+    if (needsSeat) {
+      await db.seat.create({
+        data: { tenantId, userEmail: email },
+      });
+      seatCount += 1;
+    }
 
     const manager = row.manager_email
       ? await db.user.findFirst({

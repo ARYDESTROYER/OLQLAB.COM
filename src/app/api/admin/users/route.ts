@@ -61,8 +61,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "email is required" }, { status: 400 });
   }
 
+  const normalizedEmail = normalizeEmail(body.email);
+  const existingUser = await db.user.findUnique({
+    where: { email: normalizedEmail },
+    select: {
+      id: true,
+      tenantId: true,
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+
   let tenantId = body.tenantId;
   if (body.createSoloTenant) {
+    if (existingUser) {
+      return NextResponse.json(
+        {
+          error:
+            "This email already belongs to an existing client. Use Add Individual Participant under that client instead of creating a new solo client.",
+          existingTenantId: existingUser.tenant.id,
+          existingTenantName: existingUser.tenant.name,
+        },
+        { status: 409 },
+      );
+    }
+
     const tenantName = body.tenantName?.trim() || `Solo - ${body.email}`;
     const tenant = await db.tenant.create({
       data: {
@@ -77,12 +104,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
   }
 
+  if (existingUser && existingUser.tenantId !== tenantId) {
+    return NextResponse.json(
+      {
+        error:
+          "This email already belongs to a different client. Move/transfer is blocked to prevent accidental reassignment.",
+        existingTenantId: existingUser.tenant.id,
+        existingTenantName: existingUser.tenant.name,
+      },
+      { status: 409 },
+    );
+  }
+
   const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
-
-  const normalizedEmail = normalizeEmail(body.email);
 
   const manager = body.managerEmail
     ? await db.user.findFirst({

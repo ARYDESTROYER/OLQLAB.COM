@@ -373,6 +373,14 @@ export default function AdminPage() {
     lastName: "",
   });
   const [soloOutput, setSoloOutput] = useState("");
+  const [assessmentAddForm, setAssessmentAddForm] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    role: "EMPLOYEE" as "EMPLOYEE" | "LEADER",
+    managerEmail: "",
+  });
+  const [addingParticipantToAssessment, setAddingParticipantToAssessment] = useState(false);
 
   useEffect(() => {
     const timeout = setTimeout(async () => {
@@ -728,6 +736,55 @@ export default function AdminPage() {
       setAssessmentParticipants(data.participants || []);
     } catch {
       setAssessmentParticipants([]);
+    }
+  }
+
+  async function addParticipantToSelectedAssessment() {
+    if (!selectedAssessmentId) {
+      alert("Select an assessment first.");
+      return;
+    }
+
+    if (!assessmentAddForm.email.trim()) {
+      alert("Participant email is required.");
+      return;
+    }
+
+    setAddingParticipantToAssessment(true);
+    setRegenerateOutput("");
+
+    try {
+      const res = await fetch(`/api/admin/assessments/${selectedAssessmentId}/participants`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: assessmentAddForm.email,
+          firstName: assessmentAddForm.firstName,
+          lastName: assessmentAddForm.lastName,
+          role: assessmentAddForm.role,
+          managerEmail: assessmentAddForm.managerEmail || undefined,
+        }),
+      });
+      const data = await res.json();
+      setRegenerateOutput(JSON.stringify(data, null, 2));
+
+      if (res.ok) {
+        setAssessmentAddForm({
+          email: "",
+          firstName: "",
+          lastName: "",
+          role: "EMPLOYEE",
+          managerEmail: "",
+        });
+        await loadParticipants(selectedAssessmentId);
+        setDirectoryRefreshTick((prev) => prev + 1);
+      }
+    } catch {
+      setRegenerateOutput(
+        JSON.stringify({ error: "Could not add participant to this assessment." }, null, 2),
+      );
+    } finally {
+      setAddingParticipantToAssessment(false);
     }
   }
 
@@ -1555,6 +1612,73 @@ export default function AdminPage() {
         <p className="mt-2 text-sm text-slate-600">
           See exactly who completed, is in progress, or has not started.
         </p>
+
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+            Add Participant To Selected Assessment
+          </p>
+          <div className="mt-2 grid gap-2 md:grid-cols-5">
+            <input
+              className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+              placeholder="email"
+              value={assessmentAddForm.email}
+              onChange={(e) =>
+                setAssessmentAddForm((prev) => ({ ...prev, email: e.target.value }))
+              }
+              disabled={!selectedAssessmentId || addingParticipantToAssessment}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              placeholder="first name"
+              value={assessmentAddForm.firstName}
+              onChange={(e) =>
+                setAssessmentAddForm((prev) => ({ ...prev, firstName: e.target.value }))
+              }
+              disabled={!selectedAssessmentId || addingParticipantToAssessment}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              placeholder="last name"
+              value={assessmentAddForm.lastName}
+              onChange={(e) =>
+                setAssessmentAddForm((prev) => ({ ...prev, lastName: e.target.value }))
+              }
+              disabled={!selectedAssessmentId || addingParticipantToAssessment}
+            />
+            <select
+              className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              value={assessmentAddForm.role}
+              onChange={(e) =>
+                setAssessmentAddForm((prev) => ({
+                  ...prev,
+                  role: e.target.value as "EMPLOYEE" | "LEADER",
+                }))
+              }
+              disabled={!selectedAssessmentId || addingParticipantToAssessment}
+            >
+              <option value="EMPLOYEE">EMPLOYEE</option>
+              <option value="LEADER">LEADER</option>
+            </select>
+          </div>
+          <div className="mt-2 grid gap-2 md:grid-cols-[1fr_auto]">
+            <input
+              className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              placeholder="manager email (optional)"
+              value={assessmentAddForm.managerEmail}
+              onChange={(e) =>
+                setAssessmentAddForm((prev) => ({ ...prev, managerEmail: e.target.value }))
+              }
+              disabled={!selectedAssessmentId || addingParticipantToAssessment}
+            />
+            <button
+              className="rounded-lg bg-slate-900 px-3 py-2 text-xs font-medium text-white disabled:opacity-60"
+              onClick={addParticipantToSelectedAssessment}
+              disabled={!selectedAssessmentId || addingParticipantToAssessment}
+            >
+              {addingParticipantToAssessment ? "Adding..." : "Add Participant"}
+            </button>
+          </div>
+        </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
           {(["ALL", "SUBMITTED", "IN_PROGRESS", "NOT_STARTED"] as const).map((status) => (

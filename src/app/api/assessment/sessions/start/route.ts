@@ -67,6 +67,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "You are not assigned to this assessment tenant." }, { status: 403 });
   }
 
+  if (!seat.assigned) {
+    await db.seat.update({
+      where: {
+        tenantId_userEmail: {
+          tenantId: user.tenantId,
+          userEmail: user.email.toLowerCase(),
+        },
+      },
+      data: {
+        assigned: true,
+      },
+    });
+  }
+
   const existingSession = await db.quizSession.findUnique({
     where: { assessmentId_userId: { assessmentId, userId } },
     include: { answers: true },

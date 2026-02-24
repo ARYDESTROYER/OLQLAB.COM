@@ -5,11 +5,40 @@ import { db } from "@/lib/db";
 
 export default async function CurrentAssessmentPage() {
   const session = await getServerAuthSession();
-  if (!session?.user?.tenantId) redirect("/signin");
+  if (!session?.user?.id) redirect("/signin");
+
+  const currentUser = await db.user.findUnique({
+    where: { id: session.user.id },
+    select: {
+      id: true,
+      email: true,
+      tenantId: true,
+      tenant: {
+        select: {
+          name: true,
+        },
+      },
+    },
+  });
+
+  if (!currentUser?.tenantId) redirect("/signin");
+
+  const seat = await db.seat.findUnique({
+    where: {
+      tenantId_userEmail: {
+        tenantId: currentUser.tenantId,
+        userEmail: currentUser.email.toLowerCase(),
+      },
+    },
+    select: {
+      id: true,
+      assigned: true,
+    },
+  });
 
   const assessments = await db.assessment.findMany({
     where: {
-      tenantId: session.user.tenantId,
+      tenantId: currentUser.tenantId,
       isPublished: true,
     },
     include: {
@@ -18,7 +47,7 @@ export default async function CurrentAssessmentPage() {
       },
       sessions: {
         where: {
-          userId: session.user.id,
+          userId: currentUser.id,
         },
         select: {
           id: true,
@@ -29,7 +58,7 @@ export default async function CurrentAssessmentPage() {
       },
       retestEligibilities: {
         where: {
-          userId: session.user.id,
+          userId: currentUser.id,
         },
         select: {
           eligibleAt: true,
@@ -39,6 +68,8 @@ export default async function CurrentAssessmentPage() {
     },
     orderBy: { createdAt: "desc" },
   });
+
+  const tenantLabel = currentUser.tenant?.name || currentUser.tenantId;
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
@@ -50,11 +81,19 @@ export default async function CurrentAssessmentPage() {
         </p>
       </header>
 
-      {assessments.length === 0 ? (
+      {!seat ? (
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">Account access is out of sync</h2>
+          <p className="mt-2 text-sm text-amber-900">
+            Your seat assignment for <span className="font-semibold">{tenantLabel}</span> is missing.
+            Ask your admin to re-add you from the selected assessment or re-send your invite.
+          </p>
+        </section>
+      ) : assessments.length === 0 ? (
         <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
           <h2 className="text-lg font-semibold">No published assessments yet</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Your organization has not published an assessment for your account yet.
+            No published assessments were found for <span className="font-semibold">{tenantLabel}</span>.
           </p>
         </section>
       ) : (
