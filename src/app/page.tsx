@@ -4,83 +4,49 @@ import { db } from "@/lib/db";
 
 type Role = "ADMIN" | "EMPLOYEE" | "LEADER";
 
-const buyerPillars = [
+const leadershipPillars = [
   {
-    title: "Executive-grade behavior intelligence",
-    text: "Map leadership and team behavior patterns with evidence your HR and business leaders can act on quickly.",
+    title: "Transformational leadership development",
+    text: "Personalized coaching grounded in behavioral science to strengthen clarity, confidence, and decision quality.",
   },
   {
-    title: "Managed program delivery",
-    text: "OLQLAB operates the assessment journey with your stakeholders. You buy measurable outcomes, not setup overhead.",
+    title: "Building teams that flourish",
+    text: "Inclusive leadership patterns that improve trust, collaboration, and consistent team execution.",
   },
   {
-    title: "Coaching-focused outputs",
-    text: "Each participant and manager gets clear, practical guidance tied to strengths, risk zones, and development priorities.",
-  },
-];
-
-const corporateUseCases = [
-  {
-    title: "Leadership bench readiness",
-    text: "Clarify which leadership behaviors are scaling with the business and where intervention is needed.",
-  },
-  {
-    title: "Manager capability uplift",
-    text: "Develop managers using behavior-level insights that improve coaching quality and team consistency.",
-  },
-  {
-    title: "Team effectiveness and collaboration",
-    text: "Surface communication, ownership, and conflict patterns before they impact execution.",
-  },
-  {
-    title: "Retention and culture development",
-    text: "Identify pressure, engagement, and growth blockers to strengthen employee experience and stability.",
+    title: "Strategic talent and succession planning",
+    text: "Behavior intelligence to identify emerging leaders and build stronger leadership pipelines.",
   },
 ];
 
-const domainSignals = [
+const cprDimensions = [
   {
-    domain: "Self-awareness and reflection",
-    signal: "How accurately people identify strengths, blind spots, and habitual responses.",
+    title: "Cognitive",
+    subtitle: "How You Think",
+    description:
+      "How you process complexity, spot patterns, and make strategic decisions when information is incomplete.",
   },
   {
-    domain: "Resilience under pressure",
-    signal: "How people respond, adapt, and recover during high-demand periods.",
+    title: "Personality",
+    subtitle: "How You Engage",
+    description:
+      "How you build trust, influence stakeholders, and shape the quality of relationships across the organization.",
   },
   {
-    domain: "Communication and influence",
-    signal: "How ideas are conveyed, challenged, and aligned across teams.",
-  },
-  {
-    domain: "Collaboration and accountability",
-    signal: "How consistently individuals support shared goals while owning outcomes.",
-  },
-  {
-    domain: "Learning and adaptability",
-    signal: "How willing people are to absorb feedback and modify behavior.",
-  },
-  {
-    domain: "Decision discipline",
-    signal: "How choices balance speed, empathy, risk, and long-term impact.",
+    title: "Response",
+    subtitle: "How You Adapt",
+    description:
+      "How you stay effective under pressure, recover from setbacks, and adapt behavior in changing conditions.",
   },
 ];
 
-const valueMetrics = [
-  {
-    value: "40",
-    label: "curated assessment items",
-    note: "Hybrid personality and workplace-scenario model.",
-  },
-  {
-    value: "8",
-    label: "workplace competency axes",
-    note: "From emotional intelligence to accountability and collaboration.",
-  },
-  {
-    value: "5",
-    label: "trait dimensions",
-    note: "Big Five profile translated into coaching-ready language.",
-  },
+const founderExpertise = [
+  "Culture Diagnostic",
+  "Leadership Blindspot Coaching",
+  "Organizational Development",
+  "Behavioral Analysis",
+  "Executive Coaching",
+  "Talent Management",
 ];
 
 const programTracks = [
@@ -104,77 +70,72 @@ const programTracks = [
   },
 ];
 
-const rolloutJourney = [
+const transformationJourney = [
   {
-    step: "01",
-    title: "Alignment",
-    detail: "Define business outcomes, participant cohorts, and governance rules with CHRO/L&D stakeholders.",
+    stage: "Awareness",
+    description:
+      "Assessment reveals your CPR profile, strengths, growth areas, and patterns that shape your leadership behavior.",
   },
   {
-    step: "02",
-    title: "Program setup",
-    detail: "Configure assessment policy, communication plan, and milestone cadence for your organization.",
+    stage: "Understanding",
+    description:
+      "Coaching sessions deepen insight into why patterns repeat, where blindspots appear, and how to shift effectively.",
   },
   {
-    step: "03",
-    title: "Assessment delivery",
-    detail: "Participants complete the guided OLQLAB assessment with autosave and controlled access.",
+    stage: "Integration",
+    description:
+      "Leaders turn insight into concrete actions that improve communication, resilience, and team outcomes.",
   },
   {
-    step: "04",
-    title: "Insight synthesis",
-    detail: "Scores, narratives, and behavior themes are consolidated into participant and leadership views.",
-  },
-  {
-    step: "05",
-    title: "Action deployment",
-    detail: "Leaders receive practical coaching prompts, risk flags, and development priorities by cohort.",
+    stage: "Mastery",
+    description:
+      "Progress is sustained through follow-through, reflection, and leadership habits that scale across teams.",
   },
 ];
 
-const stakeholderViews = [
+const valueMetrics = [
   {
-    role: "CHRO / L&D",
-    points: [
-      "Program-level completion and readiness visibility.",
-      "Behavior trends by cohort and role segment.",
-      "Priority development themes for leadership planning.",
-    ],
+    value: "40",
+    label: "curated assessment items",
+    note: "Hybrid personality and workplace-scenario model.",
   },
   {
-    role: "People Leaders",
-    points: [
-      "Individual strengths and growth areas per participant.",
-      "Manager coaching prompts tied to observed behavior patterns.",
-      "Team-level insight for collaboration and delivery quality.",
-    ],
+    value: "8",
+    label: "workplace competency axes",
+    note: "From emotional intelligence to accountability and collaboration.",
   },
   {
-    role: "Participants",
-    points: [
-      "Clear trait and competency profile without pass/fail framing.",
-      "Actionable recommendations for role effectiveness.",
-      "Structured reflection prompts and growth roadmap.",
-    ],
+    value: "5",
+    label: "trait dimensions",
+    note: "Big Five profile translated into coaching-ready language.",
   },
+];
+
+const benefits = [
+  "Self-clarity and reduced blindspots",
+  "Stronger manager-participant coaching conversations",
+  "Resilience and adaptability under pressure",
+  "Authentic leadership impact across teams",
+  "Program-level visibility for CHRO and L&D",
+  "Practical action plans with measurable follow-through",
 ];
 
 const faqItems = [
   {
     q: "Is OLQLAB software access or a managed assessment program?",
-    a: "OLQLAB is sold as a corporate assessment and development program. We deliver the full journey with your team.",
+    a: "OLQLAB is sold as a managed corporate assessment and development program delivered with your leadership and HR teams.",
   },
   {
     q: "Is this a pass/fail test?",
-    a: "No. It is a developmental behavioral assessment designed to improve leadership and team effectiveness.",
+    a: "No. It is a developmental behavioral assessment focused on leadership effectiveness and growth.",
   },
   {
     q: "Can report visibility be controlled?",
-    a: "Yes. Admin policy controls who can access reports, when reports are released, and leader-view permissions.",
+    a: "Yes. Admin policy controls who can view reports, release timing, and leader-level access.",
   },
   {
     q: "What do decision makers receive?",
-    a: "A consolidated view of strengths, risk zones, and practical action levers at both participant and cohort level.",
+    a: "Consolidated strengths, risk zones, behavior themes, and coaching priorities at participant and cohort levels.",
   },
 ];
 
@@ -182,11 +143,11 @@ const tickerItems = [
   "Leadership readiness",
   "Manager effectiveness",
   "Behavior intelligence",
+  "Blindspot clarity",
   "Team collaboration",
   "Retention insights",
   "Culture development",
   "Coaching actions",
-  "Workstyle analytics",
 ];
 
 function roleLabel(role: Role) {
@@ -213,16 +174,14 @@ export default async function HomePage() {
               </div>
               <div>
                 <p className="text-sm font-semibold tracking-[0.14em] text-slate-900">OLQLAB</p>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">
-                  Corporate Assessment Program
-                </p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Leadership Intelligence Program</p>
               </div>
             </div>
 
             <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex">
-              <a href="#outcomes" className="transition hover:text-slate-900">Outcomes</a>
-              <a href="#science" className="transition hover:text-slate-900">Assessment Model</a>
-              <a href="#journey" className="transition hover:text-slate-900">Delivery</a>
+              <a href="#model" className="transition hover:text-slate-900">Model</a>
+              <a href="#program" className="transition hover:text-slate-900">Program</a>
+              <a href="#journey" className="transition hover:text-slate-900">Journey</a>
               <a href="#faq" className="transition hover:text-slate-900">FAQ</a>
             </nav>
 
@@ -244,41 +203,45 @@ export default async function HomePage() {
         </header>
 
         <section className="mx-auto max-w-7xl px-6 pt-12 md:px-10 md:pt-16">
-          <div className="relative grid gap-8 lg:grid-cols-[1.18fr_0.82fr]">
+          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
             <article className="section-frame glass-panel rounded-[2rem] p-8 shadow-[0_36px_80px_-40px_rgba(15,23,42,0.62)] md:p-12">
               <div className="hero-noise rounded-[inherit]" />
 
               <p className="hero-chip">
                 <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-500" />
-                Personality intelligence for modern organizations
+                Leadership is a journey within
               </p>
 
               <h1 className="font-display mt-7 text-5xl leading-[0.92] text-slate-900 md:text-7xl">
-                Buy the assessment program that transforms team behavior.
+                Lead with clarity, compassion, and behavioral intelligence.
               </h1>
 
               <p className="mt-7 max-w-2xl text-base leading-relaxed text-slate-700 md:text-lg">
-                OLQLAB helps corporates run high-quality personality and workstyle assessments with clarity, rigor, and
-                practical follow-through. We partner with your HR and leadership teams to deliver business-ready
-                outcomes through OLQLAB-led operations.
+                OLQLAB blends deep leadership reflection with enterprise-grade assessment delivery. We combine the
+                soft wisdom of coaching with structured measurement so CHROs, managers, and participants all move from
+                insight to action.
               </p>
 
               <div className="mt-9 flex flex-wrap gap-3">
-                <a
-                  href="#contact"
+                <Link
+                  href="/signin"
                   className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
                 >
-                  Request Enterprise Proposal
-                </a>
+                  Start With OLQLAB
+                </Link>
                 <a
                   href="#journey"
                   className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-500"
                 >
-                  Review Delivery Journey
+                  See Transformation Journey
                 </a>
               </div>
 
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                <div className="metric-card rounded-xl p-3">
+                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Founder</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-900">Cmdr. (Dr.) Pratap Pawar</p>
+                </div>
                 <div className="metric-card rounded-xl p-3">
                   <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Buyer profile</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">CHRO, L&D, HRBP</p>
@@ -286,10 +249,6 @@ export default async function HomePage() {
                 <div className="metric-card rounded-xl p-3">
                   <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Delivery mode</p>
                   <p className="mt-1 text-sm font-semibold text-slate-900">Managed by OLQLAB</p>
-                </div>
-                <div className="metric-card rounded-xl p-3">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Primary outcome</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">Coaching-ready insight</p>
                 </div>
               </div>
             </article>
@@ -311,13 +270,12 @@ export default async function HomePage() {
               </article>
 
               <article className="section-frame data-grid glass-panel rounded-[2rem] p-6 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.38)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Decision Confidence</p>
-                <h3 className="mt-3 text-xl font-semibold text-slate-900">From individual profiles to leadership-level action.</h3>
-                <ul className="detail-list mt-4 text-sm leading-relaxed">
-                  <li>Participant reports with strengths, growth areas, and action steps.</li>
-                  <li>Leader-facing interpretation focused on coaching behavior.</li>
-                  <li>Policy-controlled governance for visibility and release timing.</li>
-                </ul>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Founder Perspective</p>
+                <blockquote className="mt-3 border-l-2 border-cyan-300 pl-4 text-sm leading-relaxed text-slate-700">
+                  &ldquo;Leadership is not about being the loudest voice. It is about understanding people deeply,
+                  including yourself, and making decisions with courage and care.&rdquo;
+                </blockquote>
+                <p className="mt-3 text-xs uppercase tracking-[0.12em] text-slate-500">Cmdr. (Dr.) Pratap Pawar</p>
               </article>
             </aside>
           </div>
@@ -338,56 +296,48 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section id="outcomes" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+        <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Why organizations choose OLQLAB</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Leadership Development</p>
             <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              An enterprise program built for behavior change, not dashboard noise.
+              Human-centered guidance backed by enterprise rigor.
             </h2>
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {buyerPillars.map((pillar) => (
+              {leadershipPillars.map((pillar) => (
                 <article key={pillar.title} className="hover-lift-strong feature-card rounded-2xl p-5">
                   <h3 className="text-lg font-semibold text-slate-900">{pillar.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-slate-700">{pillar.text}</p>
                 </article>
               ))}
             </div>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              {corporateUseCases.map((useCase) => (
-                <article key={useCase.title} className="hover-lift rounded-2xl border border-slate-200 bg-white/80 p-5">
-                  <h3 className="text-base font-semibold text-slate-900">{useCase.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{useCase.text}</p>
-                </article>
-              ))}
-            </div>
           </div>
         </section>
 
-        <section id="science" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+        <section id="model" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Assessment Model</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">CPR Framework</p>
             <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Hybrid measurement for personality and real workplace behavior.
+              The three dimensions that shape leadership behavior.
             </h2>
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-700 md:text-base">
-              OLQLAB combines trait-based personality items with practical scenario judgments to generate balanced,
-              development-focused intelligence for participants and leaders.
+              OLQLAB applies the Composite Pattern Recognition model to evaluate thinking, engagement, and adaptability
+              together, so leaders are not reduced to one-dimensional labels.
             </p>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {domainSignals.map((item) => (
-                <article key={item.domain} className="hover-lift feature-card rounded-2xl p-5">
-                  <h3 className="text-base font-semibold text-slate-900">{item.domain}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.signal}</p>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {cprDimensions.map((dimension) => (
+                <article key={dimension.title} className="hover-lift feature-card rounded-2xl p-5">
+                  <h3 className="text-lg font-semibold text-slate-900">{dimension.title}</h3>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">{dimension.subtitle}</p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{dimension.description}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+        <section id="program" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Program Tracks</p>
             <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
@@ -406,19 +356,40 @@ export default async function HomePage() {
           </div>
         </section>
 
+        <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+          <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Founder Expertise</p>
+            <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
+              Military-tested discipline, corporate-ready leadership coaching.
+            </h2>
+            <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-700 md:text-base">
+              Commander (Dr.) Pratap Pawar brings 35 years of leadership experience spanning Indian Navy operations,
+              behavioral psychology, and multinational people strategy transformation.
+            </p>
+
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {founderExpertise.map((item) => (
+                <article key={item} className="hover-lift rounded-xl border border-slate-200 bg-white/82 p-4">
+                  <p className="text-sm font-semibold text-slate-900">{item}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section id="journey" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Delivery Journey</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Transformation Journey</p>
             <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Five phases from strategy alignment to sustained behavior change.
+              Four stages from insight to sustained leadership change.
             </h2>
 
-            <div className="mt-8 grid gap-4 lg:grid-cols-5">
-              {rolloutJourney.map((phase) => (
-                <article key={phase.step} className="timeline-node hover-lift rounded-2xl border border-slate-200 bg-white/82 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Phase {phase.step}</p>
-                  <h3 className="mt-2 text-base font-semibold text-slate-900">{phase.title}</h3>
-                  <p className="mt-2 pb-6 text-sm leading-relaxed text-slate-700">{phase.detail}</p>
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
+              {transformationJourney.map((item, idx) => (
+                <article key={item.stage} className="hover-lift rounded-2xl border border-slate-200 bg-white/82 p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage {idx + 1}</p>
+                  <h3 className="mt-2 text-lg font-semibold text-slate-900">{item.stage}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
                 </article>
               ))}
             </div>
@@ -427,20 +398,15 @@ export default async function HomePage() {
 
         <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Stakeholder Value</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">What Awaits You</p>
             <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Every decision-maker sees what matters to their role.
+              Business outcomes and personal leadership growth, together.
             </h2>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {stakeholderViews.map((view) => (
-                <article key={view.role} className="hover-lift feature-card rounded-2xl p-5">
-                  <h3 className="text-lg font-semibold text-slate-900">{view.role}</h3>
-                  <ul className="detail-list mt-3 text-sm leading-relaxed">
-                    {view.points.map((point) => (
-                      <li key={point}>{point}</li>
-                    ))}
-                  </ul>
+            <div className="mt-8 grid gap-3 md:grid-cols-2">
+              {benefits.map((item) => (
+                <article key={item} className="hover-lift rounded-xl border border-slate-200 bg-white/82 p-4">
+                  <p className="text-sm leading-relaxed text-slate-700">{item}</p>
                 </article>
               ))}
             </div>
@@ -468,11 +434,11 @@ export default async function HomePage() {
           <div className="cta-panel relative overflow-hidden rounded-[2rem] p-8 text-white md:p-12">
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Enterprise consultation</p>
             <h2 className="font-display mt-3 max-w-4xl text-4xl leading-tight md:text-6xl">
-              Bring OLQLAB into your leadership and development strategy.
+              Begin your leadership transformation with OLQLAB.
             </h2>
             <p className="mt-5 max-w-3xl text-sm leading-relaxed text-slate-300 md:text-base">
-              Share your team size, goals, and timeline. OLQLAB will recommend the right assessment track, delivery
-              model, and reporting structure for your organization.
+              Share your team size, goals, and timeline. We will recommend the right assessment track, reporting
+              model, and delivery cadence for your organization.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <a
