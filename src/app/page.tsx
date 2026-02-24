@@ -4,43 +4,7 @@ import { db } from "@/lib/db";
 
 type Role = "ADMIN" | "EMPLOYEE" | "LEADER";
 
-const leadershipPillars = [
-  {
-    title: "Transformational leadership development",
-    text: "Personalized coaching grounded in behavioral science to strengthen clarity, confidence, and decision quality.",
-  },
-  {
-    title: "Building teams that flourish",
-    text: "Inclusive leadership patterns that improve trust, collaboration, and consistent team execution.",
-  },
-  {
-    title: "Strategic talent and succession planning",
-    text: "Behavior intelligence to identify emerging leaders and build stronger leadership pipelines.",
-  },
-];
-
-const cprDimensions = [
-  {
-    title: "Cognitive",
-    subtitle: "How You Think",
-    description:
-      "How you process complexity, spot patterns, and make strategic decisions when information is incomplete.",
-  },
-  {
-    title: "Personality",
-    subtitle: "How You Engage",
-    description:
-      "How you build trust, influence stakeholders, and shape the quality of relationships across the organization.",
-  },
-  {
-    title: "Response",
-    subtitle: "How You Adapt",
-    description:
-      "How you stay effective under pressure, recover from setbacks, and adapt behavior in changing conditions.",
-  },
-];
-
-const founderExpertise = [
+const expertiseAreas = [
   "Culture Diagnostic",
   "Leadership Blindspot Coaching",
   "Organizational Development",
@@ -49,105 +13,93 @@ const founderExpertise = [
   "Talent Management",
 ];
 
-const programTracks = [
+const humanTouchCards = [
   {
-    name: "Leadership Diagnostic",
-    duration: "4-6 weeks",
-    summary:
-      "For executive and senior manager cohorts. Establishes behavior baselines and high-leverage interventions.",
+    title: "Transformational Leadership Development",
+    description:
+      "Like a mentor who knows you deeply, we help you uncover your leadership potential. Through personalized coaching grounded in behavioral science, you'll navigate complexity with newfound clarity and confidence.",
   },
   {
-    name: "Manager Capability Program",
-    duration: "6-10 weeks",
-    summary:
-      "For managers and team leads. Combines individual reports with structured coaching actions and follow-through checks.",
+    title: "Building Teams That Flourish",
+    description:
+      "Great leaders understand that diversity of thought is strength. We help you build inclusive, high-performing teams where every voice matters and every person can contribute their best.",
   },
   {
-    name: "Enterprise Team Baseline",
-    duration: "8-12 weeks",
-    summary:
-      "For cross-functional organizations. Provides consistent behavioral measurement at scale for culture and performance planning.",
+    title: "Strategic Talent and Succession Planning",
+    description:
+      "Organizations thrive when they invest in people. We help you identify emerging talent, nurture leadership pipelines, and create cultures where people grow and stay.",
   },
 ];
 
-const transformationJourney = [
+const cprDimensions = [
   {
-    stage: "Awareness",
+    title: "Cognitive",
+    subtitle: "How You Think",
     description:
-      "Assessment reveals your CPR profile, strengths, growth areas, and patterns that shape your leadership behavior.",
+      "Your cognitive dimension reflects how you process information, analyze complexity, and make strategic decisions. Strong cognitive leaders think systemically and act decisively.",
   },
   {
-    stage: "Understanding",
+    title: "Personality",
+    subtitle: "How You Engage",
     description:
-      "Coaching sessions deepen insight into why patterns repeat, where blindspots appear, and how to shift effectively.",
+      "Your personality dimension is about your presence and influence. How do you build relationships? How do you inspire others? How do you create the culture around you?",
   },
   {
-    stage: "Integration",
+    title: "Response",
+    subtitle: "How You Adapt",
     description:
-      "Leaders turn insight into concrete actions that improve communication, resilience, and team outcomes.",
-  },
-  {
-    stage: "Mastery",
-    description:
-      "Progress is sustained through follow-through, reflection, and leadership habits that scale across teams.",
-  },
-];
-
-const valueMetrics = [
-  {
-    value: "40",
-    label: "curated assessment items",
-    note: "Hybrid personality and workplace-scenario model.",
-  },
-  {
-    value: "8",
-    label: "workplace competency axes",
-    note: "From emotional intelligence to accountability and collaboration.",
-  },
-  {
-    value: "5",
-    label: "trait dimensions",
-    note: "Big Five profile translated into coaching-ready language.",
+      "Your response dimension shows your resilience and adaptability. How do you handle pressure? How do you remain effective in chaos? This dimension reveals your inner strength.",
   },
 ];
 
 const benefits = [
-  "Self-clarity and reduced blindspots",
-  "Stronger manager-participant coaching conversations",
-  "Resilience and adaptability under pressure",
-  "Authentic leadership impact across teams",
-  "Program-level visibility for CHRO and L&D",
-  "Practical action plans with measurable follow-through",
+  {
+    title: "Self-Clarity",
+    description: "See yourself as others see you. Understand your true strengths and growth areas.",
+  },
+  {
+    title: "Reduced Blindspots",
+    description: "Illuminate hidden patterns and transform them into strengths.",
+  },
+  {
+    title: "Enhanced Relationships",
+    description: "As you understand yourself better, your relationships naturally deepen.",
+  },
+  {
+    title: "Resilience and Adaptability",
+    description: "Develop the inner strength to navigate uncertainty with wisdom.",
+  },
+  {
+    title: "Authentic Leadership",
+    description: "Stop performing. Start leading from your true self.",
+  },
+  {
+    title: "Organizational Impact",
+    description: "Your growth ripples through your teams, culture, and results.",
+  },
 ];
 
-const faqItems = [
+const journeyStages = [
   {
-    q: "Is OLQLAB software access or a managed assessment program?",
-    a: "OLQLAB is sold as a managed corporate assessment and development program delivered with your leadership and HR teams.",
+    stage: "Awareness",
+    description:
+      "Begin with honest self-reflection. Our assessment reveals your CPR profile-your strengths, growth areas, and the patterns that shape your leadership.",
   },
   {
-    q: "Is this a pass/fail test?",
-    a: "No. It is a developmental behavioral assessment focused on leadership effectiveness and growth.",
+    stage: "Understanding",
+    description:
+      "Go deeper. Through personalized coaching, you'll understand not just what you are, but why. You'll uncover your blindspots and see opportunities for growth.",
   },
   {
-    q: "Can report visibility be controlled?",
-    a: "Yes. Admin policy controls who can view reports, release timing, and leader-level access.",
+    stage: "Integration",
+    description:
+      "Transform insight into action. With guidance and support, you'll develop new capabilities and lead with greater authenticity and effectiveness.",
   },
   {
-    q: "What do decision makers receive?",
-    a: "Consolidated strengths, risk zones, behavior themes, and coaching priorities at participant and cohort levels.",
+    stage: "Mastery",
+    description:
+      "Sustain your growth. As you evolve, you'll help others on their journey. Leadership becomes a shared practice of continuous learning.",
   },
-];
-
-const tickerItems = [
-  "Leadership readiness",
-  "Manager effectiveness",
-  "Behavior intelligence",
-  "Blindspot clarity",
-  "Team collaboration",
-  "Retention insights",
-  "Culture development",
-  "Coaching actions",
 ];
 
 function roleLabel(role: Role) {
@@ -174,221 +126,134 @@ export default async function HomePage() {
               </div>
               <div>
                 <p className="text-sm font-semibold tracking-[0.14em] text-slate-900">OLQLAB</p>
-                <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Leadership Intelligence Program</p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Leadership Development</p>
               </div>
             </div>
 
             <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex">
-              <a href="#model" className="transition hover:text-slate-900">Model</a>
-              <a href="#program" className="transition hover:text-slate-900">Program</a>
-              <a href="#journey" className="transition hover:text-slate-900">Journey</a>
-              <a href="#faq" className="transition hover:text-slate-900">FAQ</a>
+              <a href="#about" className="transition hover:text-slate-900">About</a>
+              <a href="#framework" className="transition hover:text-slate-900">Framework</a>
+              <a href="#assessments" className="transition hover:text-slate-900">Assessments</a>
             </nav>
 
-            <div className="flex items-center gap-2">
-              <a
-                href="#contact"
-                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
-              >
-                Book Consultation
-              </a>
-              <Link
-                href="/signin"
-                className="hidden rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500 md:inline-block"
-              >
-                Client Sign In
-              </Link>
-            </div>
+            <Link
+              href="/signin"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
+            >
+              Sign In
+            </Link>
           </div>
         </header>
 
-        <section className="mx-auto max-w-7xl px-6 pt-12 md:px-10 md:pt-16">
-          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-            <article className="section-frame glass-panel rounded-[2rem] p-8 shadow-[0_36px_80px_-40px_rgba(15,23,42,0.62)] md:p-12">
-              <div className="hero-noise rounded-[inherit]" />
-
-              <p className="hero-chip">
-                <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-500" />
-                Leadership is a journey within
-              </p>
-
-              <h1 className="font-display mt-7 text-5xl leading-[0.92] text-slate-900 md:text-7xl">
-                Lead with clarity, compassion, and behavioral intelligence.
-              </h1>
-
-              <p className="mt-7 max-w-2xl text-base leading-relaxed text-slate-700 md:text-lg">
-                OLQLAB blends deep leadership reflection with enterprise-grade assessment delivery. We combine the
-                soft wisdom of coaching with structured measurement so CHROs, managers, and participants all move from
-                insight to action.
-              </p>
-
-              <div className="mt-9 flex flex-wrap gap-3">
-                <Link
-                  href="/signin"
-                  className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
-                >
-                  Start With OLQLAB
-                </Link>
-                <a
-                  href="#journey"
-                  className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-500"
-                >
-                  See Transformation Journey
-                </a>
-              </div>
-
-              <div className="mt-8 grid gap-3 sm:grid-cols-3">
-                <div className="metric-card rounded-xl p-3">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Founder</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">Cmdr. (Dr.) Pratap Pawar</p>
-                </div>
-                <div className="metric-card rounded-xl p-3">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Buyer profile</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">CHRO, L&D, HRBP</p>
-                </div>
-                <div className="metric-card rounded-xl p-3">
-                  <p className="text-[11px] uppercase tracking-[0.12em] text-slate-500">Delivery mode</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">Managed by OLQLAB</p>
-                </div>
-              </div>
-            </article>
-
-            <aside className="relative space-y-4">
-              <article className="section-frame glass-panel rounded-[2rem] p-6 shadow-[0_24px_60px_-32px_rgba(15,23,42,0.48)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Program Snapshot</p>
-                <h2 className="font-display mt-3 text-3xl leading-tight text-slate-900">What your organization gets</h2>
-
-                <div className="mt-6 space-y-3">
-                  {valueMetrics.map((metric) => (
-                    <div key={metric.label} className="feature-card rounded-xl p-4">
-                      <p className="metric-value">{metric.value}</p>
-                      <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600">{metric.label}</p>
-                      <p className="mt-1 text-sm text-slate-700">{metric.note}</p>
-                    </div>
-                  ))}
-                </div>
-              </article>
-
-              <article className="section-frame data-grid glass-panel rounded-[2rem] p-6 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.38)]">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Founder Perspective</p>
-                <blockquote className="mt-3 border-l-2 border-cyan-300 pl-4 text-sm leading-relaxed text-slate-700">
-                  &ldquo;Leadership is not about being the loudest voice. It is about understanding people deeply,
-                  including yourself, and making decisions with courage and care.&rdquo;
-                </blockquote>
-                <p className="mt-3 text-xs uppercase tracking-[0.12em] text-slate-500">Cmdr. (Dr.) Pratap Pawar</p>
-              </article>
-            </aside>
-          </div>
-        </section>
-
-        <section className="mx-auto mt-10 max-w-7xl px-6 md:px-10">
-          <div className="section-frame glass-panel rounded-2xl p-3">
-            <div className="ticker">
-              <div className="ticker-track">
-                {[...tickerItems, ...tickerItems].map((item, idx) => (
-                  <span key={`${item}-${idx}`} className="ticker-pill">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-500" />
-                    {item}
-                  </span>
-                ))}
-              </div>
+        <section className="mx-auto max-w-7xl px-6 pt-16 md:px-10 md:pt-24">
+          <div className="section-frame glass-panel rounded-[2rem] p-8 text-center shadow-[0_36px_80px_-40px_rgba(15,23,42,0.62)] md:p-14">
+            <p className="hero-chip mx-auto">
+              <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-500" />
+              Leadership begins within
+            </p>
+            <h1 className="font-display mt-7 text-5xl leading-[0.92] text-slate-900 md:text-7xl">
+              Leadership is a Journey Within
+            </h1>
+            <p className="mx-auto mt-7 max-w-3xl text-base leading-relaxed text-slate-700 md:text-lg">
+              Understand yourself deeply. Lead with clarity and compassion. Like a trusted elder brother, we walk
+              alongside you-offering honest reflection and the wisdom to navigate complexity with grace.
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <a
+                href="#assessments"
+                className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
+              >
+                Explore Assessments
+              </a>
+              <a
+                href="#about"
+                className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-500"
+              >
+                Learn More
+              </a>
             </div>
           </div>
         </section>
 
-        <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+        <section className="mx-auto mt-12 max-w-6xl px-6 md:px-10">
+          <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-8 md:p-10">
+            <p className="mx-auto max-w-4xl text-center text-base leading-relaxed text-slate-700 md:text-lg">
+              At OLQLab, we believe that true leadership begins with self-awareness. Our assessments reveal not just
+              who you are, but who you&rsquo;re becoming. Through personalized coaching grounded in behavioral science and
+              military-tested wisdom, we help you navigate complexity with grace and lead with authentic impact.
+            </p>
+          </div>
+        </section>
+
+        <section id="about" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Leadership Development</p>
+            <div className="grid gap-8 md:grid-cols-[1.15fr_0.85fr] md:gap-10">
+              <div>
+                <h2 className="font-display text-4xl leading-tight text-slate-900 md:text-5xl">
+                  Your Guide on the Leadership Path
+                </h2>
+                <p className="mt-5 text-sm leading-relaxed text-slate-700 md:text-base">
+                  Commander (Dr.) Pratap Pawar brings 35 years of lived experience in leadership-from the disciplined
+                  halls of the Indian Navy to the dynamic corridors of corporate excellence. His journey spans 22 years
+                  of naval service, including the Kargil conflict and LTTE operations, where he learned that true
+                  strength lies in understanding people deeply.
+                </p>
+                <p className="mt-4 text-sm leading-relaxed text-slate-700 md:text-base">
+                  With a PhD in Behavioral Psychology and a decade leading people strategy in multinational corporations,
+                  Pratap embodies a rare blend: the rigor of military training, the wisdom of academic research, and
+                  the empathy of someone who has walked many paths.
+                </p>
+                <blockquote className="mt-5 border-l-2 border-cyan-300 pl-4 text-sm italic leading-relaxed text-slate-700 md:text-base">
+                  &ldquo;Leadership isn&rsquo;t about being the loudest in the room. It&rsquo;s about understanding the quiet
+                  struggles of those around you, and having the courage to face your own.&rdquo;
+                </blockquote>
+              </div>
+
+              <article className="feature-card rounded-2xl p-6">
+                <h3 className="text-lg font-semibold text-slate-900">Expertise Areas</h3>
+                <ul className="detail-list mt-4 text-sm leading-relaxed">
+                  {expertiseAreas.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section id="assessments" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+          <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">How We Help You Lead</p>
             <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Human-centered guidance backed by enterprise rigor.
+              Through coaching and assessment across three dimensions.
             </h2>
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {leadershipPillars.map((pillar) => (
-                <article key={pillar.title} className="hover-lift-strong feature-card rounded-2xl p-5">
-                  <h3 className="text-lg font-semibold text-slate-900">{pillar.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{pillar.text}</p>
+              {humanTouchCards.map((item) => (
+                <article key={item.title} className="hover-lift-strong feature-card rounded-2xl p-5">
+                  <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="model" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+        <section id="framework" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">CPR Framework</p>
-            <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              The three dimensions that shape leadership behavior.
+            <h2 className="font-display text-4xl leading-tight text-slate-900 md:text-5xl">
+              The Three Dimensions of Leadership
             </h2>
             <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-700 md:text-base">
-              OLQLAB applies the Composite Pattern Recognition model to evaluate thinking, engagement, and adaptability
-              together, so leaders are not reduced to one-dimensional labels.
+              Leadership isn&rsquo;t one-dimensional. The Composite Pattern Recognition (CPR) model reveals three essential
+              dimensions that shape how you lead.
             </p>
 
             <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {cprDimensions.map((dimension) => (
-                <article key={dimension.title} className="hover-lift feature-card rounded-2xl p-5">
-                  <h3 className="text-lg font-semibold text-slate-900">{dimension.title}</h3>
-                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">{dimension.subtitle}</p>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{dimension.description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="program" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-          <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Program Tracks</p>
-            <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Engagement models matched to your organizational scope.
-            </h2>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-3">
-              {programTracks.map((track) => (
-                <article key={track.name} className="hover-lift-strong feature-card rounded-2xl p-5">
-                  <p className="text-xs uppercase tracking-[0.12em] text-slate-500">{track.duration}</p>
-                  <h3 className="mt-2 text-lg font-semibold text-slate-900">{track.name}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{track.summary}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-          <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Founder Expertise</p>
-            <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Military-tested discipline, corporate-ready leadership coaching.
-            </h2>
-            <p className="mt-4 max-w-4xl text-sm leading-relaxed text-slate-700 md:text-base">
-              Commander (Dr.) Pratap Pawar brings 35 years of leadership experience spanning Indian Navy operations,
-              behavioral psychology, and multinational people strategy transformation.
-            </p>
-
-            <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {founderExpertise.map((item) => (
-                <article key={item} className="hover-lift rounded-xl border border-slate-200 bg-white/82 p-4">
-                  <p className="text-sm font-semibold text-slate-900">{item}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="journey" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-          <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Transformation Journey</p>
-            <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Four stages from insight to sustained leadership change.
-            </h2>
-
-            <div className="mt-8 grid gap-4 md:grid-cols-2">
-              {transformationJourney.map((item, idx) => (
-                <article key={item.stage} className="hover-lift rounded-2xl border border-slate-200 bg-white/82 p-5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Stage {idx + 1}</p>
-                  <h3 className="mt-2 text-lg font-semibold text-slate-900">{item.stage}</h3>
+              {cprDimensions.map((item) => (
+                <article key={item.title} className="hover-lift feature-card rounded-2xl p-5">
+                  <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">{item.subtitle}</p>
                   <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
                 </article>
               ))}
@@ -398,64 +263,113 @@ export default async function HomePage() {
 
         <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">What Awaits You</p>
-            <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Business outcomes and personal leadership growth, together.
-            </h2>
+            <h2 className="font-display text-4xl leading-tight text-slate-900 md:text-5xl">What Awaits You</h2>
 
-            <div className="mt-8 grid gap-3 md:grid-cols-2">
+            <div className="mt-8 grid gap-4 md:grid-cols-2">
               {benefits.map((item) => (
-                <article key={item} className="hover-lift rounded-xl border border-slate-200 bg-white/82 p-4">
-                  <p className="text-sm leading-relaxed text-slate-700">{item}</p>
+                <article key={item.title} className="hover-lift rounded-2xl border border-slate-200 bg-white/82 p-5">
+                  <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
                 </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="faq" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+        <section id="journey" className="mx-auto mt-20 max-w-6xl px-6 md:px-10">
           <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">FAQ</p>
-            <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-              Questions HR and procurement leaders usually ask.
+            <h2 className="font-display text-center text-4xl leading-tight text-slate-900 md:text-5xl">
+              Your Transformation Awaits
             </h2>
-            <div className="mt-8 grid gap-3">
-              {faqItems.map((item) => (
-                <details key={item.q} className="rounded-xl border border-slate-200 bg-white/80 p-4">
-                  <summary className="cursor-pointer text-sm font-semibold text-slate-900">{item.q}</summary>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.a}</p>
-                </details>
+
+            <div className="mt-8 space-y-4">
+              {journeyStages.map((item, idx) => (
+                <article key={item.stage} className="hover-lift feature-card rounded-2xl p-5 md:p-6">
+                  <div className="flex gap-4">
+                    <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                      {idx + 1}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-900">{item.stage}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
+                    </div>
+                  </div>
+                </article>
               ))}
             </div>
           </div>
         </section>
 
-        <section id="contact" className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-          <div className="cta-panel relative overflow-hidden rounded-[2rem] p-8 text-white md:p-12">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-300">Enterprise consultation</p>
-            <h2 className="font-display mt-3 max-w-4xl text-4xl leading-tight md:text-6xl">
-              Begin your leadership transformation with OLQLAB.
-            </h2>
-            <p className="mt-5 max-w-3xl text-sm leading-relaxed text-slate-300 md:text-base">
-              Share your team size, goals, and timeline. We will recommend the right assessment track, reporting
-              model, and delivery cadence for your organization.
+        <section id="contact" className="mx-auto mt-20 max-w-6xl px-6 md:px-10">
+          <div className="cta-panel relative overflow-hidden rounded-[2rem] p-8 text-center text-white md:p-12">
+            <h2 className="font-display text-4xl leading-tight md:text-6xl">Begin Your Journey</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 md:text-base">
+              Take the first step toward deeper self-understanding and transformational leadership.
             </p>
-            <div className="mt-7 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-wrap justify-center gap-3">
               <a
-                href="mailto:hello@olqlab.com?subject=OLQLAB%20Enterprise%20Consultation"
+                href="#assessments"
                 className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
               >
-                Contact OLQLAB Sales
+                Explore Assessments
+              </a>
+              <a
+                href="#framework"
+                className="rounded-xl border border-slate-500 bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+              >
+                Learn About CPR
               </a>
               <Link
                 href="/signin"
-                className="rounded-xl border border-slate-500 bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+                className="rounded-xl border border-cyan-200 bg-cyan-50 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
               >
-                Existing Client Sign In
+                Sign In
               </Link>
             </div>
           </div>
         </section>
+
+        <footer className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
+          <div className="section-frame glass-panel rounded-[2rem] p-7 md:p-10">
+            <div className="grid gap-6 md:grid-cols-4">
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">About</h4>
+                <div className="mt-3 space-y-2">
+                  <a href="#about" className="block text-sm text-slate-600 hover:text-slate-900">Our Approach</a>
+                  <a href="#framework" className="block text-sm text-slate-600 hover:text-slate-900">CPR Framework</a>
+                  <a href="#journey" className="block text-sm text-slate-600 hover:text-slate-900">Journey</a>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">Services</h4>
+                <div className="mt-3 space-y-2">
+                  <a href="#assessments" className="block text-sm text-slate-600 hover:text-slate-900">Assessments</a>
+                  <a href="#about" className="block text-sm text-slate-600 hover:text-slate-900">Coaching</a>
+                  <a href="#framework" className="block text-sm text-slate-600 hover:text-slate-900">Blindspot Work</a>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">Resources</h4>
+                <div className="mt-3 space-y-2">
+                  <a href="#framework" className="block text-sm text-slate-600 hover:text-slate-900">Framework Notes</a>
+                  <a href="#contact" className="block text-sm text-slate-600 hover:text-slate-900">Contact</a>
+                  <a href="#assessments" className="block text-sm text-slate-600 hover:text-slate-900">Offerings</a>
+                </div>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-slate-900">Connect</h4>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">
+                  Have questions? We are here to support your leadership journey.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-7 border-t border-slate-200 pt-7">
+              <p className="text-center text-sm text-slate-600">&copy; 2026 OLQLab. All rights reserved.</p>
+              <p className="mt-2 text-center text-sm text-slate-500">Leadership begins within.</p>
+            </div>
+          </div>
+        </footer>
       </main>
     );
   }
