@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -71,6 +72,14 @@ export default function AssessmentStartPage() {
   return (
     <main className="mx-auto max-w-3xl space-y-6 p-6 md:p-10">
       <section className="rounded-3xl bg-gradient-to-r from-cyan-100 via-sky-50 to-amber-100 p-8">
+        <div className="mb-4">
+          <Link
+            href="/assessment/current"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Back to Assessment Center
+          </Link>
+        </div>
         <h1 className="text-3xl font-semibold tracking-tight">OLQLAB Workstyle Assessment</h1>
         <p className="mt-3 text-slate-700">
           You will answer personality items and practical workplace scenarios. There are no &quot;wrong&quot;

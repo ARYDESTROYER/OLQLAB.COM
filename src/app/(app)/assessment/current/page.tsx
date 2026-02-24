@@ -113,6 +113,20 @@ export default async function CurrentAssessmentPage() {
         <p className="mt-2 text-sm text-slate-700">
           Start and continue assigned assessments from this page.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/reports/current"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            My Reports
+          </Link>
+        </div>
       </header>
 
       {!seat ? (

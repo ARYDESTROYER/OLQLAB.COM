@@ -38,6 +38,20 @@ export default async function CurrentReportsPage() {
         <p className="mt-2 text-sm text-slate-700">
           This page only lists completed assessments and report downloads.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/assessment/current"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Assessment Center
+          </Link>
+        </div>
       </header>
 
       {reports.length === 0 ? (

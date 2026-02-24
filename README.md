@@ -68,6 +68,27 @@ npm run prisma:seed
 npm run dev
 ```
 
+## Navigation model
+
+- `/` is always the public landing page (signed-in and signed-out users).
+- `/dashboard` is the authenticated workspace home.
+- `/signin` sends successful logins to `/dashboard`.
+
+## Engineering journal (`journal.md`)
+
+- Ongoing implementation diary lives in [`journal.md`](./journal.md).
+- Timestamp standard for each entry:
+  - `Timestamp (UTC)` in ISO 8601.
+  - `Timestamp (Local)` with timezone label and offset.
+- Entries are append-only and include:
+  - task
+  - why
+  - what changed
+  - how
+  - validation/output
+  - risks/unknowns
+  - next step
+
 ## Admin workflow
 
 1. Open `/admin`

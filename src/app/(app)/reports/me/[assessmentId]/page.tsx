@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -294,10 +295,70 @@ export default function MyReportPage() {
     };
   });
 
-  if (!assessmentId) return <main className="p-8">Invalid assessment id.</main>;
-  if (error) return <main className="p-8">{error}</main>;
-  if (!data) return <main className="p-8">Loading report...</main>;
-  if (data.message) return <main className="p-8">{data.message}</main>;
+  if (!assessmentId) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-rose-900">Invalid report route</h1>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/reports/current" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              My Reports
+            </Link>
+            <Link href="/dashboard" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              Dashboard
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (error) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-rose-900">Could not load report</h1>
+          <p className="mt-2 text-sm text-rose-800">{error}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/reports/current" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              My Reports
+            </Link>
+            <Link href="/dashboard" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              Dashboard
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!data) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">Loading report...</h1>
+        </section>
+      </main>
+    );
+  }
+
+  if (data.message) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-amber-900">{data.message}</h1>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/reports/current" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              My Reports
+            </Link>
+            <Link href="/assessment/current" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              Assessment Center
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-6xl space-y-7 p-4 md:space-y-8 md:p-8">
@@ -318,6 +379,24 @@ export default function MyReportPage() {
         </p>
 
         <div className="relative mt-6 flex flex-wrap items-center gap-3">
+          <Link
+            href="/reports/current"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            My Reports
+          </Link>
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/assessment/current"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+          >
+            Assessment Center
+          </Link>
           <div className="rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-xs font-medium text-slate-700">
             Test Taken: {takenAtLabel}
           </div>

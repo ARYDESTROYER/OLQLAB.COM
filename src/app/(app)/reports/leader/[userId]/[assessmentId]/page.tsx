@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
@@ -63,10 +64,64 @@ export default function LeaderReportPage() {
     run();
   }, [userId, assessmentId]);
 
-  if (!userId || !assessmentId) return <main className="p-8">Invalid report route.</main>;
-  if (error) return <main className="p-8">{error}</main>;
-  if (!data) return <main className="p-8">Loading...</main>;
-  if (data.error) return <main className="p-8">{data.error}</main>;
+  if (!userId || !assessmentId) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-rose-900">Invalid report route</h1>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/dashboard" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              Dashboard
+            </Link>
+            <Link href="/reports/current" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              My Reports
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+  if (error) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-rose-900">Could not load leader report</h1>
+          <p className="mt-2 text-sm text-rose-800">{error}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/dashboard" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              Dashboard
+            </Link>
+            <Link href="/reports/current" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              My Reports
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+  if (!data) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">Loading leader report...</h1>
+        </section>
+      </main>
+    );
+  }
+  if (data.error) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-amber-900">{data.error}</h1>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link href="/dashboard" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white">
+              Dashboard
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   const strengths = data.narrative?.strengths || [];
   const growthAreas = data.narrative?.growthAreas || [];
@@ -95,6 +150,20 @@ export default function LeaderReportPage() {
         <p className="mt-1 text-sm text-slate-800">
           <span className="font-semibold">Test Taken:</span> {takenAt}
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/reports/current"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            My Reports
+          </Link>
+        </div>
       </header>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6">

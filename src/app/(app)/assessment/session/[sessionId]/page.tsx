@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
@@ -172,8 +173,43 @@ export default function SessionPage() {
     }
   }
 
-  if (loading) return <main className="p-8">Loading session...</main>;
-  if (loadError) return <main className="p-8">{loadError}</main>;
+  if (loading) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">Loading assessment session...</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            Preparing your questions and saved progress.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-rose-900">Could not load this session</h1>
+          <p className="mt-2 text-sm text-rose-800">{loadError}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/assessment/current"
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+            >
+              Back to Assessment Center
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              Dashboard
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6 md:p-10">

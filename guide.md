@@ -81,6 +81,8 @@ Primary models relevant to assessment and reporting:
    - user exists
    - seat exists in same tenant
 3. seat marked `assigned=true` on successful sign-in
+4. successful sign-in flow redirects to `/dashboard`
+5. `/` remains the public landing route even for signed-in users
 
 ### 4.2 Assessment
 
@@ -738,3 +740,25 @@ Technical changes in `src/app/api/reports/me/[assessmentId]/pdf/route.ts`:
 Validation:
 - `npm run lint` -> passed
 - `npm run build` -> passed
+
+## 22. Engineering Journal Workflow (`journal.md`)
+
+The implementation diary now lives in:
+- [`journal.md`](./journal.md)
+
+Journal policy:
+- append-only chronological entries
+- each entry must include:
+  - `Timestamp (UTC)` in ISO 8601
+  - `Timestamp (Local)` with timezone + offset
+  - task
+  - why
+  - what changed
+  - how
+  - validation/output
+  - risks/unknowns
+  - next step
+
+Purpose:
+- preserve operational reasoning and implementation evidence per change pass
+- keep README/guide focused on reference documentation while `journal.md` captures day-by-day execution

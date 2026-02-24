@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { recommendedTemplate40 } from "@/lib/recommended-template";
 
@@ -978,6 +979,20 @@ export default function AdminPage() {
         <p className="mt-3 max-w-3xl text-sm text-slate-700">
           Search client, import participants, design mixed-format quiz (personality + scenario), and launch with controlled report visibility.
         </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Public Landing
+          </Link>
+        </div>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
