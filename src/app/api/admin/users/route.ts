@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -91,13 +92,24 @@ export async function POST(req: NextRequest) {
     }
 
     const tenantName = body.tenantName?.trim() || `Solo - ${body.email}`;
-    const tenant = await db.tenant.create({
-      data: {
-        name: tenantName,
-        type: "SOLO",
-        seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : 1,
-      },
-    });
+    let tenant;
+    try {
+      tenant = await db.tenant.create({
+        data: {
+          name: tenantName,
+          type: "SOLO",
+          seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : 1,
+        },
+      });
+    } catch (error) {
+      if (!isSchemaCompatibilityError(error)) throw error;
+      tenant = await db.tenant.create({
+        data: {
+          name: tenantName,
+          seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : 1,
+        },
+      });
+    }
     tenantId = tenant.id;
   }
 
@@ -117,7 +129,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+  let tenant: {
+    id: string;
+    seatLimit: number;
+    isArchived: boolean;
+  } | null = null;
+  try {
+    tenant = await db.tenant.findUnique({ where: { id: tenantId } });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    const legacyTenant = await db.tenant.findUnique({
+      where: { id: tenantId },
+      select: { id: true, seatLimit: true },
+    });
+    tenant = legacyTenant
+      ? {
+          ...legacyTenant,
+          isArchived: false,
+        }
+      : null;
+  }
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }

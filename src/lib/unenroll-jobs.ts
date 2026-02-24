@@ -1,10 +1,23 @@
 import crypto from "node:crypto";
 import { ReportAccessMode, UnenrollJobStatus } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import { isMissingTableError } from "@/lib/prisma-errors";
 import { getResend } from "@/lib/resend";
 
 export const BACKFILL_TAG = "backfill_20260224100000_global_assessment_enrollments";
+
+type UnenrollJobWithAssessment = Prisma.AssessmentUnenrollJobGetPayload<{
+  include: {
+    assessment: {
+      select: {
+        id: true;
+        title: true;
+      };
+    };
+  };
+}>;
 
 function hashToken(token: string) {
   return crypto.createHash("sha256").update(token).digest("hex");
@@ -32,16 +45,21 @@ export async function issueReportShareToken(input: {
     Date.now() + 1000 * 60 * 60 * (input.ttlHours && input.ttlHours > 0 ? input.ttlHours : 168),
   );
 
-  await db.assessmentReportShareToken.create({
-    data: {
-      tokenHash,
-      assessmentId: input.assessmentId,
-      userId: input.userId,
-      expiresAt,
-      maxDownloads: input.maxDownloads && input.maxDownloads > 0 ? input.maxDownloads : 5,
-      sourceJobId: input.sourceJobId,
-    },
-  });
+  try {
+    await db.assessmentReportShareToken.create({
+      data: {
+        tokenHash,
+        assessmentId: input.assessmentId,
+        userId: input.userId,
+        expiresAt,
+        maxDownloads: input.maxDownloads && input.maxDownloads > 0 ? input.maxDownloads : 5,
+        sourceJobId: input.sourceJobId,
+      },
+    });
+  } catch (error) {
+    if (!isMissingTableError(error, "assessmentreportsharetoken")) throw error;
+    return null;
+  }
 
   return {
     token: plainToken,
@@ -50,45 +68,55 @@ export async function issueReportShareToken(input: {
 }
 
 export async function lookupReportShareToken(token: string) {
-  const row = await db.assessmentReportShareToken.findUnique({
-    where: { tokenHash: hashToken(token) },
-    include: {
-      assessment: {
-        include: {
-          policy: true,
+  try {
+    const row = await db.assessmentReportShareToken.findUnique({
+      where: { tokenHash: hashToken(token) },
+      include: {
+        assessment: {
+          include: {
+            policy: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+          },
         },
       },
-      user: {
-        select: {
-          id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-        },
-      },
-    },
-  });
+    });
 
-  if (!row) return null;
-  if (row.revokedAt) return null;
-  if (row.expiresAt < new Date()) return null;
-  if (row.downloadsUsed >= row.maxDownloads) return null;
+    if (!row) return null;
+    if (row.revokedAt) return null;
+    if (row.expiresAt < new Date()) return null;
+    if (row.downloadsUsed >= row.maxDownloads) return null;
 
-  return row;
+    return row;
+  } catch (error) {
+    if (!isMissingTableError(error, "assessmentreportsharetoken")) throw error;
+    return null;
+  }
 }
 
 export async function consumeReportShareToken(token: string) {
   const row = await lookupReportShareToken(token);
   if (!row) return null;
 
-  await db.assessmentReportShareToken.update({
-    where: {
-      id: row.id,
-    },
-    data: {
-      downloadsUsed: { increment: 1 },
-    },
-  });
+  try {
+    await db.assessmentReportShareToken.update({
+      where: {
+        id: row.id,
+      },
+      data: {
+        downloadsUsed: { increment: 1 },
+      },
+    });
+  } catch (error) {
+    if (!isMissingTableError(error, "assessmentreportsharetoken")) throw error;
+    return null;
+  }
 
   return row;
 }
@@ -101,35 +129,44 @@ export async function runDueUnenrollJobs(options?: {
 }) {
   const now = options?.now || new Date();
 
-  const jobs = await db.assessmentUnenrollJob.findMany({
-    where: {
-      ...(options?.forceJobId
-        ? {
-            id: options.forceJobId,
-          }
-        : {
-            status: UnenrollJobStatus.PENDING,
-            effectiveAt: { lte: now },
-          }),
-      ...(options?.assessmentId
-        ? {
-            assessmentId: options.assessmentId,
-          }
-        : {}),
-    },
-    include: {
-      assessment: {
-        select: {
-          id: true,
-          title: true,
+  let jobs: UnenrollJobWithAssessment[];
+  try {
+    jobs = await db.assessmentUnenrollJob.findMany({
+      where: {
+        ...(options?.forceJobId
+          ? {
+              id: options.forceJobId,
+            }
+          : {
+              status: UnenrollJobStatus.PENDING,
+              effectiveAt: { lte: now },
+            }),
+        ...(options?.assessmentId
+          ? {
+              assessmentId: options.assessmentId,
+            }
+          : {}),
+      },
+      include: {
+        assessment: {
+          select: {
+            id: true,
+            title: true,
+          },
         },
       },
-    },
-    orderBy: {
-      effectiveAt: "asc",
-    },
-    take: options?.forceJobId ? 1 : 25,
-  });
+      orderBy: {
+        effectiveAt: "asc",
+      },
+      take: options?.forceJobId ? 1 : 25,
+    });
+  } catch (error) {
+    if (!isMissingTableError(error, "assessmentunenrolljob")) throw error;
+    return {
+      processed: 0,
+      results: [],
+    };
+  }
 
   const results: Array<{
     jobId: string;

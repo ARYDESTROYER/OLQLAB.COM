@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { isMissingTableError } from "@/lib/prisma-errors";
+import { isMissingTableError, isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { listResolvedAssessmentUsers } from "@/lib/assessment-access";
 
 function normalizeEmail(email: string) {
@@ -117,13 +117,31 @@ export async function POST(
       }
     | null;
 
-  const assessment = await db.assessment.findUnique({
-    where: { id: assessmentId },
-    select: {
-      id: true,
-      ownerTenantId: true,
-    },
-  });
+  let assessment: { id: string; ownerTenantId: string | null } | null = null;
+  try {
+    assessment = await db.assessment.findUnique({
+      where: { id: assessmentId },
+      select: {
+        id: true,
+        ownerTenantId: true,
+      },
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    const legacy = await db.assessment.findUnique({
+      where: { id: assessmentId },
+      select: {
+        id: true,
+        tenantId: true,
+      },
+    });
+    assessment = legacy
+      ? {
+          id: legacy.id,
+          ownerTenantId: legacy.tenantId,
+        }
+      : null;
+  }
 
   if (!assessment) {
     return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
@@ -255,33 +273,43 @@ export async function POST(
     );
   }
 
-  await db.assessmentUserEnrollment.upsert({
-    where: {
-      assessmentId_userId: {
+  try {
+    await db.assessmentUserEnrollment.upsert({
+      where: {
+        assessmentId_userId: {
+          assessmentId,
+          userId,
+        },
+      },
+      create: {
         assessmentId,
         userId,
+        active: true,
+        createdByAdminId: check.session.user.id,
       },
-    },
-    create: {
-      assessmentId,
-      userId,
-      active: true,
-      createdByAdminId: check.session.user.id,
-    },
-    update: {
-      active: true,
-      createdByAdminId: check.session.user.id,
-    },
-  });
+      update: {
+        active: true,
+        createdByAdminId: check.session.user.id,
+      },
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+  }
 
   const [participants] = await Promise.all([
     listParticipants(assessmentId),
-    db.assessmentReportAccessOverride.deleteMany({
-      where: {
-        assessmentId,
-        userId,
-      },
-    }),
+    (async () => {
+      try {
+        await db.assessmentReportAccessOverride.deleteMany({
+          where: {
+            assessmentId,
+            userId,
+          },
+        });
+      } catch (error) {
+        if (!isSchemaCompatibilityError(error)) throw error;
+      }
+    })(),
   ]);
 
   const participant = participants.find((item) => item.userId === userId) || null;

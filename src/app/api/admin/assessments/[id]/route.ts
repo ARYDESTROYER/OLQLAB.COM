@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
 export async function GET(
   _req: NextRequest,
@@ -10,32 +11,69 @@ export async function GET(
   if ("error" in check) return check.error;
 
   const { id } = await params;
-  const assessment = await db.assessment.findUnique({
-    where: { id },
-    include: {
-      policy: true,
-      ownerTenant: {
-        select: {
-          id: true,
-          name: true,
+  let assessment;
+  try {
+    assessment = await db.assessment.findUnique({
+      where: { id },
+      include: {
+        policy: true,
+        ownerTenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        assessmentCompetencies: {
+          orderBy: {
+            name: "asc",
+          },
+        },
+        _count: {
+          select: {
+            sections: true,
+            questions: true,
+            sessions: true,
+            userEnrollments: true,
+            tenantEnrollments: true,
+          },
         },
       },
-      assessmentCompetencies: {
-        orderBy: {
-          name: "asc",
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    const legacy = await db.assessment.findUnique({
+      where: { id },
+      include: {
+        policy: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            sections: true,
+            questions: true,
+            sessions: true,
+          },
         },
       },
-      _count: {
-        select: {
-          sections: true,
-          questions: true,
-          sessions: true,
-          userEnrollments: true,
-          tenantEnrollments: true,
-        },
-      },
-    },
-  });
+    });
+    assessment = legacy
+      ? {
+          ...legacy,
+          ownerTenantId: legacy.tenantId,
+          ownerTenant: legacy.tenant || null,
+          assessmentCompetencies: [],
+          _count: {
+            ...legacy._count,
+            userEnrollments: 0,
+            tenantEnrollments: 0,
+          },
+        }
+      : null;
+  }
 
   if (!assessment) {
     return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
@@ -73,30 +111,63 @@ export async function PATCH(
     }
   }
 
-  const updated = await db.assessment.update({
-    where: { id },
-    data: {
-      ...(title ? { title } : {}),
-      ownerTenantId,
-      tenantId: ownerTenantId,
-    },
-    include: {
-      ownerTenant: {
-        select: {
-          id: true,
-          name: true,
+  let updated;
+  try {
+    updated = await db.assessment.update({
+      where: { id },
+      data: {
+        ...(title ? { title } : {}),
+        ownerTenantId,
+        tenantId: ownerTenantId,
+      },
+      include: {
+        ownerTenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        policy: true,
+        _count: {
+          select: {
+            sections: true,
+            questions: true,
+            sessions: true,
+          },
         },
       },
-      policy: true,
-      _count: {
-        select: {
-          sections: true,
-          questions: true,
-          sessions: true,
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    updated = await db.assessment.update({
+      where: { id },
+      data: {
+        ...(title ? { title } : {}),
+        tenantId: ownerTenantId || undefined,
+      },
+      include: {
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        policy: true,
+        _count: {
+          select: {
+            sections: true,
+            questions: true,
+            sessions: true,
+          },
         },
       },
-    },
-  });
+    });
+    updated = {
+      ...updated,
+      ownerTenant: updated.tenant || null,
+      ownerTenantId: updated.tenantId,
+    };
+  }
 
   return NextResponse.json(updated);
 }

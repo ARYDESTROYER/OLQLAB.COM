@@ -1,13 +1,29 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { isMissingTableError } from "@/lib/prisma-errors";
 
 export default async function AdminOverviewPage() {
-  const [tenantCount, userCount, assessmentCount, sessionCount, pendingJobs, recentJobs] =
-    await Promise.all([
-      db.tenant.count(),
-      db.user.count(),
-      db.assessment.count(),
-      db.quizSession.count(),
+  const [tenantCount, userCount, assessmentCount, sessionCount] = await Promise.all([
+    db.tenant.count(),
+    db.user.count(),
+    db.assessment.count(),
+    db.quizSession.count(),
+  ]);
+
+  let pendingJobs = 0;
+  let recentJobs: Array<{
+    id: string;
+    assessmentId: string;
+    targetScope: string;
+    targetId: string;
+    reportMode: string;
+    status: string;
+    effectiveAt: Date;
+    assessment: { id: string; title: string };
+  }> = [];
+
+  try {
+    [pendingJobs, recentJobs] = await Promise.all([
       db.assessmentUnenrollJob.count({
         where: {
           status: "PENDING",
@@ -28,6 +44,11 @@ export default async function AdminOverviewPage() {
         },
       }),
     ]);
+  } catch (error) {
+    if (!isMissingTableError(error, "assessmentunenrolljob")) throw error;
+    pendingJobs = 0;
+    recentJobs = [];
+  }
 
   return (
     <div className="space-y-6">

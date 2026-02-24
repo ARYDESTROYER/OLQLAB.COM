@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -80,16 +81,30 @@ export async function PATCH(
   let targetTenantId = body.tenantId?.trim() || user.tenantId;
 
   if (body.convertToSolo) {
-    const soloTenant = await db.tenant.create({
-      data: {
-        name: body.soloTenantName?.trim() || `Solo - ${user.email}`,
-        type: "SOLO",
-        seatLimit: 1,
-      },
-      select: {
-        id: true,
-      },
-    });
+    let soloTenant;
+    try {
+      soloTenant = await db.tenant.create({
+        data: {
+          name: body.soloTenantName?.trim() || `Solo - ${user.email}`,
+          type: "SOLO",
+          seatLimit: 1,
+        },
+        select: {
+          id: true,
+        },
+      });
+    } catch (error) {
+      if (!isSchemaCompatibilityError(error)) throw error;
+      soloTenant = await db.tenant.create({
+        data: {
+          name: body.soloTenantName?.trim() || `Solo - ${user.email}`,
+          seatLimit: 1,
+        },
+        select: {
+          id: true,
+        },
+      });
+    }
     targetTenantId = soloTenant.id;
   }
 
@@ -142,33 +157,63 @@ export async function PATCH(
       });
     }
 
-    return tx.user.update({
-      where: { id: user.id },
-      data: {
-        firstName: body.firstName?.trim() || undefined,
-        lastName: body.lastName?.trim() || undefined,
-        role: body.role || undefined,
-        tenantId: targetTenantId,
-        managerId: body.managerEmail === null ? null : manager?.id,
-      },
-      include: {
-        tenant: {
-          select: {
-            id: true,
-            name: true,
-            type: true,
+    try {
+      return await tx.user.update({
+        where: { id: user.id },
+        data: {
+          firstName: body.firstName?.trim() || undefined,
+          lastName: body.lastName?.trim() || undefined,
+          role: body.role || undefined,
+          tenantId: targetTenantId,
+          managerId: body.managerEmail === null ? null : manager?.id,
+        },
+        include: {
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+            },
+          },
+          manager: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-        manager: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
+      });
+    } catch (error) {
+      if (!isSchemaCompatibilityError(error)) throw error;
+      return tx.user.update({
+        where: { id: user.id },
+        data: {
+          firstName: body.firstName?.trim() || undefined,
+          lastName: body.lastName?.trim() || undefined,
+          role: body.role || undefined,
+          tenantId: targetTenantId,
+          managerId: body.managerEmail === null ? null : manager?.id,
+        },
+        include: {
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          manager: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
-      },
-    });
+      });
+    }
   });
 
   return NextResponse.json({

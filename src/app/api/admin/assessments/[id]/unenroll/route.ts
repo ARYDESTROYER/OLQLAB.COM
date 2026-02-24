@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ReportAccessMode } from "@prisma/client";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 type UnenrollBody = {
@@ -125,19 +126,28 @@ export async function POST(
       ? body.reportMode
       : ReportAccessMode.KEEP_APP_ACCESS;
 
-  const job = await db.assessmentUnenrollJob.create({
-    data: {
-      assessmentId,
-      targetScope: scope,
-      targetId,
-      effectiveAt,
-      reportMode,
-      notifyByEmail: Boolean(body?.notifyByEmail),
-      linkTtlHours: body?.linkTtlHours && body.linkTtlHours > 0 ? body.linkTtlHours : null,
-      createdByAdminId: check.session.user.id,
-      status: "PENDING",
-    },
-  });
+  let job;
+  try {
+    job = await db.assessmentUnenrollJob.create({
+      data: {
+        assessmentId,
+        targetScope: scope,
+        targetId,
+        effectiveAt,
+        reportMode,
+        notifyByEmail: Boolean(body?.notifyByEmail),
+        linkTtlHours: body?.linkTtlHours && body.linkTtlHours > 0 ? body.linkTtlHours : null,
+        createdByAdminId: check.session.user.id,
+        status: "PENDING",
+      },
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    return NextResponse.json(
+      { error: "Database migration required for unenroll jobs." },
+      { status: 409 },
+    );
+  }
 
   let execution = null;
   if (effectiveAt <= new Date()) {

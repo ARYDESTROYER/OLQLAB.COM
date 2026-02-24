@@ -17,3 +17,19 @@ export function isMissingTableError(error: unknown, tableName?: string) {
 
   return table.includes(tableName.toLowerCase());
 }
+
+export function isMissingColumnError(error: unknown, columnName?: string) {
+  if (!isPrismaKnownRequestError(error)) return false;
+  if (error.code !== "P2022") return false;
+  if (!columnName) return true;
+
+  const column = String(
+    (error.meta as { column?: unknown } | undefined)?.column ?? "",
+  ).toLowerCase();
+
+  return column.includes(columnName.toLowerCase());
+}
+
+export function isSchemaCompatibilityError(error: unknown) {
+  return isMissingTableError(error) || isMissingColumnError(error);
+}

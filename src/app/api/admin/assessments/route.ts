@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
 type CompetencyInput = {
   code: string;
@@ -119,6 +120,211 @@ async function countEligibleUsersForAssessment(assessmentId: string) {
   return tenantUserIds.size;
 }
 
+async function countEligibleUsersForLegacyAssessment(assessmentId: string) {
+  const assessment = await db.assessment.findUnique({
+    where: { id: assessmentId },
+    select: {
+      tenantId: true,
+    },
+  });
+
+  if (!assessment?.tenantId) return 0;
+
+  return db.user.count({
+    where: {
+      tenantId: assessment.tenantId,
+      role: { in: ["EMPLOYEE", "LEADER"] },
+    },
+  });
+}
+
+async function createAssessmentLegacy(input: {
+  title: string;
+  tenantId: string;
+  policy?: {
+    showResultsToEmployee?: boolean;
+    resultReleaseDelayHours?: number;
+    postSubmitMessage?: string;
+    leaderCanViewFullReport?: boolean;
+  };
+  competencies?: CompetencyInput[];
+  sections?: SectionInput[];
+  questions?: Array<{ prompt: string; trait: string; reverse?: boolean }>;
+}) {
+  const assessment = await db.assessment.create({
+    data: {
+      title: input.title,
+      tenantId: input.tenantId,
+      policy: {
+        create: {
+          showResultsToEmployee: input.policy?.showResultsToEmployee ?? true,
+          resultReleaseDelayHours: input.policy?.resultReleaseDelayHours ?? 0,
+          postSubmitMessage:
+            input.policy?.postSubmitMessage || "Thanks for completing your assessment.",
+          leaderCanViewFullReport: input.policy?.leaderCanViewFullReport ?? true,
+        },
+      },
+    },
+  });
+
+  const competencyMap = new Map<string, string>();
+  for (const competency of input.competencies || []) {
+    const code = toCode(competency.code);
+    if (!code) continue;
+
+    const saved = await db.competency.upsert({
+      where: {
+        tenantId_code: {
+          tenantId: input.tenantId,
+          code,
+        },
+      },
+      create: {
+        tenantId: input.tenantId,
+        code,
+        name: competency.name?.trim() || titleizeCode(code),
+        description: competency.description?.trim() || undefined,
+      },
+      update: {
+        name: competency.name?.trim() || titleizeCode(code),
+        description: competency.description?.trim() || undefined,
+      },
+    });
+
+    competencyMap.set(code, saved.id);
+  }
+
+  const sectionsToPersist: SectionInput[] =
+    input.sections && input.sections.length > 0
+      ? input.sections
+      : [
+          {
+            title: "Personality Profile",
+            kind: "PERSONALITY",
+            questions: (input.questions || []).map((question) => ({
+              prompt: question.prompt,
+              trait: question.trait,
+              reverse: question.reverse,
+              questionType: "LIKERT_TRAIT",
+            })),
+          },
+        ];
+
+  let questionOrder = 0;
+
+  for (let sectionIndex = 0; sectionIndex < sectionsToPersist.length; sectionIndex += 1) {
+    const section = sectionsToPersist[sectionIndex];
+    const savedSection = await db.assessmentSection.create({
+      data: {
+        assessmentId: assessment.id,
+        title: section.title,
+        description: section.description,
+        kind: pickSectionKind(section.kind),
+        sortOrder: sectionIndex,
+      },
+    });
+
+    for (const question of section.questions) {
+      const questionType = pickQuestionType(question.questionType);
+      const savedQuestion = await db.question.create({
+        data: {
+          assessmentId: assessment.id,
+          sectionId: savedSection.id,
+          code: question.code?.trim() || null,
+          prompt: question.prompt,
+          questionType,
+          category: question.category?.trim() || null,
+          trait: question.trait?.trim().toLowerCase() || null,
+          reverse: Boolean(question.reverse),
+          scaleMin: question.scaleMin ?? 1,
+          scaleMax: question.scaleMax ?? 5,
+          sortOrder: questionOrder,
+        },
+      });
+      questionOrder += 1;
+
+      if (questionType !== "SJT_SINGLE") continue;
+
+      const options = question.options || [];
+      for (let optionIndex = 0; optionIndex < options.length; optionIndex += 1) {
+        const option = options[optionIndex];
+        const savedOption = await db.questionOption.create({
+          data: {
+            questionId: savedQuestion.id,
+            code: option.code?.trim() || `option_${optionIndex + 1}`,
+            text: option.text,
+            displayOrder: optionIndex,
+          },
+        });
+
+        for (const impact of option.impacts || []) {
+          const impactCode = toCode(impact.competencyCode);
+          if (!impactCode) continue;
+
+          let competencyId = competencyMap.get(impactCode);
+          if (!competencyId) {
+            const competency = await db.competency.upsert({
+              where: {
+                tenantId_code: {
+                  tenantId: input.tenantId,
+                  code: impactCode,
+                },
+              },
+              create: {
+                tenantId: input.tenantId,
+                code: impactCode,
+                name: titleizeCode(impactCode),
+              },
+              update: {},
+            });
+            competencyId = competency.id;
+            competencyMap.set(impactCode, competencyId);
+          }
+
+          await db.optionImpact.create({
+            data: {
+              optionId: savedOption.id,
+              competencyId,
+              delta: Number(impact.delta) || 0,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  return db.assessment.findUnique({
+    where: { id: assessment.id },
+    include: {
+      policy: true,
+      tenant: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      sections: {
+        orderBy: { sortOrder: "asc" },
+      },
+      questions: {
+        orderBy: { sortOrder: "asc" },
+        include: {
+          options: {
+            orderBy: { displayOrder: "asc" },
+            include: {
+              impacts: {
+                include: {
+                  competency: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
 export async function GET(req: NextRequest) {
   const check = await requireAdmin();
   if ("error" in check) return check.error;
@@ -128,71 +334,146 @@ export async function GET(req: NextRequest) {
     req.nextUrl.searchParams.get("tenantId")?.trim();
   const q = req.nextUrl.searchParams.get("q")?.trim();
 
-  const assessments = await db.assessment.findMany({
-    where: {
-      ...(ownerTenantId
-        ? {
-            ownerTenantId,
-          }
-        : {}),
-      ...(q
-        ? {
-            title: {
-              contains: q,
-              mode: "insensitive",
-            },
-          }
-        : {}),
-    },
-    include: {
-      policy: true,
-      ownerTenant: {
-        select: {
-          id: true,
-          name: true,
+  let withStats: Array<Record<string, unknown>> = [];
+  try {
+    const assessments = await db.assessment.findMany({
+      where: {
+        ...(ownerTenantId
+          ? {
+              ownerTenantId,
+            }
+          : {}),
+        ...(q
+          ? {
+              title: {
+                contains: q,
+                mode: "insensitive",
+              },
+            }
+          : {}),
+      },
+      include: {
+        policy: true,
+        ownerTenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            questions: true,
+            sessions: true,
+            userEnrollments: true,
+            tenantEnrollments: true,
+          },
         },
       },
-      _count: {
-        select: {
-          questions: true,
-          sessions: true,
-          userEnrollments: true,
-          tenantEnrollments: true,
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    });
+
+    withStats = await Promise.all(
+      assessments.map(async (assessment) => {
+        const [eligibleUsers, completed, inProgress] = await Promise.all([
+          countEligibleUsersForAssessment(assessment.id),
+          db.quizSession.count({
+            where: { assessmentId: assessment.id, status: "SUBMITTED" },
+          }),
+          db.quizSession.count({
+            where: { assessmentId: assessment.id, status: "IN_PROGRESS" },
+          }),
+        ]);
+
+        const notStarted = Math.max(eligibleUsers - completed - inProgress, 0);
+        const completionRate =
+          eligibleUsers === 0 ? 0 : Math.round((completed / eligibleUsers) * 100);
+
+        return {
+          ...assessment,
+          participantCounts: {
+            total: eligibleUsers,
+            completed,
+            inProgress,
+            notStarted,
+          },
+          completionRate,
+        };
+      }),
+    );
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+
+    const assessments = await db.assessment.findMany({
+      where: {
+        ...(ownerTenantId
+          ? {
+              tenantId: ownerTenantId,
+            }
+          : {}),
+        ...(q
+          ? {
+              title: {
+                contains: q,
+                mode: "insensitive",
+              },
+            }
+          : {}),
+      },
+      include: {
+        policy: true,
+        tenant: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        _count: {
+          select: {
+            questions: true,
+            sessions: true,
+          },
         },
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 30,
-  });
+      orderBy: { createdAt: "desc" },
+      take: 30,
+    });
 
-  const withStats = await Promise.all(
-    assessments.map(async (assessment) => {
-      const [eligibleUsers, completed, inProgress] = await Promise.all([
-        countEligibleUsersForAssessment(assessment.id),
-        db.quizSession.count({
-          where: { assessmentId: assessment.id, status: "SUBMITTED" },
-        }),
-        db.quizSession.count({
-          where: { assessmentId: assessment.id, status: "IN_PROGRESS" },
-        }),
-      ]);
+    withStats = await Promise.all(
+      assessments.map(async (assessment) => {
+        const [eligibleUsers, completed, inProgress] = await Promise.all([
+          countEligibleUsersForLegacyAssessment(assessment.id),
+          db.quizSession.count({
+            where: { assessmentId: assessment.id, status: "SUBMITTED" },
+          }),
+          db.quizSession.count({
+            where: { assessmentId: assessment.id, status: "IN_PROGRESS" },
+          }),
+        ]);
 
-      const notStarted = Math.max(eligibleUsers - completed - inProgress, 0);
-      const completionRate =
-        eligibleUsers === 0 ? 0 : Math.round((completed / eligibleUsers) * 100);
+        const notStarted = Math.max(eligibleUsers - completed - inProgress, 0);
+        const completionRate =
+          eligibleUsers === 0 ? 0 : Math.round((completed / eligibleUsers) * 100);
 
-      return {
-        ...assessment,
-        participantCounts: {
-          total: eligibleUsers,
-          completed,
-          inProgress,
-          notStarted,
-        },
-        completionRate,
-      };
-    }),
-  );
+        return {
+          ...assessment,
+          ownerTenant: assessment.tenant || null,
+          _count: {
+            ...assessment._count,
+            userEnrollments: 0,
+            tenantEnrollments: 0,
+          },
+          participantCounts: {
+            total: eligibleUsers,
+            completed,
+            inProgress,
+            notStarted,
+          },
+          completionRate,
+        };
+      }),
+    );
+  }
 
   return NextResponse.json({ assessments: withStats });
 }
@@ -233,27 +514,28 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const assessment = await db.assessment.create({
-    data: {
-      title,
-      ownerTenantId,
-      // Preserve legacy linkage for transition compatibility.
-      tenantId: ownerTenantId,
-      policy: {
-        create: {
-          showResultsToEmployee: body.policy?.showResultsToEmployee ?? true,
-          resultReleaseDelayHours: body.policy?.resultReleaseDelayHours ?? 0,
-          postSubmitMessage:
-            body.policy?.postSubmitMessage || "Thanks for completing your assessment.",
-          leaderCanViewFullReport: body.policy?.leaderCanViewFullReport ?? true,
+  try {
+    const assessment = await db.assessment.create({
+      data: {
+        title,
+        ownerTenantId,
+        // Preserve legacy linkage for transition compatibility.
+        tenantId: ownerTenantId,
+        policy: {
+          create: {
+            showResultsToEmployee: body.policy?.showResultsToEmployee ?? true,
+            resultReleaseDelayHours: body.policy?.resultReleaseDelayHours ?? 0,
+            postSubmitMessage:
+              body.policy?.postSubmitMessage || "Thanks for completing your assessment.",
+            leaderCanViewFullReport: body.policy?.leaderCanViewFullReport ?? true,
+          },
         },
       },
-    },
-  });
+    });
 
-  const competencyMap = new Map<string, string>();
+    const competencyMap = new Map<string, string>();
 
-  for (const competency of body.competencies || []) {
+    for (const competency of body.competencies || []) {
     const code = toCode(competency.code);
     if (!code) continue;
 
@@ -299,9 +581,9 @@ export async function POST(req: NextRequest) {
         },
       });
     }
-  }
+    }
 
-  const sectionsToPersist: SectionInput[] =
+    const sectionsToPersist: SectionInput[] =
     body.sections && body.sections.length > 0
       ? body.sections
       : [
@@ -317,9 +599,9 @@ export async function POST(req: NextRequest) {
           },
         ];
 
-  let questionOrder = 0;
+    let questionOrder = 0;
 
-  for (let sectionIndex = 0; sectionIndex < sectionsToPersist.length; sectionIndex += 1) {
+    for (let sectionIndex = 0; sectionIndex < sectionsToPersist.length; sectionIndex += 1) {
     const section = sectionsToPersist[sectionIndex];
     const savedSection = await db.assessmentSection.create({
       data: {
@@ -399,40 +681,63 @@ export async function POST(req: NextRequest) {
         }
       }
     }
-  }
+    }
 
-  const fullAssessment = await db.assessment.findUnique({
-    where: { id: assessment.id },
-    include: {
-      policy: true,
-      ownerTenant: {
-        select: {
-          id: true,
-          name: true,
+    const fullAssessment = await db.assessment.findUnique({
+      where: { id: assessment.id },
+      include: {
+        policy: true,
+        ownerTenant: {
+          select: {
+            id: true,
+            name: true,
+          },
         },
-      },
-      assessmentCompetencies: true,
-      sections: {
-        orderBy: { sortOrder: "asc" },
-      },
-      questions: {
-        orderBy: { sortOrder: "asc" },
-        include: {
-          options: {
-            orderBy: { displayOrder: "asc" },
-            include: {
-              impacts: {
-                include: {
-                  competency: true,
-                  assessmentCompetency: true,
+        assessmentCompetencies: true,
+        sections: {
+          orderBy: { sortOrder: "asc" },
+        },
+        questions: {
+          orderBy: { sortOrder: "asc" },
+          include: {
+            options: {
+              orderBy: { displayOrder: "asc" },
+              include: {
+                impacts: {
+                  include: {
+                    competency: true,
+                    assessmentCompetency: true,
+                  },
                 },
               },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  return NextResponse.json(fullAssessment, { status: 201 });
+    return NextResponse.json(fullAssessment, { status: 201 });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    if (!ownerTenantId) {
+      return NextResponse.json(
+        {
+          error:
+            "Database migration pending. In compatibility mode, please select an owner tenant when creating assessments.",
+        },
+        { status: 409 },
+      );
+    }
+
+    const fullAssessment = await createAssessmentLegacy({
+      title,
+      tenantId: ownerTenantId,
+      policy: body.policy,
+      competencies: body.competencies,
+      sections: body.sections,
+      questions: body.questions,
+    });
+
+    return NextResponse.json(fullAssessment, { status: 201 });
+  }
 }

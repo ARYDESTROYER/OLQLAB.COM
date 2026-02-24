@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ReportAccessMode } from "@prisma/client";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 type Body = {
@@ -47,31 +48,44 @@ export async function POST(
   }
 
   if (action === "ENROLL") {
-    const enrollment = await db.assessmentUserEnrollment.upsert({
-      where: {
-        assessmentId_userId: {
+    let enrollment;
+    try {
+      enrollment = await db.assessmentUserEnrollment.upsert({
+        where: {
+          assessmentId_userId: {
+            assessmentId,
+            userId,
+          },
+        },
+        create: {
+          assessmentId,
+          userId,
+          active: true,
+          createdByAdminId: check.session.user.id,
+        },
+        update: {
+          active: true,
+          createdByAdminId: check.session.user.id,
+        },
+      });
+    } catch (error) {
+      if (!isSchemaCompatibilityError(error)) throw error;
+      return NextResponse.json(
+        { error: "Database migration required for explicit enrollment actions." },
+        { status: 409 },
+      );
+    }
+
+    try {
+      await db.assessmentReportAccessOverride.deleteMany({
+        where: {
           assessmentId,
           userId,
         },
-      },
-      create: {
-        assessmentId,
-        userId,
-        active: true,
-        createdByAdminId: check.session.user.id,
-      },
-      update: {
-        active: true,
-        createdByAdminId: check.session.user.id,
-      },
-    });
-
-    await db.assessmentReportAccessOverride.deleteMany({
-      where: {
-        assessmentId,
-        userId,
-      },
-    });
+      });
+    } catch (error) {
+      if (!isSchemaCompatibilityError(error)) throw error;
+    }
 
     return NextResponse.json({ ok: true, action, enrollment });
   }
@@ -86,19 +100,28 @@ export async function POST(
       ? body.reportMode
       : ReportAccessMode.KEEP_APP_ACCESS;
 
-  const job = await db.assessmentUnenrollJob.create({
-    data: {
-      assessmentId,
-      targetScope: "USER",
-      targetId: userId,
-      effectiveAt,
-      reportMode,
-      notifyByEmail: Boolean(body?.notifyByEmail),
-      linkTtlHours: body?.linkTtlHours && body.linkTtlHours > 0 ? body.linkTtlHours : null,
-      createdByAdminId: check.session.user.id,
-      status: "PENDING",
-    },
-  });
+  let job;
+  try {
+    job = await db.assessmentUnenrollJob.create({
+      data: {
+        assessmentId,
+        targetScope: "USER",
+        targetId: userId,
+        effectiveAt,
+        reportMode,
+        notifyByEmail: Boolean(body?.notifyByEmail),
+        linkTtlHours: body?.linkTtlHours && body.linkTtlHours > 0 ? body.linkTtlHours : null,
+        createdByAdminId: check.session.user.id,
+        status: "PENDING",
+      },
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    return NextResponse.json(
+      { error: "Database migration required for unenroll jobs." },
+      { status: 409 },
+    );
+  }
 
   let execution = null;
   if (effectiveAt <= new Date()) {

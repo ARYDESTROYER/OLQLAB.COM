@@ -290,3 +290,25 @@ This file is the append-only engineering diary for implementation work in this r
   - Manual end-to-end browser smoke for invite/start/submit/report and scheduled unenroll timing still recommended.
 - Next step:
   - Execute scenario-based manual QA and then plan legacy endpoint deprecation timeline.
+
+## Entry 2026-02-24-15
+- Timestamp (UTC): 2026-02-24T18:50:25Z
+- Timestamp (Local): 2026-02-25 00:20:25 IST (+0530)
+- Task: Fix non-working admin/runtime button flows caused by schema mismatch in deployed environments.
+- Why: Production logs showed `P2021`/`P2022` errors (missing new tables/columns), which broke admin and participant actions after the re-architecture deploy.
+- What changed:
+  - Added schema-compatibility helpers in `src/lib/prisma-errors.ts`.
+  - Added compatibility fallbacks in core services (`assessment-access`, `unenroll-jobs`) so missing unenroll/enrollment tables no longer hard-crash requests.
+  - Added fallback handling across admin APIs for tenants/users/assessments/access/jobs/participants to return usable responses or explicit `409` JSON migration-required messages instead of unhandled 500 HTML errors.
+  - Added compatibility behavior in admin overview and related routes to continue rendering when `AssessmentUnenrollJob` is unavailable.
+- How:
+  - Wrapped new-schema Prisma calls in guarded `try/catch` blocks.
+  - Added legacy-path query logic where feasible (tenant-coupled fallback) and no-op behavior for missing unenroll tables.
+- Validation/output:
+  - `npm run lint` -> passed.
+  - `npm run build` -> passed.
+  - Route generation remains intact for all admin/runtime endpoints.
+- Risks/unknowns:
+  - Full new feature set (explicit enrollments/unenroll jobs/share links) still requires DB migration to be applied for complete functionality.
+- Next step:
+  - Apply production DB migration (`prisma migrate deploy`) and then run full admin action smoke tests.

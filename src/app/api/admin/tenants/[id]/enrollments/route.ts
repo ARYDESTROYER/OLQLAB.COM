@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ReportAccessMode } from "@prisma/client";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 type Body = {
@@ -34,10 +35,27 @@ export async function POST(
     );
   }
 
-  const [tenant, assessment] = await Promise.all([
-    db.tenant.findUnique({ where: { id: tenantId }, select: { id: true, isArchived: true } }),
-    db.assessment.findUnique({ where: { id: assessmentId }, select: { id: true } }),
-  ]);
+  let tenant: { id: string; isArchived: boolean } | null = null;
+  let assessment: { id: string } | null = null;
+  try {
+    [tenant, assessment] = await Promise.all([
+      db.tenant.findUnique({ where: { id: tenantId }, select: { id: true, isArchived: true } }),
+      db.assessment.findUnique({ where: { id: assessmentId }, select: { id: true } }),
+    ]);
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    const [legacyTenant, legacyAssessment] = await Promise.all([
+      db.tenant.findUnique({ where: { id: tenantId }, select: { id: true } }),
+      db.assessment.findUnique({ where: { id: assessmentId }, select: { id: true } }),
+    ]);
+    tenant = legacyTenant
+      ? {
+          id: legacyTenant.id,
+          isArchived: false,
+        }
+      : null;
+    assessment = legacyAssessment;
+  }
 
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
@@ -55,26 +73,35 @@ export async function POST(
       );
     }
 
-    const enrollment = await db.assessmentTenantEnrollment.upsert({
-      where: {
-        assessmentId_tenantId: {
+    let enrollment;
+    try {
+      enrollment = await db.assessmentTenantEnrollment.upsert({
+        where: {
+          assessmentId_tenantId: {
+            assessmentId,
+            tenantId,
+          },
+        },
+        create: {
           assessmentId,
           tenantId,
+          includeFutureUsers: body?.includeFutureUsers ?? true,
+          active: true,
+          createdByAdminId: check.session.user.id,
         },
-      },
-      create: {
-        assessmentId,
-        tenantId,
-        includeFutureUsers: body?.includeFutureUsers ?? true,
-        active: true,
-        createdByAdminId: check.session.user.id,
-      },
-      update: {
-        includeFutureUsers: body?.includeFutureUsers ?? true,
-        active: true,
-        createdByAdminId: check.session.user.id,
-      },
-    });
+        update: {
+          includeFutureUsers: body?.includeFutureUsers ?? true,
+          active: true,
+          createdByAdminId: check.session.user.id,
+        },
+      });
+    } catch (error) {
+      if (!isSchemaCompatibilityError(error)) throw error;
+      return NextResponse.json(
+        { error: "Database migration required for explicit enrollment actions." },
+        { status: 409 },
+      );
+    }
 
     return NextResponse.json({ ok: true, action, enrollment });
   }
@@ -89,19 +116,28 @@ export async function POST(
       ? body.reportMode
       : ReportAccessMode.KEEP_APP_ACCESS;
 
-  const job = await db.assessmentUnenrollJob.create({
-    data: {
-      assessmentId,
-      targetScope: "TENANT",
-      targetId: tenantId,
-      effectiveAt,
-      reportMode,
-      notifyByEmail: Boolean(body?.notifyByEmail),
-      linkTtlHours: body?.linkTtlHours && body.linkTtlHours > 0 ? body.linkTtlHours : null,
-      createdByAdminId: check.session.user.id,
-      status: "PENDING",
-    },
-  });
+  let job;
+  try {
+    job = await db.assessmentUnenrollJob.create({
+      data: {
+        assessmentId,
+        targetScope: "TENANT",
+        targetId: tenantId,
+        effectiveAt,
+        reportMode,
+        notifyByEmail: Boolean(body?.notifyByEmail),
+        linkTtlHours: body?.linkTtlHours && body.linkTtlHours > 0 ? body.linkTtlHours : null,
+        createdByAdminId: check.session.user.id,
+        status: "PENDING",
+      },
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+    return NextResponse.json(
+      { error: "Database migration required for unenroll jobs." },
+      { status: 409 },
+    );
+  }
 
   let execution = null;
   if (effectiveAt <= new Date()) {
