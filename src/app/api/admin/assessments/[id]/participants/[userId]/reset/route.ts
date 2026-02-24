@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { archiveCurrentAttempt } from "@/lib/report-archive";
+import { isMissingTableError } from "@/lib/prisma-errors";
 
 async function validateParticipantScope(assessmentId: string, userId: string) {
   const [assessment, participant] = await Promise.all([
@@ -109,32 +110,38 @@ export async function POST(
       resetSessionId = resetSession.id;
     }
 
-    const eligibility = await tx.retestEligibility.upsert({
-      where: {
-        assessmentId_userId: {
+    let retestEligibleAt: Date | null = null;
+    try {
+      const eligibility = await tx.retestEligibility.upsert({
+        where: {
+          assessmentId_userId: {
+            assessmentId,
+            userId,
+          },
+        },
+        create: {
           assessmentId,
           userId,
+          eligibleAt: now,
+          setByAdminId: check.session.user.id,
         },
-      },
-      create: {
-        assessmentId,
-        userId,
-        eligibleAt: now,
-        setByAdminId: check.session.user.id,
-      },
-      update: {
-        eligibleAt: now,
-        setByAdminId: check.session.user.id,
-      },
-      select: {
-        eligibleAt: true,
-      },
-    });
+        update: {
+          eligibleAt: now,
+          setByAdminId: check.session.user.id,
+        },
+        select: {
+          eligibleAt: true,
+        },
+      });
+      retestEligibleAt = eligibility.eligibleAt;
+    } catch (error) {
+      if (!isMissingTableError(error, "retesteligibility")) throw error;
+    }
 
     return {
       archivedId: archived?.id || null,
       sessionId: resetSessionId,
-      retestEligibleAt: eligibility.eligibleAt,
+      retestEligibleAt,
     };
   });
 
@@ -146,6 +153,8 @@ export async function POST(
     sessionId: result.sessionId,
     archivedReportId: result.archivedId,
     retestEligibleAt: result.retestEligibleAt,
-    canRetestNow: true,
+    canRetestNow: Boolean(
+      result.retestEligibleAt && new Date() >= new Date(result.retestEligibleAt),
+    ),
   });
 }

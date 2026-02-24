@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isMissingTableError } from "@/lib/prisma-errors";
 
 export default async function CurrentAssessmentPage() {
   const session = await getServerAuthSession();
@@ -36,38 +37,71 @@ export default async function CurrentAssessmentPage() {
     },
   });
 
-  const assessments = await db.assessment.findMany({
-    where: {
-      tenantId: currentUser.tenantId,
-      isPublished: true,
-    },
-    include: {
-      questions: {
-        select: { id: true },
+  const assessments = await db.assessment
+    .findMany({
+      where: {
+        tenantId: currentUser.tenantId,
+        isPublished: true,
       },
-      sessions: {
+      include: {
+        questions: {
+          select: { id: true },
+        },
+        sessions: {
+          where: {
+            userId: currentUser.id,
+          },
+          select: {
+            id: true,
+            status: true,
+            startedAt: true,
+            submittedAt: true,
+          },
+        },
+        retestEligibilities: {
+          where: {
+            userId: currentUser.id,
+          },
+          select: {
+            eligibleAt: true,
+          },
+          take: 1,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    })
+    .catch(async (error) => {
+      if (!isMissingTableError(error, "retesteligibility")) throw error;
+
+      const fallbackAssessments = await db.assessment.findMany({
         where: {
-          userId: currentUser.id,
+          tenantId: currentUser.tenantId,
+          isPublished: true,
         },
-        select: {
-          id: true,
-          status: true,
-          startedAt: true,
-          submittedAt: true,
+        include: {
+          questions: {
+            select: { id: true },
+          },
+          sessions: {
+            where: {
+              userId: currentUser.id,
+            },
+            select: {
+              id: true,
+              status: true,
+              startedAt: true,
+              submittedAt: true,
+            },
+          },
         },
-      },
-      retestEligibilities: {
-        where: {
-          userId: currentUser.id,
-        },
-        select: {
-          eligibleAt: true,
-        },
-        take: 1,
-      },
-    },
-    orderBy: { createdAt: "desc" },
-  });
+        orderBy: { createdAt: "desc" },
+      });
+
+      return fallbackAssessments.map((assessment) => ({
+        ...assessment,
+        retestEligibilities: [] as Array<{ eligibleAt: Date }>,
+      }));
+    });
 
   const tenantLabel = currentUser.tenant?.name || currentUser.tenantId;
 

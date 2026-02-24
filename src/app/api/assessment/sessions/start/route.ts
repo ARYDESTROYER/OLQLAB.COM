@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireSession } from "@/lib/api-auth";
 import { archiveCurrentAttempt } from "@/lib/report-archive";
+import { isMissingTableError } from "@/lib/prisma-errors";
 
 export async function POST(req: NextRequest) {
   const check = await requireSession();
@@ -89,17 +90,27 @@ export async function POST(req: NextRequest) {
   let session = existingSession;
 
   if (existingSession?.status === "SUBMITTED") {
-    const retest = await db.retestEligibility.findUnique({
-      where: {
-        assessmentId_userId: {
-          assessmentId,
-          userId,
+    let retest: { eligibleAt: Date } | null = null;
+    let retestTableAvailable = true;
+    try {
+      retest = await db.retestEligibility.findUnique({
+        where: {
+          assessmentId_userId: {
+            assessmentId,
+            userId,
+          },
         },
-      },
-    });
+        select: {
+          eligibleAt: true,
+        },
+      });
+    } catch (error) {
+      if (!isMissingTableError(error, "retesteligibility")) throw error;
+      retestTableAvailable = false;
+    }
 
     const now = new Date();
-    const canRetest = Boolean(retest && now >= retest.eligibleAt);
+    const canRetest = retestTableAvailable && Boolean(retest && now >= retest.eligibleAt);
 
     if (!canRetest) {
       return NextResponse.json({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isMissingTableError } from "@/lib/prisma-errors";
 
 async function validateParticipantScope(assessmentId: string, userId: string) {
   const [assessment, participant] = await Promise.all([
@@ -68,24 +69,41 @@ export async function POST(
     eligibleAt = parsed;
   }
 
-  const retestEligibility = await db.retestEligibility.upsert({
-    where: {
-      assessmentId_userId: {
+  let retestEligibility: { eligibleAt: Date };
+  try {
+    retestEligibility = await db.retestEligibility.upsert({
+      where: {
+        assessmentId_userId: {
+          assessmentId,
+          userId,
+        },
+      },
+      create: {
         assessmentId,
         userId,
+        eligibleAt,
+        setByAdminId: check.session.user.id,
       },
-    },
-    create: {
-      assessmentId,
-      userId,
-      eligibleAt,
-      setByAdminId: check.session.user.id,
-    },
-    update: {
-      eligibleAt,
-      setByAdminId: check.session.user.id,
-    },
-  });
+      update: {
+        eligibleAt,
+        setByAdminId: check.session.user.id,
+      },
+      select: {
+        eligibleAt: true,
+      },
+    });
+  } catch (error) {
+    if (isMissingTableError(error, "retesteligibility")) {
+      return NextResponse.json(
+        {
+          error:
+            "Retest controls are temporarily unavailable because database migrations are incomplete.",
+        },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
 
   return NextResponse.json({
     ok: true,
@@ -109,12 +127,25 @@ export async function DELETE(
   const scope = await validateParticipantScope(assessmentId, userId);
   if ("error" in scope) return scope.error;
 
-  await db.retestEligibility.deleteMany({
-    where: {
-      assessmentId,
-      userId,
-    },
-  });
+  try {
+    await db.retestEligibility.deleteMany({
+      where: {
+        assessmentId,
+        userId,
+      },
+    });
+  } catch (error) {
+    if (isMissingTableError(error, "retesteligibility")) {
+      return NextResponse.json(
+        {
+          error:
+            "Retest controls are temporarily unavailable because database migrations are incomplete.",
+        },
+        { status: 503 },
+      );
+    }
+    throw error;
+  }
 
   return NextResponse.json({
     ok: true,

@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { isMissingTableError } from "@/lib/prisma-errors";
 
 type ArchiveInput = {
   assessmentId: string;
@@ -85,17 +86,24 @@ export async function archiveCurrentAttempt(tx: TxClient, input: ArchiveInput) {
       }
     : Prisma.DbNull;
 
-  return tx.reportArchive.create({
-    data: {
-      assessmentId: input.assessmentId,
-      userId: input.userId,
-      submittedAt: session?.submittedAt || null,
-      archivedById: input.archivedById,
-      archiveReason: input.reason,
-      scoreJson,
-      narrativeJson: report?.narrativeJson || null,
-      assessmentTitle,
-      participantName,
-    },
-  });
+  try {
+    return await tx.reportArchive.create({
+      data: {
+        assessmentId: input.assessmentId,
+        userId: input.userId,
+        submittedAt: session?.submittedAt || null,
+        archivedById: input.archivedById,
+        archiveReason: input.reason,
+        scoreJson,
+        narrativeJson: report?.narrativeJson || null,
+        assessmentTitle,
+        participantName,
+      },
+    });
+  } catch (error) {
+    if (isMissingTableError(error, "reportarchive")) {
+      return null;
+    }
+    throw error;
+  }
 }

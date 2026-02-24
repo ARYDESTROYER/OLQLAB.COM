@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { isMissingTableError } from "@/lib/prisma-errors";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -54,34 +55,39 @@ async function listParticipants(assessmentId: string, tenantId: string, q?: stri
   });
 
   const userIds = users.map((user) => user.id);
-  const [sessions, retestEligibility] = await Promise.all([
-    userIds.length
-      ? db.quizSession.findMany({
-          where: {
-            assessmentId,
-            userId: { in: userIds },
-          },
-          select: {
-            userId: true,
-            status: true,
-            startedAt: true,
-            submittedAt: true,
-          },
-        })
-      : [],
-    userIds.length
-      ? db.retestEligibility.findMany({
-          where: {
-            assessmentId,
-            userId: { in: userIds },
-          },
-          select: {
-            userId: true,
-            eligibleAt: true,
-          },
-        })
-      : [],
-  ]);
+  const sessions = userIds.length
+    ? await db.quizSession.findMany({
+        where: {
+          assessmentId,
+          userId: { in: userIds },
+        },
+        select: {
+          userId: true,
+          status: true,
+          startedAt: true,
+          submittedAt: true,
+        },
+      })
+    : [];
+
+  let retestEligibility: Array<{ userId: string; eligibleAt: Date }> = [];
+  if (userIds.length) {
+    try {
+      retestEligibility = await db.retestEligibility.findMany({
+        where: {
+          assessmentId,
+          userId: { in: userIds },
+        },
+        select: {
+          userId: true,
+          eligibleAt: true,
+        },
+      });
+    } catch (error) {
+      if (!isMissingTableError(error, "retesteligibility")) throw error;
+      retestEligibility = [];
+    }
+  }
 
   const sessionByUser = new Map(sessions.map((session) => [session.userId, session]));
   const retestByUser = new Map(
@@ -281,21 +287,23 @@ export async function POST(
         },
       });
 
-      const [session, retestEligibility] = await Promise.all([
-        tx.quizSession.findUnique({
-          where: {
-            assessmentId_userId: {
-              assessmentId: assessment.id,
-              userId: user.id,
-            },
+      const session = await tx.quizSession.findUnique({
+        where: {
+          assessmentId_userId: {
+            assessmentId: assessment.id,
+            userId: user.id,
           },
-          select: {
-            status: true,
-            startedAt: true,
-            submittedAt: true,
-          },
-        }),
-        tx.retestEligibility.findUnique({
+        },
+        select: {
+          status: true,
+          startedAt: true,
+          submittedAt: true,
+        },
+      });
+
+      let retestEligibleAt: Date | null = null;
+      try {
+        const retestEligibility = await tx.retestEligibility.findUnique({
           where: {
             assessmentId_userId: {
               assessmentId: assessment.id,
@@ -305,13 +313,16 @@ export async function POST(
           select: {
             eligibleAt: true,
           },
-        }),
-      ]);
+        });
+        retestEligibleAt = retestEligibility?.eligibleAt || null;
+      } catch (error) {
+        if (!isMissingTableError(error, "retesteligibility")) throw error;
+      }
 
       return {
         user,
         session,
-        retestEligibleAt: retestEligibility?.eligibleAt || null,
+        retestEligibleAt,
       };
     });
   } catch (error) {
