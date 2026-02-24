@@ -1,0 +1,36 @@
+<svg width="960" height="720" viewBox="0 0 960 720" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="960" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E8FAF4"/>
+      <stop offset="0.52" stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E3F6FF"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="220" y1="120" x2="740" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="0.55" stop-color="#155E75"/>
+      <stop offset="1" stop-color="#0F172A"/>
+    </linearGradient>
+    <linearGradient id="needle" x1="480" y1="220" x2="480" y2="500" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E7490"/>
+      <stop offset="1" stop-color="#1D4ED8"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="12" y="12" width="936" height="696" rx="42" fill="url(#bg)"/>
+  <rect x="12" y="12" width="936" height="696" rx="42" stroke="#C7D2FE" stroke-opacity="0.5"/>
+
+  <circle cx="480" cy="360" r="245" fill="white" fill-opacity="0.88"/>
+  <circle cx="480" cy="360" r="245" stroke="url(#ring)" stroke-width="16"/>
+  <circle cx="480" cy="360" r="170" fill="#F8FAFC" stroke="#CBD5E1"/>
+
+  <path d="M480 228L569 360L480 492L391 360L480 228Z" fill="url(#needle)"/>
+  <path d="M480 270L527 360L480 450L433 360L480 270Z" fill="white" fill-opacity="0.95"/>
+
+  <circle cx="480" cy="360" r="34" fill="#0F172A"/>
+  <circle cx="480" cy="360" r="14" fill="#22D3EE"/>
+
+  <text x="479" y="106" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#0F172A">N</text>
+  <text x="479" y="655" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#0F172A">S</text>
+  <text x="219" y="370" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#0F172A">W</text>
+  <text x="742" y="370" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="700" fill="#0F172A">E</text>
+</svg>

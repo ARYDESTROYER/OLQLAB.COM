@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getServerAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 
@@ -131,9 +132,9 @@ export default async function HomePage() {
             </div>
 
             <nav className="hidden items-center gap-6 text-sm font-semibold text-slate-600 md:flex">
-              <a href="#about" className="transition hover:text-slate-900">About</a>
-              <a href="#framework" className="transition hover:text-slate-900">Framework</a>
-              <a href="#assessments" className="transition hover:text-slate-900">Assessments</a>
+              <Link href="/about" className="transition hover:text-slate-900">About</Link>
+              <Link href="/framework" className="transition hover:text-slate-900">Framework</Link>
+              <Link href="/assessments" className="transition hover:text-slate-900">Assessments</Link>
             </nav>
 
             <Link
@@ -159,18 +160,28 @@ export default async function HomePage() {
               alongside you-offering honest reflection and the wisdom to navigate complexity with grace.
             </p>
             <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <a
-                href="#assessments"
+              <Link
+                href="/assessments"
                 className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
               >
                 Explore Assessments
-              </a>
-              <a
-                href="#about"
+              </Link>
+              <Link
+                href="/about"
                 className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-500"
               >
                 Learn More
-              </a>
+              </Link>
+            </div>
+            <div className="mt-10 rounded-2xl border border-slate-200 bg-white/70 p-3 shadow-[0_20px_50px_-34px_rgba(15,23,42,0.58)]">
+              <Image
+                src="/zip-compass-mark.svg"
+                alt="Compass illustration from the zip design direction"
+                width={960}
+                height={720}
+                className="h-auto w-full rounded-xl"
+                priority
+              />
             </div>
           </div>
         </section>
@@ -307,21 +318,27 @@ export default async function HomePage() {
               Take the first step toward deeper self-understanding and transformational leadership.
             </p>
             <div className="mt-7 flex flex-wrap justify-center gap-3">
-              <a
-                href="#assessments"
+              <Link
+                href="/assessments"
                 className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
               >
                 Explore Assessments
-              </a>
-              <a
-                href="#framework"
+              </Link>
+              <Link
+                href="/framework"
                 className="rounded-xl border border-slate-500 bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
               >
                 Learn About CPR
-              </a>
+              </Link>
+              <Link
+                href="/contact"
+                className="rounded-xl border border-cyan-200 bg-cyan-50 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
+              >
+                Contact
+              </Link>
               <Link
                 href="/signin"
-                className="rounded-xl border border-cyan-200 bg-cyan-50 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
+                className="rounded-xl border border-cyan-200 bg-cyan-100 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
               >
                 Sign In
               </Link>
@@ -335,25 +352,25 @@ export default async function HomePage() {
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">About</h4>
                 <div className="mt-3 space-y-2">
-                  <a href="#about" className="block text-sm text-slate-600 hover:text-slate-900">Our Approach</a>
-                  <a href="#framework" className="block text-sm text-slate-600 hover:text-slate-900">CPR Framework</a>
-                  <a href="#journey" className="block text-sm text-slate-600 hover:text-slate-900">Journey</a>
+                  <Link href="/about" className="block text-sm text-slate-600 hover:text-slate-900">Our Approach</Link>
+                  <Link href="/framework" className="block text-sm text-slate-600 hover:text-slate-900">CPR Framework</Link>
+                  <Link href="/oql" className="block text-sm text-slate-600 hover:text-slate-900">OLQ Foundations</Link>
                 </div>
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Services</h4>
                 <div className="mt-3 space-y-2">
-                  <a href="#assessments" className="block text-sm text-slate-600 hover:text-slate-900">Assessments</a>
-                  <a href="#about" className="block text-sm text-slate-600 hover:text-slate-900">Coaching</a>
-                  <a href="#framework" className="block text-sm text-slate-600 hover:text-slate-900">Blindspot Work</a>
+                  <Link href="/assessments" className="block text-sm text-slate-600 hover:text-slate-900">Assessments</Link>
+                  <Link href="/coaching" className="block text-sm text-slate-600 hover:text-slate-900">Coaching</Link>
+                  <Link href="/blindspot" className="block text-sm text-slate-600 hover:text-slate-900">Blindspot Work</Link>
                 </div>
               </div>
               <div>
                 <h4 className="text-sm font-semibold text-slate-900">Resources</h4>
                 <div className="mt-3 space-y-2">
-                  <a href="#framework" className="block text-sm text-slate-600 hover:text-slate-900">Framework Notes</a>
-                  <a href="#contact" className="block text-sm text-slate-600 hover:text-slate-900">Contact</a>
-                  <a href="#assessments" className="block text-sm text-slate-600 hover:text-slate-900">Offerings</a>
+                  <Link href="/framework" className="block text-sm text-slate-600 hover:text-slate-900">Framework Notes</Link>
+                  <Link href="/contact" className="block text-sm text-slate-600 hover:text-slate-900">Contact</Link>
+                  <Link href="/assessments" className="block text-sm text-slate-600 hover:text-slate-900">Offerings</Link>
                 </div>
               </div>
               <div>
