@@ -57,6 +57,8 @@ Primary models relevant to assessment and reporting:
 - `Answer`
 - `Score`
 - `Report`
+- `RetestEligibility`
+- `ReportArchive`
 
 ### 3.1 Runtime Entities
 
@@ -67,6 +69,8 @@ Primary models relevant to assessment and reporting:
   - Big Five trait percentages
   - `competencyJson` raw competency deltas
 - `Report` stores narrative JSON (`narrativeJson`) consumed by web and PDF report outputs
+- `RetestEligibility` stores per-user, per-assessment retake unlock timestamps
+- `ReportArchive` stores historical score/narrative snapshots before reset/retest/regeneration replacement
 
 ## 4. End-to-End Runtime Flow
 
@@ -85,9 +89,13 @@ Primary models relevant to assessment and reporting:
    - `Not Started`
    - `In Progress`
    - `Completed`
+   - `Retake Available` (when admin unlocks retest and user previously submitted)
 3. Start/resume creates or reuses session
-4. Answers persist by question
-5. Submit route computes score + narrative and stores `Score` + `Report`
+4. If session is `SUBMITTED`, start flow checks `RetestEligibility`:
+   - not eligible yet: user is redirected to current report and shown unlock timestamp
+   - eligible now: previous report payload is archived, score/report/answers are reset, and session reopens in `IN_PROGRESS`
+5. Answers persist by question
+6. Submit route computes score + narrative and stores current `Score` + `Report`
 
 ### 4.3 Reporting
 
@@ -175,26 +183,35 @@ PDF route:
 - `GET /api/reports/me/:assessmentId/pdf`
 
 Characteristics:
-- fixed 3-page structure (cover/summary, trait context, development plan)
+- minimum 3 pages with dynamic continuation pages for extended sections
 - explicit `Test Taken` timestamp in identity block
-- richer typography and section hierarchy
+- premium typography scale and denser page utilization
+- trait signal bar graphs (visual only, no numeric labels)
+- competency signal bar graphs (visual only, no numeric labels)
+- extended insight cards that continue across pages when needed
 - no raw competency +/- table shown to participant
 
 Page structure:
 - Page 1:
-  - title and assessment identity
+  - title and assessment identity card
   - participant identity
   - test taken date/time
-  - summary + strength snapshot + development snapshot
+  - personalized summary panel
+  - trait signal map with qualitative bands
+  - profile focus card
 - Page 2:
-  - trait context cards
+  - strengths and development split cards
+  - competency signal bars
   - scenario behavior themes
 - Page 3:
   - action plan
   - workplace signals
-  - reflection prompts
-  - manager discussion guide
-  - extended insight block (if present)
+  - reflection prompts (if present)
+  - manager discussion guide (if present)
+- Page 4+ (conditional):
+  - extended narrative sections
+  - roadmap
+  - interpretation notes
 
 ## 7. Admin Report Regeneration (New)
 
@@ -232,8 +249,9 @@ Route enforces:
 2. Recompute `traits` + `competencies` via `computeScores`
 3. Rebuild base narrative via `generateNarrative`
 4. Optionally generate enrichment via `generateAiNarrative`
-5. Upsert `Score`
-6. Upsert `Report` with fresh `narrativeJson`
+5. Archive current score/report payload to `ReportArchive` (`archiveCurrentAttempt`)
+6. Upsert `Score`
+7. Upsert `Report` with fresh `narrativeJson`
 
 ### 7.5 User Impact
 
@@ -251,10 +269,22 @@ File:
 Participation tracker includes:
 - filter by status (`ALL`, `SUBMITTED`, `IN_PROGRESS`, `NOT_STARTED`)
 - per-participant status and timestamps
-- `Regenerate Report` action only for `SUBMITTED` rows
+- retest eligibility visibility (`Scheduled` or `Eligible now`)
+- `Regenerate` action for `SUBMITTED` rows
+- `Retest Now` action for `SUBMITTED` rows
+- `Set Date` action for `SUBMITTED` rows (datetime-local input)
+- `Clear Retest` action when a retest schedule exists
+- `Reset Stats` action for `SUBMITTED`/`IN_PROGRESS` rows (archives old payload and forces retake path)
 
-The action sends:
+Directory section includes:
+- `Delete User` action for non-admin users
+
+Actions send:
 - `POST /api/admin/reports/regenerate`
+- `POST /api/admin/assessments/:id/participants/:userId/retest`
+- `DELETE /api/admin/assessments/:id/participants/:userId/retest`
+- `POST /api/admin/assessments/:id/participants/:userId/reset`
+- `DELETE /api/admin/users/:id`
 
 Response is displayed in the admin panel for operator feedback.
 
@@ -267,12 +297,16 @@ Response is displayed in the admin panel for operator feedback.
 - `GET /api/admin/overview`
 - `GET /api/admin/users`
 - `POST /api/admin/users`
+- `DELETE /api/admin/users/:id`
 - `POST /api/admin/users/import-csv`
 - `POST /api/admin/invites/send`
 - `GET /api/admin/assessments`
 - `POST /api/admin/assessments`
 - `POST /api/admin/assessments/:id/publish`
 - `GET /api/admin/assessments/:id/participants`
+- `POST /api/admin/assessments/:id/participants/:userId/retest`
+- `DELETE /api/admin/assessments/:id/participants/:userId/retest`
+- `POST /api/admin/assessments/:id/participants/:userId/reset`
 - `POST /api/admin/reports/regenerate`
 
 ### 9.2 Assessment Runtime
@@ -467,3 +501,211 @@ Validation:
 Operational note:
 - Existing reports reflect this new visual style in web/PDF immediately.
 - Narrative text improvements appear most fully after submit or admin regeneration.
+
+## 19. Retest Control and Archive System (Deep Dive)
+
+### 19.1 Why this layer exists
+
+Retest controls were added to support paid, high-touch report lifecycle management where admins can:
+- allow a participant to retake immediately
+- schedule retake eligibility for a future timestamp
+- reset participant stats when a fresh run is required
+- regenerate report text without losing previous report payloads
+
+The design goal is **current canonical report + preserved history snapshots**.
+
+### 19.2 New schema entities
+
+#### `RetestEligibility`
+Purpose:
+- Single row per (`assessmentId`, `userId`) indicating when retake is unlocked.
+
+Key fields:
+- `assessmentId`
+- `userId`
+- `eligibleAt`
+- `setByAdminId`
+- timestamps (`createdAt`, `updatedAt`)
+
+Behavior:
+- If row absent, participant cannot retake once already submitted.
+- If row present and `now >= eligibleAt`, retake is allowed.
+
+#### `ReportArchive`
+Purpose:
+- Immutable snapshot storage of report artifacts before replacement/reset.
+
+Key fields:
+- `assessmentId`
+- `userId`
+- `submittedAt` (from prior session)
+- `archivedAt`
+- `archivedById`
+- `archiveReason`
+- `scoreJson`
+- `narrativeJson`
+- optional metadata (`assessmentTitle`, `participantName`)
+
+### 19.3 Archival helper
+
+File:
+- `src/lib/report-archive.ts`
+
+`archiveCurrentAttempt(tx, input)` does:
+1. Read current session submitted timestamp
+2. Read current `Score`
+3. Read current `Report`
+4. If no report artifacts exist, no-op
+5. Parse report metadata (`assessmentTitle`, `participantName`) when possible
+6. Create `ReportArchive` row in same transaction
+
+### 19.4 Retest enforcement runtime
+
+File:
+- `src/app/api/assessment/sessions/start/route.ts`
+
+Submitted-session path:
+1. Load `RetestEligibility` for user+assessment
+2. If not eligible:
+   - return `alreadySubmitted=true`
+   - return `retestEligibleAt` (nullable)
+3. If eligible:
+   - archive current report payload
+   - clear `Answer` rows
+   - clear current `Score` and `Report`
+   - clear retest eligibility row
+   - reopen existing `QuizSession` as `IN_PROGRESS`
+
+This keeps one active session while preserving old artifacts in `ReportArchive`.
+
+### 19.5 Admin API control plane
+
+#### A) User deletion
+Route:
+- `DELETE /api/admin/users/:id`
+
+Behavior:
+- admin-only
+- blocks deleting `ADMIN` role users via this endpoint
+- deletes tenant seat assignment and then user record
+- cascades dependent entities through existing schema FKs
+
+#### B) Retest scheduling
+Route:
+- `POST /api/admin/assessments/:id/participants/:userId/retest`
+
+Body:
+- `{ "mode": "IMMEDIATE" }`
+- or `{ "mode": "DATE", "eligibleAt": "<ISO string>" }`
+
+Behavior:
+- validates participant belongs to assessment tenant
+- blocks admin-role participant rows
+- upserts `RetestEligibility`
+
+Clear route:
+- `DELETE /api/admin/assessments/:id/participants/:userId/retest`
+
+Behavior:
+- removes scheduled retest lock row
+
+#### C) Reset participant stats
+Route:
+- `POST /api/admin/assessments/:id/participants/:userId/reset`
+
+Behavior:
+1. archive current payload to `ReportArchive`
+2. clear `Score` and `Report`
+3. clear existing answers
+4. reopen/create `QuizSession` in `IN_PROGRESS`
+5. set retest eligibility immediate (`eligibleAt=now`)
+
+### 19.6 Regeneration archive behavior
+
+Route:
+- `POST /api/admin/reports/regenerate`
+
+Before writing new `Score`/`Report`, route now archives prior payload using `archiveCurrentAttempt` with reason `admin_regenerate_report`.
+
+### 19.7 Admin UI wiring
+
+File:
+- `src/app/admin/AdminClient.tsx`
+
+Directory section:
+- Added action column with `Delete User` button
+
+Participation tracker additions:
+- new `Retest Eligibility` column
+- row actions:
+  - `Regenerate`
+  - `Retest Now`
+  - `Set Date`
+  - `Clear Retest`
+  - `Reset Stats`
+- each action refreshes participant list and prints response payload for operator traceability
+
+### 19.8 Participant UI impact
+
+Files:
+- `src/app/assessment/current/page.tsx`
+- `src/app/assessment/[assessmentId]/page.tsx`
+
+Effects:
+- assessment center shows `Retake Available` badge when unlock active
+- future unlock timestamps are displayed when scheduled
+- start page informs participant when assessment is submitted but still locked
+
+### 19.9 Data integrity decisions
+
+Important implementation decisions:
+- old payloads are archived before destructive reset/regenerate operations
+- numeric trait/competency internals remain stored in DB but are not exposed in report narrative text
+- retest schedule is explicit and auditable by timestamp
+- retest unlock consumption clears schedule after retake starts
+
+### 19.10 Operational validation checklist
+
+After deployment:
+1. Run migration `20260224030000_retest_controls`
+2. Open `/admin` and verify tracker action buttons render
+3. For a submitted participant:
+   - set future date
+   - confirm participant sees unlock timestamp
+4. set immediate retest
+5. start assessment as participant and verify session reopens for retake
+6. regenerate and reset stats once each
+7. confirm `ReportArchive` rows are created for both operations
+8. confirm PDF still downloads and renders with new layout
+
+## 20. Journey Update (2026-02-24: Retest + PDF Quality Pass)
+
+Summary of this pass:
+- Implemented end-to-end retest control suite (admin APIs + UI + participant runtime behavior).
+- Added user deletion in admin directory.
+- Added report archival model and helper to preserve prior payloads before reset/regeneration/retest restart.
+- Rebuilt PDF layout engine for stronger visual quality and readability.
+- Added competency signal bar charts in PDF while keeping numeric values hidden.
+- Expanded extended-insight rendering with continuation pages to avoid cramped blocks.
+
+Files added:
+- `src/app/api/admin/users/[id]/route.ts`
+- `src/app/api/admin/assessments/[id]/participants/[userId]/retest/route.ts`
+- `src/app/api/admin/assessments/[id]/participants/[userId]/reset/route.ts`
+- `src/lib/report-archive.ts`
+- `prisma/migrations/20260224030000_retest_controls/migration.sql`
+
+Files updated (primary):
+- `prisma/schema.prisma`
+- `src/app/admin/AdminClient.tsx`
+- `src/app/api/admin/assessments/[id]/participants/route.ts`
+- `src/app/api/admin/reports/regenerate/route.ts`
+- `src/app/api/assessment/sessions/start/route.ts`
+- `src/app/assessment/current/page.tsx`
+- `src/app/assessment/[assessmentId]/page.tsx`
+- `src/app/api/reports/me/[assessmentId]/pdf/route.ts`
+
+Verification executed:
+- `npx prisma generate` -> passed
+- `npm run lint` -> passed
+- `npm run build` -> passed

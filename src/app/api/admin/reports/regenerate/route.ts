@@ -3,6 +3,7 @@ import { computeScores, generateNarrative } from "@/lib/score";
 import { generateAiNarrative } from "@/lib/ai-report";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { archiveCurrentAttempt } from "@/lib/report-archive";
 
 export async function POST(req: NextRequest) {
   const check = await requireAdmin();
@@ -90,8 +91,15 @@ export async function POST(req: NextRequest) {
     aiNarrative,
   };
 
-  await db.$transaction([
-    db.score.upsert({
+  const archived = await db.$transaction(async (tx) => {
+    const archivedEntry = await archiveCurrentAttempt(tx, {
+      assessmentId,
+      userId,
+      archivedById: check.session.user.id,
+      reason: "admin_regenerate_report",
+    });
+
+    await tx.score.upsert({
       where: {
         assessmentId_userId: {
           assessmentId,
@@ -108,8 +116,8 @@ export async function POST(req: NextRequest) {
         ...traits,
         competencyJson: competencies,
       },
-    }),
-    db.report.upsert({
+    });
+    await tx.report.upsert({
       where: {
         assessmentId_userId: {
           assessmentId,
@@ -124,8 +132,10 @@ export async function POST(req: NextRequest) {
       update: {
         narrativeJson: JSON.stringify(narrative),
       },
-    }),
-  ]);
+    });
+
+    return archivedEntry;
+  });
 
   return NextResponse.json({
     ok: true,
@@ -133,5 +143,6 @@ export async function POST(req: NextRequest) {
     assessmentId,
     userId,
     regeneratedAt: now.toISOString(),
+    archivedReportId: archived?.id || null,
   });
 }

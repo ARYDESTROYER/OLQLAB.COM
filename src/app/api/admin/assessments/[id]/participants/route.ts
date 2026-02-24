@@ -66,10 +66,29 @@ export async function GET(
       })
     : [];
 
+  const retestEligibility = userIds.length
+    ? await db.retestEligibility.findMany({
+        where: {
+          assessmentId: id,
+          userId: { in: userIds },
+        },
+        select: {
+          userId: true,
+          eligibleAt: true,
+        },
+      })
+    : [];
+
   const sessionByUser = new Map(sessions.map((session) => [session.userId, session]));
+  const retestByUser = new Map(
+    retestEligibility.map((item) => [item.userId, item.eligibleAt]),
+  );
+  const now = new Date();
 
   const participants = users.map((user) => {
     const userSession = sessionByUser.get(user.id);
+    const retestEligibleAt = retestByUser.get(user.id) || null;
+    const canRetestNow = retestEligibleAt ? now >= retestEligibleAt : false;
     return {
       userId: user.id,
       email: user.email,
@@ -80,6 +99,8 @@ export async function GET(
       status: userSession?.status || "NOT_STARTED",
       startedAt: userSession?.startedAt || null,
       submittedAt: userSession?.submittedAt || null,
+      retestEligibleAt,
+      canRetestNow,
     };
   });
 

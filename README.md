@@ -25,7 +25,12 @@ Corporate personality assessment platform with hybrid quiz support:
 - Premium participant and leader report pages with long-form contextual narratives
 - AI-enriched narrative sections (optional, when `OPENAI_API_KEY` is set)
 - Admin-only report regeneration action for already submitted assessments
-- PDF report endpoint with guaranteed 3-page narrative layout and test timestamp
+- Admin controls for:
+  - user deletion
+  - participant retest scheduling (immediate or date-based)
+  - participant test-stat reset with forced retake
+- Retest/archive data model to preserve previous report payloads before resets/regeneration
+- PDF report endpoint with premium multi-page layout, trait+competency bar visuals, and test timestamp
 
 ## Tech stack
 
@@ -72,7 +77,7 @@ npm run dev
 5. Build assessment in visual builder or import spreadsheet CSV
 6. Create assessment
 7. Publish and configure visibility policy
-8. Track participant status and regenerate submitted reports when needed
+8. Track participant status, regenerate submitted reports, schedule retests, or reset participant stats when needed
 
 ## Admin report regeneration workflow
 
@@ -81,13 +86,27 @@ npm run dev
 3. In **Assessment Participation Tracker**, locate a participant in `SUBMITTED` status
 4. Click **Regenerate Report**
 5. Backend recomputes trait scores, competency totals, narrative, and optional LLM enrichment
-6. Existing `Score` + `Report` records are upserted in place
-7. Participant immediately sees the regenerated report in `/reports/me/:assessmentId` and PDF export
+6. Existing `Score` + `Report` payload is archived to `ReportArchive`
+7. Current `Score` + `Report` records are upserted in place
+8. Participant immediately sees the regenerated report in `/reports/me/:assessmentId` and PDF export
 
 Notes:
 - Regeneration is admin-only (`requireAdmin`)
 - Regeneration is tenant-scoped (admin tenant must match assessment tenant)
 - Regeneration only works for sessions with status `SUBMITTED`
+
+## Admin retest and reset controls
+
+From **Assessment Participation Tracker** in `/admin`:
+- `Retest Now` sets immediate retest eligibility for submitted participants.
+- `Set Date` schedules a retest unlock timestamp.
+- `Clear Retest` removes any scheduled retest eligibility.
+- `Reset Stats` archives existing report artifacts and clears current score/report/answers so participant must retake.
+
+Participant behavior:
+- If submitted and not yet eligible, assessment start redirects to report and shows unlock date.
+- If submitted and eligible, start automatically archives old attempt, clears prior report payload, and opens a fresh in-progress session.
+- Assessment center shows `Retake Available` when eligibility is active.
 
 ## Spreadsheet CSV format for quiz import
 
@@ -114,12 +133,16 @@ Notes:
 - `GET /api/admin/overview`
 - `GET /api/admin/users`
 - `POST /api/admin/users`
+- `DELETE /api/admin/users/:id`
 - `POST /api/admin/users/import-csv`
 - `POST /api/admin/invites/send`
 - `GET /api/admin/assessments`
 - `POST /api/admin/assessments`
 - `POST /api/admin/assessments/:id/publish`
 - `GET /api/admin/assessments/:id/participants`
+- `POST /api/admin/assessments/:id/participants/:userId/retest`
+- `DELETE /api/admin/assessments/:id/participants/:userId/retest`
+- `POST /api/admin/assessments/:id/participants/:userId/reset`
 - `POST /api/admin/reports/regenerate`
 - `POST /api/assessment/sessions/start`
 - `GET /api/assessment/sessions/:id`
@@ -151,6 +174,7 @@ The participant and leader report UIs consume this v2 payload and also include f
 
 - `prisma/migrations/20260223170000_init`
 - `prisma/migrations/20260223231000_hybrid_assessment`
+- `prisma/migrations/20260224030000_retest_controls`
 
 ## Deploy to Vercel
 
@@ -593,5 +617,57 @@ Files touched in this pass:
 - `README.md`
 
 Validation:
+- `npm run lint` passed
+- `npm run build` passed
+
+## Journal Addendum - PDF Polish + Retest Control Suite
+
+Timestamp:
+- `2026-02-24` (local implementation pass)
+
+What changed:
+1. Retest/archive data model
+- Added Prisma models:
+  - `RetestEligibility`
+  - `ReportArchive`
+- `ReportArchive` stores previous score/report payload snapshots before regeneration/reset/retest restart.
+- Migration added:
+  - `prisma/migrations/20260224030000_retest_controls/migration.sql`
+
+2. Admin API controls
+- Added user deletion endpoint:
+  - `DELETE /api/admin/users/:id`
+  - blocks admin-user deletion via this action
+- Added participant retest control endpoints:
+  - `POST /api/admin/assessments/:id/participants/:userId/retest` (`IMMEDIATE` or `DATE`)
+  - `DELETE /api/admin/assessments/:id/participants/:userId/retest`
+- Added participant stat reset endpoint:
+  - `POST /api/admin/assessments/:id/participants/:userId/reset`
+  - archives old report payload, clears score/report/answers, forces retake path
+
+3. Admin UI upgrades
+- Directory table now includes `Delete User` action.
+- Participation tracker now includes:
+  - retest eligibility status column
+  - `Retest Now`
+  - `Set Date` (datetime input)
+  - `Clear Retest`
+  - `Reset Stats`
+  - existing `Regenerate` action retained
+
+4. Participant retake runtime
+- Assessment start route now enforces retest schedule for previously submitted sessions.
+- When retest is unlocked, previous result is archived and a fresh in-progress session is opened.
+- Assessment center now surfaces `Retake Available` and shows future unlock timestamps when scheduled.
+
+5. Premium PDF formatting pass
+- Replaced old PDF composition with denser visual hierarchy and better typography scale.
+- Added stronger full-width card layouts and spacing rhythm.
+- Trait bar charts and competency signal bar charts are rendered as visual indicators only (no numeric display).
+- Extended insights are rendered in larger blocks with continuation pages when needed.
+- Report keeps explicit `Test Taken` timestamp and minimum 3-page output.
+
+Validation:
+- `npx prisma generate` passed
 - `npm run lint` passed
 - `npm run build` passed

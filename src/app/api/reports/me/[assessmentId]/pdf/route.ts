@@ -1,31 +1,10 @@
 import { addHours, format } from "date-fns";
-import { PDFDocument, rgb, StandardFonts, type PDFPage, type PDFFont } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
 import { requireSession } from "@/lib/api-auth";
+import { db } from "@/lib/db";
 
-type TraitKey =
-  | "openness"
-  | "conscientiousness"
-  | "extraversion"
-  | "agreeableness"
-  | "neuroticism";
-
-type TraitNarrative = {
-  key: TraitKey;
-  name: string;
-  band: "high" | "moderate" | "emerging";
-  summary: string;
-  leverage: string;
-  developmentFocus: string;
-};
-
-type CompetencyTheme = {
-  code: string;
-  name: string;
-  category: "strength" | "focus";
-  insight: string;
-};
+type TraitBand = "high" | "moderate" | "emerging";
 
 type NarrativePayload = {
   profileHeadline?: string;
@@ -36,8 +15,12 @@ type NarrativePayload = {
   workplaceSignals?: string[];
   reflectionPrompts?: string[];
   managerDiscussionGuide?: string[];
-  traitNarratives?: TraitNarrative[];
-  competencyThemes?: CompetencyTheme[];
+  competencyThemes?: Array<{
+    code: string;
+    name: string;
+    category: "strength" | "focus";
+    insight: string;
+  }>;
   assessmentTakenAt?: string;
   assessmentTitle?: string;
   participantName?: string;
@@ -51,43 +34,57 @@ type NarrativePayload = {
   };
 };
 
-const PAGE_WIDTH = 595.28;
-const PAGE_HEIGHT = 841.89;
-const MARGIN = 40;
-const CONTENT_WIDTH = PAGE_WIDTH - MARGIN * 2;
-
-const palette = {
-  navy: rgb(0.09, 0.13, 0.2),
-  slate: rgb(0.23, 0.28, 0.35),
-  muted: rgb(0.44, 0.49, 0.57),
-  border: rgb(0.86, 0.9, 0.94),
-  card: rgb(1, 1, 1),
-  tintA: rgb(0.93, 0.98, 1),
-  tintB: rgb(1, 0.96, 0.9),
-  tintC: rgb(0.93, 0.98, 0.95),
-  strength: rgb(0.88, 0.96, 0.91),
-  focus: rgb(1, 0.94, 0.84),
+type CompetencySignal = {
+  name: string;
+  score: number;
 };
 
-function safeText(input: string | undefined, max = 900) {
+const PAGE_WIDTH = 595.28;
+const PAGE_HEIGHT = 841.89;
+const MARGIN_X = 34;
+const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_X * 2;
+const FOOTER_Y = 22;
+
+const palette = {
+  ink: rgb(0.09, 0.12, 0.19),
+  heading: rgb(0.11, 0.16, 0.26),
+  body: rgb(0.2, 0.25, 0.33),
+  muted: rgb(0.42, 0.47, 0.56),
+  border: rgb(0.84, 0.88, 0.93),
+  page: rgb(0.985, 0.99, 0.997),
+  white: rgb(1, 1, 1),
+  blueTint: rgb(0.91, 0.97, 1),
+  goldTint: rgb(1, 0.95, 0.87),
+  mintTint: rgb(0.91, 0.98, 0.94),
+  strengthTint: rgb(0.89, 0.96, 0.91),
+  focusTint: rgb(1, 0.94, 0.84),
+};
+
+function safeText(input: string | undefined | null, max = 1200) {
   return (input || "").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
-function formatTakenAt(input?: string | null) {
+function formatTakenAt(input: string | Date | undefined | null) {
   if (!input) return "Not available";
-  const date = new Date(input);
+  const date = input instanceof Date ? input : new Date(input);
   if (Number.isNaN(date.getTime())) return "Not available";
   return format(date, "MMMM d, yyyy 'at' h:mm a");
 }
 
-function toBand(value: number): "high" | "moderate" | "emerging" {
+function toBand(value: number): TraitBand {
   if (value < 35) return "emerging";
   if (value < 70) return "moderate";
   return "high";
 }
 
+function bandLabel(band: TraitBand) {
+  if (band === "high") return "Strong signal";
+  if (band === "moderate") return "Balanced signal";
+  return "Emerging signal";
+}
+
 function wrapLines(text: string, maxWidth: number, font: PDFFont, size: number) {
-  const words = safeText(text, 5000).split(" ").filter(Boolean);
+  const words = safeText(text, 9000).split(" ").filter(Boolean);
   if (words.length === 0) return [] as string[];
 
   const lines: string[] = [];
@@ -114,6 +111,24 @@ function wrapLines(text: string, maxWidth: number, font: PDFFont, size: number) 
   return lines;
 }
 
+function drawTextLines(
+  page: PDFPage,
+  lines: string[],
+  x: number,
+  y: number,
+  font: PDFFont,
+  size: number,
+  color = palette.body,
+  lineGap = 4,
+) {
+  let cursor = y;
+  for (const line of lines) {
+    page.drawText(line, { x, y: cursor, font, size, color });
+    cursor -= size + lineGap;
+  }
+  return cursor;
+}
+
 function drawWrappedText(
   page: PDFPage,
   text: string,
@@ -122,98 +137,19 @@ function drawWrappedText(
   maxWidth: number,
   font: PDFFont,
   size: number,
-  color = palette.slate,
+  color = palette.body,
   lineGap = 4,
   maxLines = 999,
 ) {
   const lines = wrapLines(text, maxWidth, font, size);
-  const applied = lines.slice(0, maxLines);
+  const visible = lines.slice(0, maxLines);
 
-  if (lines.length > maxLines && applied.length > 0) {
-    const last = applied.length - 1;
-    applied[last] = applied[last].replace(/[\s.,;:!?]+$/g, "") + "...";
+  if (lines.length > maxLines && visible.length > 0) {
+    const last = visible.length - 1;
+    visible[last] = `${visible[last].replace(/[\s.,;:!?]+$/g, "")}...`;
   }
 
-  let cursorY = y;
-  for (const line of applied) {
-    page.drawText(line, { x, y: cursorY, size, font, color });
-    cursorY -= size + lineGap;
-  }
-  return cursorY;
-}
-
-function drawBackground(page: PDFPage, variant: 1 | 2 | 3 | 4) {
-  page.drawRectangle({
-    x: 0,
-    y: 0,
-    width: PAGE_WIDTH,
-    height: PAGE_HEIGHT,
-    color: rgb(0.988, 0.992, 0.997),
-  });
-
-  if (variant === 1) {
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 210, width: PAGE_WIDTH, height: 210, color: palette.tintA });
-    page.drawEllipse({ x: 500, y: 792, xScale: 92, yScale: 58, color: palette.tintB, opacity: 0.7 });
-    return;
-  }
-
-  if (variant === 2) {
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 145, width: PAGE_WIDTH, height: 145, color: palette.tintB });
-    page.drawEllipse({ x: 96, y: 94, xScale: 70, yScale: 44, color: palette.tintA, opacity: 0.65 });
-    return;
-  }
-
-  if (variant === 3) {
-    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 145, width: PAGE_WIDTH, height: 145, color: palette.tintC });
-    page.drawEllipse({ x: 515, y: 106, xScale: 78, yScale: 48, color: palette.tintA, opacity: 0.6 });
-    return;
-  }
-
-  page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 165, width: PAGE_WIDTH, height: 165, color: palette.tintA });
-  page.drawEllipse({ x: 470, y: 785, xScale: 74, yScale: 42, color: palette.tintB, opacity: 0.7 });
-}
-
-function drawFooter(page: PDFPage, pageNumber: number, totalPages: number, font: PDFFont) {
-  page.drawLine({
-    start: { x: MARGIN, y: 34 },
-    end: { x: PAGE_WIDTH - MARGIN, y: 34 },
-    thickness: 1,
-    color: rgb(0.89, 0.92, 0.95),
-  });
-
-  page.drawText("OLQLAB report for workplace development use.", {
-    x: MARGIN,
-    y: 21,
-    size: 8,
-    font,
-    color: palette.muted,
-  });
-
-  page.drawText(`Page ${pageNumber} of ${totalPages}`, {
-    x: PAGE_WIDTH - MARGIN - 58,
-    y: 21,
-    size: 8,
-    font,
-    color: palette.muted,
-  });
-}
-
-function drawSectionTitle(page: PDFPage, title: string, y: number, bold: PDFFont) {
-  page.drawText(title, {
-    x: MARGIN,
-    y,
-    size: 15,
-    font: bold,
-    color: palette.navy,
-  });
-
-  page.drawRectangle({
-    x: MARGIN,
-    y: y - 6,
-    width: 178,
-    height: 2,
-    color: rgb(0.73, 0.8, 0.89),
-  });
+  return drawTextLines(page, visible, x, y, font, size, color, lineGap);
 }
 
 function drawBulletList(
@@ -221,36 +157,109 @@ function drawBulletList(
   items: string[],
   x: number,
   y: number,
-  maxWidth: number,
+  width: number,
   font: PDFFont,
   size: number,
-  maxItems = 5,
-  maxLinesPerItem = 3,
+  options?: { lineGap?: number; itemGap?: number; maxItems?: number; maxLinesPerItem?: number },
 ) {
+  const lineGap = options?.lineGap ?? 4;
+  const itemGap = options?.itemGap ?? 6;
+  const maxItems = options?.maxItems ?? 6;
+  const maxLinesPerItem = options?.maxLinesPerItem ?? 4;
+
   let cursor = y;
   for (const item of items.slice(0, maxItems)) {
     page.drawCircle({
       x,
       y: cursor + size / 2 - 1,
-      size: 1.8,
-      color: palette.slate,
+      size: 1.9,
+      color: palette.body,
     });
 
     cursor = drawWrappedText(
       page,
-      safeText(item, 360),
+      safeText(item, 720),
       x + 8,
       cursor,
-      maxWidth - 8,
+      width - 8,
       font,
       size,
-      palette.slate,
-      3,
+      palette.body,
+      lineGap,
       maxLinesPerItem,
     );
-    cursor -= 4;
+    cursor -= itemGap;
   }
+
   return cursor;
+}
+
+function drawPageBackground(page: PDFPage, variant: number) {
+  page.drawRectangle({ x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, color: palette.page });
+
+  if (variant % 4 === 1) {
+    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 210, width: PAGE_WIDTH, height: 210, color: palette.blueTint });
+    page.drawEllipse({ x: 506, y: 790, xScale: 88, yScale: 54, color: palette.goldTint, opacity: 0.72 });
+    return;
+  }
+
+  if (variant % 4 === 2) {
+    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 158, width: PAGE_WIDTH, height: 158, color: palette.goldTint });
+    page.drawEllipse({ x: 92, y: 108, xScale: 70, yScale: 42, color: palette.blueTint, opacity: 0.64 });
+    return;
+  }
+
+  if (variant % 4 === 3) {
+    page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 158, width: PAGE_WIDTH, height: 158, color: palette.mintTint });
+    page.drawEllipse({ x: 506, y: 106, xScale: 76, yScale: 44, color: palette.blueTint, opacity: 0.62 });
+    return;
+  }
+
+  page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 172, width: PAGE_WIDTH, height: 172, color: palette.blueTint });
+  page.drawEllipse({ x: 468, y: 786, xScale: 74, yScale: 42, color: palette.goldTint, opacity: 0.72 });
+}
+
+function drawFooter(page: PDFPage, pageNumber: number, totalPages: number, font: PDFFont) {
+  page.drawLine({
+    start: { x: MARGIN_X, y: 34 },
+    end: { x: PAGE_WIDTH - MARGIN_X, y: 34 },
+    thickness: 1,
+    color: rgb(0.88, 0.91, 0.95),
+  });
+
+  page.drawText("OLQLAB report for workplace development use.", {
+    x: MARGIN_X,
+    y: FOOTER_Y,
+    size: 8,
+    font,
+    color: palette.muted,
+  });
+
+  page.drawText(`Page ${pageNumber} of ${totalPages}`, {
+    x: PAGE_WIDTH - MARGIN_X - 60,
+    y: FOOTER_Y,
+    size: 8,
+    font,
+    color: palette.muted,
+  });
+}
+
+function drawSectionHeader(page: PDFPage, title: string, y: number, bold: PDFFont) {
+  page.drawText(title, {
+    x: MARGIN_X,
+    y,
+    size: 16,
+    font: bold,
+    color: palette.heading,
+  });
+
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - 7,
+    width: 196,
+    height: 2,
+    color: rgb(0.71, 0.79, 0.88),
+  });
 }
 
 function drawTraitSignalBar(
@@ -260,42 +269,133 @@ function drawTraitSignalBar(
   y: number,
   font: PDFFont,
   bold: PDFFont,
-  bandLabel: string,
 ) {
-  const barX = MARGIN + 136;
-  const barWidth = CONTENT_WIDTH - 146;
+  const barX = MARGIN_X + 150;
+  const barWidth = CONTENT_WIDTH - 165;
+  const barHeight = 14;
   const segment = barWidth / 3;
 
   page.drawText(label, {
-    x: MARGIN,
-    y: y + 1,
-    size: 10,
+    x: MARGIN_X,
+    y: y + 2,
+    size: 11,
     font: bold,
-    color: palette.navy,
+    color: palette.heading,
   });
 
-  page.drawRectangle({ x: barX, y, width: segment, height: 10, color: rgb(0.84, 0.93, 1) });
-  page.drawRectangle({ x: barX + segment, y, width: segment, height: 10, color: rgb(1, 0.92, 0.78) });
-  page.drawRectangle({ x: barX + segment * 2, y, width: segment, height: 10, color: rgb(0.8, 0.93, 0.82) });
+  page.drawRectangle({ x: barX, y, width: segment, height: barHeight, color: rgb(0.83, 0.92, 1) });
+  page.drawRectangle({ x: barX + segment, y, width: segment, height: barHeight, color: rgb(1, 0.91, 0.76) });
+  page.drawRectangle({ x: barX + segment * 2, y, width: segment, height: barHeight, color: rgb(0.79, 0.92, 0.81) });
 
   const clamped = Math.max(0, Math.min(100, signal));
   const markerX = barX + (barWidth * clamped) / 100;
+  const band = bandLabel(toBand(clamped));
+
   page.drawCircle({
     x: markerX,
-    y: y + 5,
-    size: 4.1,
+    y: y + barHeight / 2,
+    size: 4.8,
     color: rgb(1, 1, 1),
-    borderColor: rgb(0.16, 0.21, 0.28),
-    borderWidth: 1.3,
+    borderColor: rgb(0.14, 0.19, 0.27),
+    borderWidth: 1.4,
   });
 
-  page.drawText(bandLabel, {
+  page.drawText(band, {
     x: barX + barWidth + 8,
-    y: y + 1,
+    y: y + 3,
     size: 8,
     font,
     color: palette.muted,
   });
+}
+
+function parseCompetencySignals(raw: unknown): CompetencySignal[] {
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => {
+      if (!item || typeof item !== "object") return null;
+      const candidate = item as { name?: unknown; score?: unknown };
+      if (typeof candidate.name !== "string") return null;
+      if (typeof candidate.score !== "number" || !Number.isFinite(candidate.score)) return null;
+      return {
+        name: candidate.name,
+        score: candidate.score,
+      };
+    })
+    .filter((item): item is CompetencySignal => Boolean(item));
+}
+
+function normalizeCompetencySignals(signals: CompetencySignal[]) {
+  const sorted = [...signals].sort((a, b) => b.score - a.score).slice(0, 6);
+  if (sorted.length === 0) return [] as Array<CompetencySignal & { normalized: number; band: TraitBand }>;
+
+  const min = Math.min(...sorted.map((item) => item.score));
+  const max = Math.max(...sorted.map((item) => item.score));
+
+  return sorted.map((item) => {
+    const normalized =
+      max === min ? 55 : Math.round(22 + ((item.score - min) / (max - min)) * 62);
+
+    return {
+      ...item,
+      normalized,
+      band: toBand(normalized),
+    };
+  });
+}
+
+function drawCompetencySignalBar(
+  page: PDFPage,
+  label: string,
+  signal: number,
+  y: number,
+  font: PDFFont,
+  bold: PDFFont,
+) {
+  const barX = MARGIN_X + 170;
+  const barWidth = CONTENT_WIDTH - 184;
+  const barHeight = 11;
+  const segment = barWidth / 3;
+
+  page.drawText(label, {
+    x: MARGIN_X,
+    y: y + 1,
+    size: 9,
+    font,
+    color: palette.body,
+  });
+
+  page.drawRectangle({ x: barX, y, width: segment, height: barHeight, color: rgb(0.85, 0.93, 1) });
+  page.drawRectangle({ x: barX + segment, y, width: segment, height: barHeight, color: rgb(1, 0.93, 0.79) });
+  page.drawRectangle({ x: barX + segment * 2, y, width: segment, height: barHeight, color: rgb(0.81, 0.93, 0.83) });
+
+  const clamped = Math.max(0, Math.min(100, signal));
+  const markerX = barX + (barWidth * clamped) / 100;
+
+  page.drawCircle({
+    x: markerX,
+    y: y + barHeight / 2,
+    size: 3.6,
+    color: rgb(1, 1, 1),
+    borderColor: rgb(0.16, 0.22, 0.3),
+    borderWidth: 1.2,
+  });
+
+  page.drawText(bandLabel(toBand(clamped)), {
+    x: barX + barWidth + 8,
+    y: y + 1,
+    size: 7,
+    font: bold,
+    color: palette.muted,
+  });
+}
+
+function addPage(pdf: PDFDocument, pages: PDFPage[]) {
+  const page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  drawPageBackground(page, pages.length + 1);
+  pages.push(page);
+  return page;
 }
 
 export async function GET(
@@ -341,148 +441,172 @@ export async function GET(
     }
   }
 
-  const score = await db.score.findUnique({
-    where: { assessmentId_userId: { assessmentId, userId: check.session.user.id } },
-  });
-  const report = await db.report.findUnique({
-    where: { assessmentId_userId: { assessmentId, userId: check.session.user.id } },
-  });
+  const [score, report] = await Promise.all([
+    db.score.findUnique({
+      where: {
+        assessmentId_userId: {
+          assessmentId,
+          userId: check.session.user.id,
+        },
+      },
+    }),
+    db.report.findUnique({
+      where: {
+        assessmentId_userId: {
+          assessmentId,
+          userId: check.session.user.id,
+        },
+      },
+    }),
+  ]);
 
   if (!score || !report) {
     return NextResponse.json({ error: "Report not ready" }, { status: 404 });
   }
 
-  const narrative = JSON.parse(report.narrativeJson || "{}") as NarrativePayload;
+  let narrative: NarrativePayload = {};
+  try {
+    narrative = JSON.parse(report.narrativeJson || "{}");
+  } catch {
+    narrative = {};
+  }
 
   const participantName =
-    safeText(narrative.participantName, 80) ||
-    safeText(`${session.user.firstName} ${session.user.lastName}`, 80);
+    safeText(narrative.participantName, 100) ||
+    safeText(`${session.user.firstName} ${session.user.lastName}`, 100) ||
+    "Participant";
   const firstName = participantName.split(" ")[0] || "Participant";
 
   const assessmentTitle =
-    safeText(narrative.assessmentTitle, 100) || safeText(session.assessment.title, 100);
-  const takenAt = formatTakenAt(narrative.assessmentTakenAt || session.submittedAt?.toISOString());
+    safeText(narrative.assessmentTitle, 120) || safeText(session.assessment.title, 120);
+  const takenAt = formatTakenAt(narrative.assessmentTakenAt || session.submittedAt);
 
   const summary =
-    safeText(narrative.summary, 1100) ||
-    "This report combines personality tendencies and scenario behavior patterns to guide practical development decisions.";
+    safeText(narrative.summary, 1300) ||
+    "This report combines trait tendencies with workplace scenario choices to support practical growth in role impact, collaboration quality, and execution consistency.";
+
+  const profileHeadline = safeText(narrative.profileHeadline, 100) || "Adaptive Contributor";
 
   const strengths =
     narrative.strengths?.length
       ? narrative.strengths
-      : ["No strengths narrative available yet. Please regenerate report."];
+      : [
+          "Your strongest patterns are visible in how you frame ambiguity, sustain accountability, and influence team momentum in high-priority work.",
+        ];
+
   const growthAreas =
     narrative.growthAreas?.length
       ? narrative.growthAreas
-      : ["No development narrative available yet. Please regenerate report."];
+      : [
+          "Development opportunities focus on improving consistency under pressure and strengthening collaboration quality in difficult trade-offs.",
+        ];
+
   const actions =
     narrative.actions?.length
       ? narrative.actions
-      : ["Choose one strength and one growth behavior to practice each week."];
+      : [
+          "Choose one high-impact strength behavior and apply it intentionally in your next visible project.",
+          "Define one growth behavior and practice it weekly with clear examples.",
+          "Request concise feedback from your leader after each key milestone.",
+        ];
 
   const workplaceSignals = narrative.workplaceSignals || [];
   const reflectionPrompts = narrative.reflectionPrompts || [];
   const managerGuide = narrative.managerDiscussionGuide || [];
   const competencyThemes = narrative.competencyThemes || [];
 
-  const extendedInsights = [
-    narrative.aiNarrative?.executiveSummary,
-    narrative.aiNarrative?.strengthsNarrative,
-    narrative.aiNarrative?.developmentNarrative,
-    narrative.aiNarrative?.managerCoaching,
-  ].filter((item): item is string => Boolean(item));
-
-  const roadmap = narrative.aiNarrative?.improvementRoadmap || [];
-  const cautionNotes = narrative.aiNarrative?.cautionNotes || [];
-
-  const traitSignals: Array<{ label: string; value: number; bandLabel: string }> = [
-    { label: "Openness", value: Number(score.openness || 0), bandLabel: toBand(Number(score.openness || 0)) },
-    {
-      label: "Conscientiousness",
-      value: Number(score.conscientiousness || 0),
-      bandLabel: toBand(Number(score.conscientiousness || 0)),
-    },
-    { label: "Extraversion", value: Number(score.extraversion || 0), bandLabel: toBand(Number(score.extraversion || 0)) },
-    { label: "Agreeableness", value: Number(score.agreeableness || 0), bandLabel: toBand(Number(score.agreeableness || 0)) },
-    {
-      label: "Emotional Reactivity",
-      value: Number(score.neuroticism || 0),
-      bandLabel: toBand(Number(score.neuroticism || 0)),
-    },
+  const traitSignals = [
+    { label: "Openness", value: Number(score.openness || 0) },
+    { label: "Conscientiousness", value: Number(score.conscientiousness || 0) },
+    { label: "Extraversion", value: Number(score.extraversion || 0) },
+    { label: "Agreeableness", value: Number(score.agreeableness || 0) },
+    { label: "Emotional Reactivity", value: Number(score.neuroticism || 0) },
   ].map((item) => ({
     ...item,
-    bandLabel:
-      item.bandLabel === "high"
-        ? "Strong signal"
-        : item.bandLabel === "moderate"
-          ? "Balanced signal"
-          : "Emerging signal",
+    value: Math.max(0, Math.min(100, item.value)),
   }));
+
+  const competencySignals = normalizeCompetencySignals(
+    parseCompetencySignals(score.competencyJson),
+  );
+
+  const extendedSections: Array<{ title: string; content: string }> = [
+    {
+      title: "Executive Perspective",
+      content: safeText(narrative.aiNarrative?.executiveSummary, 1900),
+    },
+    {
+      title: "Strength Narrative",
+      content: safeText(narrative.aiNarrative?.strengthsNarrative, 1900),
+    },
+    {
+      title: "Development Narrative",
+      content: safeText(narrative.aiNarrative?.developmentNarrative, 1900),
+    },
+    {
+      title: "Manager Coaching Cues",
+      content: safeText(narrative.aiNarrative?.managerCoaching, 1900),
+    },
+  ].filter((section) => section.content);
+
+  const roadmap = (narrative.aiNarrative?.improvementRoadmap || []).filter(Boolean);
+  const cautionNotes = (narrative.aiNarrative?.cautionNotes || []).filter(Boolean);
 
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pages: PDFPage[] = [];
 
-  const hasExtendedPage = extendedInsights.length > 0 || roadmap.length > 0 || cautionNotes.length > 0;
-  const totalPages = hasExtendedPage ? 4 : 3;
+  const page1 = addPage(pdf, pages);
+  const page2 = addPage(pdf, pages);
+  const page3 = addPage(pdf, pages);
 
-  const page1 = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  const page2 = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  const page3 = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  const page4 = hasExtendedPage ? pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]) : null;
-
-  drawBackground(page1, 1);
-  drawBackground(page2, 2);
-  drawBackground(page3, 3);
-  if (page4) drawBackground(page4, 4);
-
-  // Page 1: Personalized cover + trait bars
   page1.drawRectangle({
-    x: MARGIN,
-    y: 700,
+    x: MARGIN_X,
+    y: 636,
     width: CONTENT_WIDTH,
-    height: 120,
-    color: palette.card,
+    height: 176,
+    color: palette.white,
     borderColor: palette.border,
     borderWidth: 1,
   });
 
   page1.drawText("OLQLAB Development Report", {
-    x: MARGIN + 16,
-    y: 790,
-    size: 23,
+    x: MARGIN_X + 16,
+    y: 777,
+    size: 28,
     font: bold,
-    color: palette.navy,
+    color: palette.heading,
   });
   page1.drawText(assessmentTitle, {
-    x: MARGIN + 16,
-    y: 770,
-    size: 11,
+    x: MARGIN_X + 16,
+    y: 750,
+    size: 12,
     font,
-    color: palette.slate,
+    color: palette.body,
   });
 
   page1.drawText(`Prepared for ${participantName}`, {
-    x: MARGIN + 16,
-    y: 748,
-    size: 11,
+    x: MARGIN_X + 16,
+    y: 726,
+    size: 12,
     font,
-    color: palette.slate,
+    color: palette.body,
   });
   page1.drawText(`Test Taken: ${takenAt}`, {
-    x: MARGIN + 16,
-    y: 731,
-    size: 11,
+    x: MARGIN_X + 16,
+    y: 707,
+    size: 12,
     font,
-    color: palette.slate,
+    color: palette.body,
   });
 
   page1.drawRectangle({
-    x: MARGIN,
-    y: 610,
+    x: MARGIN_X,
+    y: 552,
     width: CONTENT_WIDTH,
-    height: 76,
-    color: rgb(1, 1, 1),
+    height: 70,
+    color: palette.white,
     borderColor: palette.border,
     borderWidth: 1,
   });
@@ -490,296 +614,463 @@ export async function GET(
   drawWrappedText(
     page1,
     `${firstName}, ${summary.charAt(0).toLowerCase()}${summary.slice(1)}`,
-    MARGIN + 14,
-    666,
+    MARGIN_X + 14,
+    597,
     CONTENT_WIDTH - 28,
     font,
-    10,
-    palette.slate,
+    11,
+    palette.body,
     4,
     4,
   );
 
-  drawSectionTitle(page1, "Trait Signal Map", 582, bold);
+  drawSectionHeader(page1, "Trait Signal Map", 522, bold);
   page1.drawText("Visual indicators only. No numeric score display.", {
-    x: MARGIN,
-    y: 564,
+    x: MARGIN_X,
+    y: 503,
     size: 9,
     font,
     color: palette.muted,
   });
 
-  let traitY = 535;
+  let traitY = 472;
   for (const trait of traitSignals) {
-    drawTraitSignalBar(page1, trait.label, trait.value, traitY, font, bold, trait.bandLabel);
-    traitY -= 30;
+    drawTraitSignalBar(page1, trait.label, trait.value, traitY, font, bold);
+    traitY -= 34;
   }
 
-  page1.drawText("Emerging", { x: MARGIN + 136, y: 382, size: 8, font, color: palette.muted });
-  page1.drawText("Balanced", { x: MARGIN + 136 + (CONTENT_WIDTH - 146) / 2 - 20, y: 382, size: 8, font, color: palette.muted });
-  page1.drawText("Strong", { x: MARGIN + CONTENT_WIDTH - 40, y: 382, size: 8, font, color: palette.muted });
+  page1.drawText("Emerging", { x: MARGIN_X + 150, y: 297, size: 8, font, color: palette.muted });
+  page1.drawText("Balanced", {
+    x: MARGIN_X + 150 + (CONTENT_WIDTH - 165) / 2 - 20,
+    y: 297,
+    size: 8,
+    font,
+    color: palette.muted,
+  });
+  page1.drawText("Strong", {
+    x: MARGIN_X + CONTENT_WIDTH - 30,
+    y: 297,
+    size: 8,
+    font,
+    color: palette.muted,
+  });
 
-  drawSectionTitle(page1, "Profile Focus", 348, bold);
+  drawSectionHeader(page1, "Profile Focus", 262, bold);
+  page1.drawRectangle({
+    x: MARGIN_X,
+    y: 178,
+    width: CONTENT_WIDTH,
+    height: 72,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
+
+  page1.drawText(profileHeadline, {
+    x: MARGIN_X + 14,
+    y: 228,
+    size: 14,
+    font: bold,
+    color: palette.heading,
+  });
+
   drawWrappedText(
     page1,
-    safeText(narrative.profileHeadline, 80) || "Adaptive Contributor",
-    MARGIN,
-    330,
-    CONTENT_WIDTH,
-    bold,
-    12,
-    palette.navy,
+    "Use your strongest signals intentionally in visible work and pair them with one deliberate growth behavior to increase reliability under pressure.",
+    MARGIN_X + 14,
+    206,
+    CONTENT_WIDTH - 28,
+    font,
+    10.5,
+    palette.body,
     4,
     2,
   );
 
-  drawWrappedText(
-    page1,
-    "Use your strongest signals intentionally in visible work, and pair that with one deliberate growth behavior to increase consistency under pressure.",
-    MARGIN,
-    300,
-    CONTENT_WIDTH,
-    font,
-    10,
-    palette.slate,
-    3,
-    4,
-  );
-
-  // Page 2: Strengths + development + scenario themes
-  page2.drawText("Strengths and Development Insights", {
-    x: MARGIN,
-    y: 784,
-    size: 20,
+  page2.drawText("Strengths, Development, and Role Signals", {
+    x: MARGIN_X,
+    y: 782,
+    size: 24,
     font: bold,
-    color: palette.navy,
+    color: palette.heading,
   });
 
-  page2.drawRectangle({ x: MARGIN, y: 444, width: CONTENT_WIDTH / 2 - 8, height: 316, color: palette.card, borderColor: palette.border, borderWidth: 1 });
-  page2.drawRectangle({ x: MARGIN + CONTENT_WIDTH / 2 + 8, y: 444, width: CONTENT_WIDTH / 2 - 8, height: 316, color: palette.card, borderColor: palette.border, borderWidth: 1 });
+  page2.drawRectangle({
+    x: MARGIN_X,
+    y: 462,
+    width: CONTENT_WIDTH / 2 - 8,
+    height: 292,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
+  page2.drawRectangle({
+    x: MARGIN_X + CONTENT_WIDTH / 2 + 8,
+    y: 462,
+    width: CONTENT_WIDTH / 2 - 8,
+    height: 292,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
 
-  page2.drawRectangle({ x: MARGIN + 12, y: 730, width: 98, height: 16, color: palette.strength });
-  page2.drawText("Strengths", { x: MARGIN + 18, y: 735, size: 9, font: bold, color: palette.navy });
+  page2.drawRectangle({ x: MARGIN_X + 12, y: 726, width: 106, height: 18, color: palette.strengthTint });
+  page2.drawText("Strengths", { x: MARGIN_X + 18, y: 732, size: 9, font: bold, color: palette.heading });
 
-  page2.drawRectangle({ x: MARGIN + CONTENT_WIDTH / 2 + 20, y: 730, width: 128, height: 16, color: palette.focus });
-  page2.drawText("Development Areas", { x: MARGIN + CONTENT_WIDTH / 2 + 26, y: 735, size: 9, font: bold, color: palette.navy });
+  page2.drawRectangle({
+    x: MARGIN_X + CONTENT_WIDTH / 2 + 20,
+    y: 726,
+    width: 144,
+    height: 18,
+    color: palette.focusTint,
+  });
+  page2.drawText("Development Areas", {
+    x: MARGIN_X + CONTENT_WIDTH / 2 + 28,
+    y: 732,
+    size: 9,
+    font: bold,
+    color: palette.heading,
+  });
 
   drawBulletList(
     page2,
     strengths,
-    MARGIN + 16,
-    708,
-    CONTENT_WIDTH / 2 - 30,
+    MARGIN_X + 16,
+    704,
+    CONTENT_WIDTH / 2 - 34,
     font,
-    10,
-    5,
-    3,
+    10.5,
+    { maxItems: 6, maxLinesPerItem: 3 },
   );
 
   drawBulletList(
     page2,
     growthAreas,
-    MARGIN + CONTENT_WIDTH / 2 + 22,
-    708,
-    CONTENT_WIDTH / 2 - 30,
+    MARGIN_X + CONTENT_WIDTH / 2 + 24,
+    704,
+    CONTENT_WIDTH / 2 - 34,
     font,
-    10,
-    5,
-    3,
+    10.5,
+    { maxItems: 6, maxLinesPerItem: 3 },
   );
 
-  drawSectionTitle(page2, "Scenario Themes", 416, bold);
+  drawSectionHeader(page2, "Competency Signal Bars", 436, bold);
+  page2.drawText("Relative signal display only. No score values shown.", {
+    x: MARGIN_X,
+    y: 417,
+    size: 8.5,
+    font,
+    color: palette.muted,
+  });
 
-  const visibleThemes = competencyThemes.slice(0, 4);
-  let themeY = 390;
+  let competencyY = 388;
+  if (competencySignals.length > 0) {
+    for (const item of competencySignals) {
+      drawCompetencySignalBar(page2, item.name, item.normalized, competencyY, font, bold);
+      competencyY -= 28;
+    }
+  } else {
+    drawWrappedText(
+      page2,
+      "Competency trend bars will appear here once scenario competency scoring data is available.",
+      MARGIN_X,
+      competencyY,
+      CONTENT_WIDTH,
+      font,
+      10,
+      palette.muted,
+      4,
+      3,
+    );
+    competencyY -= 60;
+  }
+
+  drawSectionHeader(page2, "Scenario Themes", competencyY + 8, bold);
+
+  const visibleThemes = competencyThemes.slice(0, 3);
+  let themeY = competencyY - 22;
   for (const theme of visibleThemes) {
-    const color = theme.category === "strength" ? palette.strength : palette.focus;
+    const tint = theme.category === "strength" ? palette.strengthTint : palette.focusTint;
 
     page2.drawRectangle({
-      x: MARGIN,
-      y: themeY - 68,
+      x: MARGIN_X,
+      y: themeY - 72,
       width: CONTENT_WIDTH,
-      height: 62,
-      color: palette.card,
+      height: 64,
+      color: palette.white,
       borderColor: palette.border,
       borderWidth: 1,
     });
 
-    page2.drawRectangle({ x: MARGIN + 10, y: themeY - 26, width: 72, height: 14, color });
+    page2.drawRectangle({ x: MARGIN_X + 10, y: themeY - 26, width: 74, height: 14, color: tint });
     page2.drawText(theme.category === "strength" ? "Strength" : "Focus", {
-      x: MARGIN + 15,
+      x: MARGIN_X + 15,
       y: themeY - 21,
       size: 8,
       font: bold,
-      color: palette.navy,
+      color: palette.heading,
     });
 
-    page2.drawText(theme.name, {
-      x: MARGIN + 92,
+    page2.drawText(safeText(theme.name, 58), {
+      x: MARGIN_X + 92,
       y: themeY - 20,
       size: 10,
       font: bold,
-      color: palette.navy,
+      color: palette.heading,
     });
 
     drawWrappedText(
       page2,
-      safeText(theme.insight, 260),
-      MARGIN + 10,
-      themeY - 39,
+      safeText(theme.insight, 360),
+      MARGIN_X + 10,
+      themeY - 40,
       CONTENT_WIDTH - 20,
       font,
-      9,
-      palette.slate,
+      9.5,
+      palette.body,
       3,
       2,
     );
 
-    themeY -= 74;
+    themeY -= 78;
   }
 
-  // Page 3: Action plan and coaching cues
-  page3.drawText("Action Plan and Coaching Cues", {
-    x: MARGIN,
-    y: 784,
-    size: 20,
+  page3.drawText("Action Plan and Development Support", {
+    x: MARGIN_X,
+    y: 782,
+    size: 24,
     font: bold,
-    color: palette.navy,
+    color: palette.heading,
   });
 
-  drawSectionTitle(page3, "Action Plan", 752, bold);
-  let y3 = drawBulletList(
+  drawSectionHeader(page3, "Action Plan", 746, bold);
+  page3.drawRectangle({
+    x: MARGIN_X,
+    y: 498,
+    width: CONTENT_WIDTH,
+    height: 228,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
+
+  drawBulletList(page3, actions, MARGIN_X + 16, 698, CONTENT_WIDTH - 30, font, 11, {
+    maxItems: 8,
+    maxLinesPerItem: 3,
+  });
+
+  drawSectionHeader(page3, "Workplace Signals", 472, bold);
+  page3.drawRectangle({
+    x: MARGIN_X,
+    y: 336,
+    width: CONTENT_WIDTH,
+    height: 118,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
+
+  drawBulletList(
     page3,
-    actions,
-    MARGIN + 2,
-    730,
-    CONTENT_WIDTH,
+    workplaceSignals.length > 0
+      ? workplaceSignals
+      : [
+          "Performance is strongest when priorities, ownership, and decision boundaries are explicit.",
+        ],
+    MARGIN_X + 16,
+    430,
+    CONTENT_WIDTH - 30,
     font,
     10,
-    8,
-    2,
+    { maxItems: 3, maxLinesPerItem: 2 },
   );
 
-  y3 -= 2;
-  drawSectionTitle(page3, "Workplace Signals", y3, bold);
-  y3 = drawBulletList(
-    page3,
-    workplaceSignals,
-    MARGIN + 2,
-    y3 - 22,
-    CONTENT_WIDTH,
-    font,
-    9,
-    4,
-    2,
-  );
+  const hasReflection = reflectionPrompts.length > 0;
+  const hasManagerGuide = managerGuide.length > 0;
 
-  if (reflectionPrompts.length > 0 && y3 > 196) {
-    y3 -= 2;
-    drawSectionTitle(page3, "Reflection Prompts", y3, bold);
-    y3 = drawBulletList(
-      page3,
-      reflectionPrompts,
-      MARGIN + 2,
-      y3 - 22,
-      CONTENT_WIDTH,
-      font,
-      9,
-      3,
-      2,
-    );
-  }
+  if (hasReflection || hasManagerGuide) {
+    const cardY = 118;
+    const cardHeight = 196;
 
-  if (managerGuide.length > 0 && y3 > 112) {
-    y3 -= 2;
-    drawSectionTitle(page3, "Manager Conversation Guide", y3, bold);
-    drawBulletList(
-      page3,
-      managerGuide,
-      MARGIN + 2,
-      y3 - 22,
-      CONTENT_WIDTH,
-      font,
-      9,
-      3,
-      2,
-    );
-  }
-
-  // Page 4: Extended insights
-  if (page4) {
-    page4.drawText("Extended Insights", {
-      x: MARGIN,
-      y: 784,
-      size: 21,
-      font: bold,
-      color: palette.navy,
-    });
-
-    let y4 = 748;
-
-    for (const insight of extendedInsights.slice(0, 4)) {
-      page4.drawRectangle({
-        x: MARGIN,
-        y: y4 - 98,
-        width: CONTENT_WIDTH,
-        height: 90,
-        color: palette.card,
+    if (hasReflection) {
+      page3.drawRectangle({
+        x: MARGIN_X,
+        y: cardY,
+        width: hasManagerGuide ? CONTENT_WIDTH / 2 - 8 : CONTENT_WIDTH,
+        height: cardHeight,
+        color: palette.white,
         borderColor: palette.border,
         borderWidth: 1,
       });
 
-      y4 = drawWrappedText(
-        page4,
-        safeText(insight, 500),
-        MARGIN + 12,
-        y4 - 22,
-        CONTENT_WIDTH - 24,
-        font,
-        10,
-        palette.slate,
-        4,
-        5,
-      );
+      page3.drawText("Reflection Prompts", {
+        x: MARGIN_X + 12,
+        y: cardY + cardHeight - 24,
+        size: 12,
+        font: bold,
+        color: palette.heading,
+      });
 
-      y4 -= 22;
-    }
-
-    if (roadmap.length > 0 && y4 > 220) {
-      drawSectionTitle(page4, "Roadmap", y4, bold);
-      y4 = drawBulletList(
-        page4,
-        roadmap,
-        MARGIN + 2,
-        y4 - 22,
-        CONTENT_WIDTH,
-        font,
-        10,
-        5,
-        2,
-      );
-    }
-
-    if (cautionNotes.length > 0 && y4 > 130) {
-      drawSectionTitle(page4, "Interpretation Notes", y4, bold);
       drawBulletList(
-        page4,
-        cautionNotes,
-        MARGIN + 2,
-        y4 - 22,
-        CONTENT_WIDTH,
+        page3,
+        reflectionPrompts,
+        MARGIN_X + 14,
+        cardY + cardHeight - 44,
+        (hasManagerGuide ? CONTENT_WIDTH / 2 - 8 : CONTENT_WIDTH) - 26,
         font,
-        9,
-        4,
-        2,
+        9.5,
+        { maxItems: 5, maxLinesPerItem: 2, itemGap: 4 },
       );
+    }
+
+    if (hasManagerGuide) {
+      const x = hasReflection ? MARGIN_X + CONTENT_WIDTH / 2 + 8 : MARGIN_X;
+      const width = hasReflection ? CONTENT_WIDTH / 2 - 8 : CONTENT_WIDTH;
+
+      page3.drawRectangle({
+        x,
+        y: cardY,
+        width,
+        height: cardHeight,
+        color: palette.white,
+        borderColor: palette.border,
+        borderWidth: 1,
+      });
+
+      page3.drawText("Manager Conversation Guide", {
+        x: x + 12,
+        y: cardY + cardHeight - 24,
+        size: 12,
+        font: bold,
+        color: palette.heading,
+      });
+
+      drawBulletList(page3, managerGuide, x + 14, cardY + cardHeight - 44, width - 26, font, 9.5, {
+        maxItems: 5,
+        maxLinesPerItem: 2,
+        itemGap: 4,
+      });
     }
   }
 
-  drawFooter(page1, 1, totalPages, font);
-  drawFooter(page2, 2, totalPages, font);
-  drawFooter(page3, 3, totalPages, font);
-  if (page4) drawFooter(page4, 4, totalPages, font);
+  const hasExtended = extendedSections.length > 0 || roadmap.length > 0 || cautionNotes.length > 0;
+  if (hasExtended) {
+    let page = addPage(pdf, pages);
+
+    page.drawText("Extended Insights", {
+      x: MARGIN_X,
+      y: 782,
+      size: 24,
+      font: bold,
+      color: palette.heading,
+    });
+
+    let y = 746;
+
+    const ensureRoom = (requiredHeight: number) => {
+      if (y - requiredHeight >= 64) return;
+      page = addPage(pdf, pages);
+      page.drawText("Extended Insights (continued)", {
+        x: MARGIN_X,
+        y: 782,
+        size: 20,
+        font: bold,
+        color: palette.heading,
+      });
+      y = 746;
+    };
+
+    for (const section of extendedSections) {
+      const lines = wrapLines(section.content, CONTENT_WIDTH - 26, font, 11);
+      const lineHeight = 15;
+      const contentHeight = Math.max(3, lines.length) * lineHeight;
+      const blockHeight = 44 + contentHeight;
+
+      ensureRoom(blockHeight + 12);
+
+      page.drawRectangle({
+        x: MARGIN_X,
+        y: y - blockHeight,
+        width: CONTENT_WIDTH,
+        height: blockHeight,
+        color: palette.white,
+        borderColor: palette.border,
+        borderWidth: 1,
+      });
+
+      page.drawText(section.title, {
+        x: MARGIN_X + 12,
+        y: y - 24,
+        size: 13,
+        font: bold,
+        color: palette.heading,
+      });
+
+      drawTextLines(page, lines, MARGIN_X + 12, y - 46, font, 11, palette.body, 4);
+      y -= blockHeight + 12;
+    }
+
+    if (roadmap.length > 0) {
+      const estimatedHeight = 60 + Math.min(roadmap.length, 8) * 32;
+      ensureRoom(estimatedHeight + 12);
+
+      page.drawRectangle({
+        x: MARGIN_X,
+        y: y - estimatedHeight,
+        width: CONTENT_WIDTH,
+        height: estimatedHeight,
+        color: palette.white,
+        borderColor: palette.border,
+        borderWidth: 1,
+      });
+
+      page.drawText("Roadmap", {
+        x: MARGIN_X + 12,
+        y: y - 24,
+        size: 13,
+        font: bold,
+        color: palette.heading,
+      });
+
+      drawBulletList(page, roadmap, MARGIN_X + 14, y - 44, CONTENT_WIDTH - 28, font, 10.5, {
+        maxItems: 8,
+        maxLinesPerItem: 2,
+      });
+
+      y -= estimatedHeight + 12;
+    }
+
+    if (cautionNotes.length > 0) {
+      const estimatedHeight = 56 + Math.min(cautionNotes.length, 6) * 28;
+      ensureRoom(estimatedHeight + 12);
+
+      page.drawRectangle({
+        x: MARGIN_X,
+        y: y - estimatedHeight,
+        width: CONTENT_WIDTH,
+        height: estimatedHeight,
+        color: palette.white,
+        borderColor: palette.border,
+        borderWidth: 1,
+      });
+
+      page.drawText("Interpretation Notes", {
+        x: MARGIN_X + 12,
+        y: y - 24,
+        size: 13,
+        font: bold,
+        color: palette.heading,
+      });
+
+      drawBulletList(page, cautionNotes, MARGIN_X + 14, y - 44, CONTENT_WIDTH - 28, font, 10, {
+        maxItems: 6,
+        maxLinesPerItem: 2,
+      });
+    }
+  }
+
+  const totalPages = pages.length;
+  pages.forEach((page, index) => drawFooter(page, index + 1, totalPages, font));
 
   const bytes = await pdf.save();
 

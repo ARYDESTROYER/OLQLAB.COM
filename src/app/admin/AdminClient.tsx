@@ -47,6 +47,8 @@ type AssessmentParticipant = {
   status: ParticipantStatus;
   startedAt: string | null;
   submittedAt: string | null;
+  retestEligibleAt: string | null;
+  canRetestNow: boolean;
 };
 
 type DraftCompetency = {
@@ -299,6 +301,13 @@ function parseSpreadsheetCsv(text: string) {
   };
 }
 
+function formatDateTime(input: string | null | undefined) {
+  if (!input) return "-";
+  const parsed = new Date(input);
+  if (Number.isNaN(parsed.getTime())) return "-";
+  return parsed.toLocaleString();
+}
+
 export default function AdminPage() {
   const [tenantQuery, setTenantQuery] = useState("");
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -326,6 +335,9 @@ export default function AdminPage() {
     "ALL" | ParticipantStatus
   >("ALL");
   const [regeneratingUserId, setRegeneratingUserId] = useState("");
+  const [participantActionUserId, setParticipantActionUserId] = useState("");
+  const [participantActionType, setParticipantActionType] = useState("");
+  const [retestDateByUser, setRetestDateByUser] = useState<Record<string, string>>({});
   const [regenerateOutput, setRegenerateOutput] = useState("");
   const [publishOutput, setPublishOutput] = useState("");
   const [publishPolicy, setPublishPolicy] = useState({
@@ -344,6 +356,8 @@ export default function AdminPage() {
   const [directoryUsers, setDirectoryUsers] = useState<DirectoryUser[]>([]);
   const [userQuery, setUserQuery] = useState("");
   const [directoryRefreshTick, setDirectoryRefreshTick] = useState(0);
+  const [deletingUserId, setDeletingUserId] = useState("");
+  const [directoryActionOutput, setDirectoryActionOutput] = useState("");
   const [addUserForm, setAddUserForm] = useState({
     email: "",
     firstName: "",
@@ -743,6 +757,160 @@ export default function AdminPage() {
     }
   }
 
+  async function deleteDirectoryUser(user: DirectoryUser) {
+    if (user.role === "ADMIN") {
+      alert("Admin users cannot be deleted from this action.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Delete ${user.firstName} ${user.lastName} (${user.email})? This removes their account and seat assignment.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingUserId(user.id);
+    setDirectoryActionOutput("");
+
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      setDirectoryActionOutput(JSON.stringify(data, null, 2));
+
+      if (res.ok) {
+        setDirectoryRefreshTick((prev) => prev + 1);
+        if (selectedAssessmentId) {
+          await loadParticipants(selectedAssessmentId);
+        }
+      }
+    } catch {
+      setDirectoryActionOutput(
+        JSON.stringify({ error: "Could not delete user. Please retry." }, null, 2),
+      );
+    } finally {
+      setDeletingUserId("");
+    }
+  }
+
+  async function setParticipantRetestEligibility(
+    userId: string,
+    mode: "IMMEDIATE" | "DATE",
+  ) {
+    if (!selectedAssessmentId) return;
+
+    let eligibleAt: string | undefined;
+    if (mode === "DATE") {
+      const raw = retestDateByUser[userId];
+      if (!raw) {
+        alert("Select a date/time first.");
+        return;
+      }
+      const parsed = new Date(raw);
+      if (Number.isNaN(parsed.getTime())) {
+        alert("Invalid date/time.");
+        return;
+      }
+      eligibleAt = parsed.toISOString();
+    }
+
+    setParticipantActionUserId(userId);
+    setParticipantActionType(mode === "IMMEDIATE" ? "SET_RETEST_IMMEDIATE" : "SET_RETEST_DATE");
+    setRegenerateOutput("");
+
+    try {
+      const res = await fetch(
+        `/api/admin/assessments/${selectedAssessmentId}/participants/${userId}/retest`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode,
+            eligibleAt,
+          }),
+        },
+      );
+      const data = await res.json();
+      setRegenerateOutput(JSON.stringify(data, null, 2));
+
+      if (res.ok) {
+        await loadParticipants(selectedAssessmentId);
+      }
+    } catch {
+      setRegenerateOutput(
+        JSON.stringify({ error: "Could not set retest eligibility. Please retry." }, null, 2),
+      );
+    } finally {
+      setParticipantActionUserId("");
+      setParticipantActionType("");
+    }
+  }
+
+  async function clearParticipantRetestEligibility(userId: string) {
+    if (!selectedAssessmentId) return;
+
+    setParticipantActionUserId(userId);
+    setParticipantActionType("CLEAR_RETEST");
+    setRegenerateOutput("");
+
+    try {
+      const res = await fetch(
+        `/api/admin/assessments/${selectedAssessmentId}/participants/${userId}/retest`,
+        {
+          method: "DELETE",
+        },
+      );
+      const data = await res.json();
+      setRegenerateOutput(JSON.stringify(data, null, 2));
+
+      if (res.ok) {
+        await loadParticipants(selectedAssessmentId);
+      }
+    } catch {
+      setRegenerateOutput(
+        JSON.stringify({ error: "Could not clear retest eligibility. Please retry." }, null, 2),
+      );
+    } finally {
+      setParticipantActionUserId("");
+      setParticipantActionType("");
+    }
+  }
+
+  async function resetParticipantStats(userId: string) {
+    if (!selectedAssessmentId) return;
+
+    const confirmed = window.confirm(
+      "Reset this participant's stats and report data? Previous results will be archived and the participant will need to retake the test.",
+    );
+    if (!confirmed) return;
+
+    setParticipantActionUserId(userId);
+    setParticipantActionType("RESET_STATS");
+    setRegenerateOutput("");
+
+    try {
+      const res = await fetch(
+        `/api/admin/assessments/${selectedAssessmentId}/participants/${userId}/reset`,
+        {
+          method: "POST",
+        },
+      );
+      const data = await res.json();
+      setRegenerateOutput(JSON.stringify(data, null, 2));
+
+      if (res.ok) {
+        await loadParticipants(selectedAssessmentId);
+      }
+    } catch {
+      setRegenerateOutput(
+        JSON.stringify({ error: "Could not reset participant stats. Please retry." }, null, 2),
+      );
+    } finally {
+      setParticipantActionUserId("");
+      setParticipantActionType("");
+    }
+  }
+
   return (
     <main className="mx-auto max-w-7xl space-y-8 p-4 md:p-8">
       <header className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-6 md:p-8">
@@ -945,6 +1113,7 @@ export default function AdminPage() {
                 <th className="px-3 py-2">Role</th>
                 <th className="px-3 py-2">Client</th>
                 <th className="px-3 py-2">Manager</th>
+                <th className="px-3 py-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -955,11 +1124,25 @@ export default function AdminPage() {
                   <td className="px-3 py-2">{user.role}</td>
                   <td className="px-3 py-2">{user.tenant?.name}</td>
                   <td className="px-3 py-2">{user.manager ? `${user.manager.firstName} ${user.manager.lastName}` : "-"}</td>
+                  <td className="px-3 py-2">
+                    <button
+                      className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-1.5 text-xs font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => deleteDirectoryUser(user)}
+                      disabled={user.role === "ADMIN" || deletingUserId === user.id}
+                    >
+                      {deletingUserId === user.id ? "Deleting..." : "Delete User"}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+        {directoryActionOutput && (
+          <pre className="mt-4 overflow-auto rounded bg-slate-50 p-3 text-xs">
+            {directoryActionOutput}
+          </pre>
+        )}
       </section>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -1404,43 +1587,131 @@ export default function AdminPage() {
                   <th className="px-3 py-2">Manager</th>
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Last Activity</th>
+                  <th className="px-3 py-2">Retest Eligibility</th>
                   <th className="px-3 py-2">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredParticipants.map((participant) => (
-                  <tr key={participant.userId} className="border-t border-slate-100">
-                    <td className="px-3 py-2">
-                      {participant.firstName} {participant.lastName}
-                    </td>
-                    <td className="px-3 py-2">{participant.email}</td>
-                    <td className="px-3 py-2">{participant.role}</td>
-                    <td className="px-3 py-2">{participant.managerEmail || "-"}</td>
-                    <td className="px-3 py-2">{participant.status.replace("_", " ")}</td>
-                    <td className="px-3 py-2">
-                      {participant.submittedAt
-                        ? new Date(participant.submittedAt).toLocaleString()
-                        : participant.startedAt
-                          ? new Date(participant.startedAt).toLocaleString()
-                          : "-"}
-                    </td>
-                    <td className="px-3 py-2">
-                      {participant.status === "SUBMITTED" ? (
-                        <button
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-                          onClick={() => regenerateParticipantReport(participant.userId)}
-                          disabled={Boolean(regeneratingUserId)}
-                        >
-                          {regeneratingUserId === participant.userId
-                            ? "Regenerating..."
-                            : "Regenerate Report"}
-                        </button>
-                      ) : (
-                        <span className="text-xs text-slate-400">-</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {filteredParticipants.map((participant) => {
+                  const rowBusy =
+                    regeneratingUserId === participant.userId ||
+                    participantActionUserId === participant.userId;
+                  const isSubmitted = participant.status === "SUBMITTED";
+                  const isInProgress = participant.status === "IN_PROGRESS";
+
+                  return (
+                    <tr key={participant.userId} className="border-t border-slate-100 align-top">
+                      <td className="px-3 py-2">
+                        {participant.firstName} {participant.lastName}
+                      </td>
+                      <td className="px-3 py-2">{participant.email}</td>
+                      <td className="px-3 py-2">{participant.role}</td>
+                      <td className="px-3 py-2">{participant.managerEmail || "-"}</td>
+                      <td className="px-3 py-2">{participant.status.replace("_", " ")}</td>
+                      <td className="px-3 py-2">
+                        {participant.submittedAt
+                          ? new Date(participant.submittedAt).toLocaleString()
+                          : participant.startedAt
+                            ? new Date(participant.startedAt).toLocaleString()
+                            : "-"}
+                      </td>
+                      <td className="px-3 py-2">
+                        {participant.retestEligibleAt ? (
+                          <div className="space-y-1">
+                            <span
+                              className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                                participant.canRetestNow
+                                  ? "bg-emerald-100 text-emerald-800"
+                                  : "bg-amber-100 text-amber-800"
+                              }`}
+                            >
+                              {participant.canRetestNow ? "Eligible now" : "Scheduled"}
+                            </span>
+                            <p className="text-[11px] text-slate-600">
+                              {formatDateTime(participant.retestEligibleAt)}
+                            </p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-400">
+                            {isSubmitted ? "Not scheduled" : "-"}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          <button
+                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() => regenerateParticipantReport(participant.userId)}
+                            disabled={!isSubmitted || rowBusy}
+                          >
+                            {regeneratingUserId === participant.userId
+                              ? "Regenerating..."
+                              : "Regenerate"}
+                          </button>
+                          <button
+                            className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px] font-medium text-cyan-800 hover:bg-cyan-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() =>
+                              setParticipantRetestEligibility(participant.userId, "IMMEDIATE")
+                            }
+                            disabled={!isSubmitted || rowBusy}
+                          >
+                            {participantActionUserId === participant.userId &&
+                            participantActionType === "SET_RETEST_IMMEDIATE"
+                              ? "Updating..."
+                              : "Retest Now"}
+                          </button>
+                          <button
+                            className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-800 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() => resetParticipantStats(participant.userId)}
+                            disabled={(!isSubmitted && !isInProgress) || rowBusy}
+                          >
+                            {participantActionUserId === participant.userId &&
+                            participantActionType === "RESET_STATS"
+                              ? "Resetting..."
+                              : "Reset Stats"}
+                          </button>
+                          <button
+                            className="rounded-lg border border-slate-300 bg-slate-100 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() => clearParticipantRetestEligibility(participant.userId)}
+                            disabled={!participant.retestEligibleAt || rowBusy}
+                          >
+                            {participantActionUserId === participant.userId &&
+                            participantActionType === "CLEAR_RETEST"
+                              ? "Clearing..."
+                              : "Clear Retest"}
+                          </button>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          <input
+                            type="datetime-local"
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
+                            value={retestDateByUser[participant.userId] || ""}
+                            onChange={(e) =>
+                              setRetestDateByUser((prev) => ({
+                                ...prev,
+                                [participant.userId]: e.target.value,
+                              }))
+                            }
+                            disabled={!isSubmitted || rowBusy}
+                          />
+                          <button
+                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            onClick={() =>
+                              setParticipantRetestEligibility(participant.userId, "DATE")
+                            }
+                            disabled={!isSubmitted || rowBusy}
+                          >
+                            {participantActionUserId === participant.userId &&
+                            participantActionType === "SET_RETEST_DATE"
+                              ? "Scheduling..."
+                              : "Set Date"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

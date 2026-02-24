@@ -32,15 +32,16 @@ export default async function CurrentReportsPage() {
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
-      <header className="rounded-3xl bg-gradient-to-r from-cyan-100 via-sky-50 to-amber-100 p-7">
-        <h1 className="text-3xl font-semibold tracking-tight">My Reports</h1>
+      <header className="rounded-3xl border border-slate-200 bg-white/88 p-7 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Report Hub</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">My Reports</h1>
         <p className="mt-2 text-sm text-slate-700">
-          Submitted assessments and downloadable OLQLAB reports.
+          This page only lists completed assessments and report downloads.
         </p>
       </header>
 
       {reports.length === 0 ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
           <h2 className="text-lg font-semibold">No reports yet</h2>
           <p className="mt-2 text-sm text-slate-600">
             Complete at least one assessment to generate your report.
@@ -64,9 +65,10 @@ export default async function CurrentReportsPage() {
             const isReleased = showResults && (!releaseAt || new Date() >= releaseAt);
 
             return (
-              <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+              <article key={item.id} className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Report</p>
                     <h2 className="text-lg font-semibold text-slate-900">{item.assessment.title}</h2>
                     <p className="mt-1 text-sm text-slate-600">
                       Submitted: {item.submittedAt ? item.submittedAt.toLocaleString() : "-"}

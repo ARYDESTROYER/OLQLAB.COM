@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Instrument_Serif, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 
-const spaceGrotesk = Space_Grotesk({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-space-grotesk",
+  variable: "--font-plus-jakarta",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  variable: "--font-instrument-serif",
+  weight: "400",
 });
 
 const plexMono = IBM_Plex_Mono({
@@ -15,13 +21,13 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   title: "OLQLAB",
-  description: "OLQLAB corporate personality assessment platform",
+  description: "OLQLAB enterprise personality and workstyle assessment program",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${spaceGrotesk.variable} ${plexMono.variable} min-h-screen bg-[radial-gradient(circle_at_10%_15%,#cffafe_0%,transparent_40%),radial-gradient(circle_at_90%_10%,#fde68a_0%,transparent_42%),linear-gradient(180deg,#f8fafc,#e2e8f0)] text-slate-900`}>
+      <body className={`${plusJakarta.variable} ${instrumentSerif.variable} ${plexMono.variable} min-h-screen bg-[radial-gradient(circle_at_10%_15%,#d9f9f3_0%,transparent_40%),radial-gradient(circle_at_90%_10%,#fde7b3_0%,transparent_44%),linear-gradient(180deg,#f8fafc,#e2e8f0)] text-slate-900`}>
         {children}
       </body>
     </html>

@@ -3,32 +3,55 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+function formatDateTime(input: string | null | undefined) {
+  if (!input) return null;
+  const parsed = new Date(input);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleString();
+}
+
 export default function AssessmentStartPage() {
   const router = useRouter();
   const params = useParams<{ assessmentId: string }>();
   const assessmentId =
     typeof params?.assessmentId === "string" ? params.assessmentId : "";
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   async function startSession() {
     if (!assessmentId) {
-      alert("Missing assessment id. Please refresh and try again.");
+      setError("Missing assessment ID. Please return to Assessment Center and try again.");
       return;
     }
 
     setLoading(true);
+    setError("");
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15000);
       const res = await fetch("/api/assessment/sessions/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ assessmentId }),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeout));
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error((data as { error?: string }).error || "Could not start session.");
       }
 
       if ((data as { alreadySubmitted?: boolean }).alreadySubmitted) {
+        const retestEligibleAt = formatDateTime(
+          (data as { retestEligibleAt?: string | null }).retestEligibleAt,
+        );
+
+        if (retestEligibleAt) {
+          alert(
+            `You already submitted this assessment. Retest becomes available on ${retestEligibleAt}. Opening your current report.`,
+          );
+        } else {
+          alert("You already submitted this assessment. Opening your current report.");
+        }
         router.push(`/reports/me/${assessmentId}`);
         return;
       }
@@ -37,9 +60,9 @@ export default function AssessmentStartPage() {
         return;
       }
 
-      alert("Could not start session. Please try again.");
+      setError("Could not start session. Please try again.");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Could not start session.");
+      setError(error instanceof Error ? error.message : "Could not start session.");
     } finally {
       setLoading(false);
     }
@@ -70,6 +93,7 @@ export default function AssessmentStartPage() {
         >
           {loading ? "Starting..." : "Begin Assessment"}
         </button>
+        {error ? <p className="mt-3 text-sm font-medium text-rose-700">{error}</p> : null}
       </section>
     </main>
   );

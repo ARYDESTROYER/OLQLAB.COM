@@ -8,7 +8,7 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-space-grotesk);
+  --font-sans: var(--font-plus-jakarta);
   --font-mono: var(--font-plex-mono);
 }
 
@@ -18,7 +18,12 @@
 
 body {
   color: var(--foreground);
-  font-family: var(--font-space-grotesk), "Segoe UI", sans-serif;
+  font-family: var(--font-plus-jakarta), "Segoe UI", sans-serif;
+}
+
+.font-display {
+  font-family: var(--font-instrument-serif), "Times New Roman", serif;
+  letter-spacing: -0.02em;
 }
 
 .surface-fade {
@@ -64,6 +69,212 @@ body {
 
 .scroll-reveal {
   animation: surface-fade 760ms ease both;
+}
+
+.hover-lift-strong {
+  transition: transform 280ms ease, box-shadow 280ms ease, border-color 280ms ease;
+}
+
+.hover-lift-strong:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 24px 50px -26px rgba(15, 23, 42, 0.55);
+}
+
+.glass-panel {
+  background: linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.92) 0%,
+      rgba(255, 255, 255, 0.76) 56%,
+      rgba(248, 250, 252, 0.9) 100%
+    );
+  backdrop-filter: blur(10px);
+}
+
+.section-frame {
+  position: relative;
+}
+
+.section-frame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(130deg, rgba(148, 163, 184, 0.3), rgba(56, 189, 248, 0.25), rgba(251, 191, 36, 0.2));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.hero-noise {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.8) 30%, transparent 78%);
+  opacity: 0.45;
+}
+
+.gradient-ring {
+  position: relative;
+}
+
+.gradient-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  border-radius: inherit;
+  background: conic-gradient(
+    from 130deg,
+    rgba(56, 189, 248, 0.4),
+    rgba(250, 204, 21, 0.32),
+    rgba(34, 197, 94, 0.28),
+    rgba(56, 189, 248, 0.4)
+  );
+  filter: blur(12px);
+  opacity: 0.78;
+  animation: pulse-ring 8s ease-in-out infinite;
+}
+
+.hero-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border-radius: 999px;
+  border: 1px solid rgba(100, 116, 139, 0.28);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 0.35rem 0.7rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(30, 41, 59);
+}
+
+.ambient-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(42px);
+  opacity: 0.62;
+  pointer-events: none;
+}
+
+.data-grid {
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+.feature-card {
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.95), rgba(241, 245, 249, 0.72));
+  box-shadow: 0 22px 52px -38px rgba(15, 23, 42, 0.58);
+}
+
+.feature-card:hover {
+  border-color: rgba(56, 189, 248, 0.42);
+}
+
+.metric-card {
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.metric-value {
+  font-family: var(--font-instrument-serif), "Times New Roman", serif;
+  font-size: clamp(2rem, 4vw, 3.4rem);
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+  color: rgb(15, 23, 42);
+}
+
+.timeline-node {
+  position: relative;
+}
+
+.timeline-node::after {
+  content: "";
+  position: absolute;
+  left: 0.5rem;
+  top: 3.4rem;
+  bottom: -1rem;
+  width: 1px;
+  background: linear-gradient(rgba(148, 163, 184, 0.35), rgba(148, 163, 184, 0.06));
+}
+
+.timeline-node:last-child::after {
+  display: none;
+}
+
+.detail-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.detail-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  color: rgb(51, 65, 85);
+}
+
+.detail-list li::before {
+  content: "";
+  margin-top: 0.42rem;
+  height: 0.45rem;
+  width: 0.45rem;
+  flex: none;
+  border-radius: 999px;
+  background: linear-gradient(130deg, rgb(14, 116, 144), rgb(5, 150, 105));
+}
+
+.cta-panel {
+  background: linear-gradient(140deg, #0f172a 0%, #0b1220 45%, #082f49 100%);
+}
+
+.cta-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 14% 16%, rgba(103, 232, 249, 0.16), transparent 40%),
+    radial-gradient(circle at 82% 8%, rgba(253, 224, 71, 0.14), transparent 42%),
+    radial-gradient(circle at 86% 85%, rgba(45, 212, 191, 0.14), transparent 42%);
+  pointer-events: none;
+}
+
+.ticker {
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 100%;
+  animation: ticker-slide 22s linear infinite;
+}
+
+.ticker-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(255, 255, 255, 0.84);
+  padding: 0.4rem 0.75rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(51, 65, 85);
 }
 
 @supports (animation-timeline: view()) {
@@ -149,6 +360,27 @@ body {
   }
 }
 
+@keyframes ticker-slide {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.92;
+    transform: scale(1.02);
+  }
+}
+
 pre,
 code,
 textarea {
@@ -164,7 +396,8 @@ textarea {
   .animate-aurora-one,
   .animate-aurora-two,
   .animate-aurora-three,
-  .scroll-reveal {
+  .scroll-reveal,
+  .gradient-ring::before {
     animation: none;
   }
 
@@ -173,5 +406,16 @@ textarea {
     transform: none;
     box-shadow: none;
     transition: none;
+  }
+
+  .hover-lift-strong,
+  .hover-lift-strong:hover {
+    transform: none;
+    box-shadow: none;
+    transition: none;
+  }
+
+  .ticker-track {
+    animation: none;
   }
 }

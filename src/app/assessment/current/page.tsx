@@ -27,21 +27,31 @@ export default async function CurrentAssessmentPage() {
           submittedAt: true,
         },
       },
+      retestEligibilities: {
+        where: {
+          userId: session.user.id,
+        },
+        select: {
+          eligibleAt: true,
+        },
+        take: 1,
+      },
     },
     orderBy: { createdAt: "desc" },
   });
 
   return (
     <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
-      <header className="rounded-3xl bg-gradient-to-r from-cyan-100 via-sky-50 to-amber-100 p-7">
-        <h1 className="text-3xl font-semibold tracking-tight">Assessment Center</h1>
+      <header className="rounded-3xl border border-cyan-200 bg-cyan-50/80 p-7 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Assessment Hub</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Assessment Center</h1>
         <p className="mt-2 text-sm text-slate-700">
-          Start your assigned assessments and review completed reports.
+          Start and continue assigned assessments from this page.
         </p>
       </header>
 
       {assessments.length === 0 ? (
-        <section className="rounded-2xl border border-slate-200 bg-white p-6">
+        <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
           <h2 className="text-lg font-semibold">No published assessments yet</h2>
           <p className="mt-2 text-sm text-slate-600">
             Your organization has not published an assessment for your account yet.
@@ -51,20 +61,31 @@ export default async function CurrentAssessmentPage() {
         <section className="space-y-4">
           {assessments.map((assessment) => {
             const mySession = assessment.sessions[0] || null;
+            const myRetestEligibility = assessment.retestEligibilities[0] || null;
             const status = mySession?.status || "NOT_STARTED";
+            const retestAvailableNow =
+              status === "SUBMITTED" &&
+              Boolean(myRetestEligibility) &&
+              new Date() >= myRetestEligibility.eligibleAt;
             const statusLabel =
-              status === "SUBMITTED"
+              retestAvailableNow
+                ? "Retake Available"
+                : status === "SUBMITTED"
                 ? "Completed"
                 : status === "IN_PROGRESS"
                   ? "In Progress"
                   : "Not Started";
 
             const actionHref =
-              status === "SUBMITTED"
+              retestAvailableNow
+                ? `/assessment/${assessment.id}`
+                : status === "SUBMITTED"
                 ? `/reports/me/${assessment.id}`
                 : `/assessment/${assessment.id}`;
             const actionLabel =
-              status === "SUBMITTED"
+              retestAvailableNow
+                ? "Retake Assessment"
+                : status === "SUBMITTED"
                 ? "View Report"
                 : status === "IN_PROGRESS"
                   ? "Resume"
@@ -73,16 +94,19 @@ export default async function CurrentAssessmentPage() {
             return (
               <article
                 key={assessment.id}
-                className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+                className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Assessment</p>
                     <h2 className="text-lg font-semibold text-slate-900">{assessment.title}</h2>
                     <p className="mt-1 text-sm text-slate-600">{assessment.questions.length} questions</p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                      status === "SUBMITTED"
+                      retestAvailableNow
+                        ? "bg-cyan-100 text-cyan-800"
+                        : status === "SUBMITTED"
                         ? "bg-emerald-100 text-emerald-800"
                         : status === "IN_PROGRESS"
                           ? "bg-amber-100 text-amber-800"
@@ -110,6 +134,13 @@ export default async function CurrentAssessmentPage() {
                       Submitted: {mySession.submittedAt.toLocaleString()}
                     </p>
                   )}
+                  {status === "SUBMITTED" &&
+                    myRetestEligibility &&
+                    !retestAvailableNow && (
+                      <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        Retake unlocks: {myRetestEligibility.eligibleAt.toLocaleString()}
+                      </p>
+                    )}
                 </div>
               </article>
             );
