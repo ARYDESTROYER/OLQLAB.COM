@@ -39,6 +39,11 @@ type CompetencySignal = {
   score: number;
 };
 
+type TraitSignal = {
+  label: string;
+  value: number;
+};
+
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const MARGIN_X = 34;
@@ -58,6 +63,11 @@ const palette = {
   mintTint: rgb(0.91, 0.98, 0.94),
   strengthTint: rgb(0.89, 0.96, 0.91),
   focusTint: rgb(1, 0.94, 0.84),
+  chartA: rgb(0.34, 0.67, 0.95),
+  chartB: rgb(0.97, 0.68, 0.28),
+  chartC: rgb(0.44, 0.8, 0.51),
+  chartD: rgb(0.74, 0.55, 0.89),
+  chartE: rgb(0.98, 0.51, 0.62),
 };
 
 function safeText(input: string | undefined | null, max = 1200) {
@@ -83,14 +93,57 @@ function bandLabel(band: TraitBand) {
   return "Emerging signal";
 }
 
+function splitLongToken(token: string, maxWidth: number, font: PDFFont, size: number) {
+  if (font.widthOfTextAtSize(token, size) <= maxWidth) return [token];
+
+  const parts: string[] = [];
+  let rest = token;
+
+  while (rest.length > 0) {
+    if (font.widthOfTextAtSize(rest, size) <= maxWidth) {
+      parts.push(rest);
+      break;
+    }
+
+    let low = 1;
+    let high = rest.length;
+    let best = 1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const isMore = mid < rest.length;
+      const candidate = `${rest.slice(0, mid)}${isMore ? "-" : ""}`;
+
+      if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+        best = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+
+    const isMore = best < rest.length;
+    parts.push(`${rest.slice(0, best)}${isMore ? "-" : ""}`);
+    rest = rest.slice(best);
+  }
+
+  return parts;
+}
+
 function wrapLines(text: string, maxWidth: number, font: PDFFont, size: number) {
   const words = safeText(text, 9000).split(" ").filter(Boolean);
   if (words.length === 0) return [] as string[];
 
+  const expandedWords = words.flatMap((word) =>
+    font.widthOfTextAtSize(word, size) <= maxWidth
+      ? [word]
+      : splitLongToken(word, maxWidth, font, size),
+  );
+
   const lines: string[] = [];
   let line = "";
 
-  for (const word of words) {
+  for (const word of expandedWords) {
     const candidate = line ? `${line} ${word}` : word;
     if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
       line = candidate;
@@ -290,6 +343,9 @@ function drawTraitSignalBar(
   const clamped = Math.max(0, Math.min(100, signal));
   const markerX = barX + (barWidth * clamped) / 100;
   const band = bandLabel(toBand(clamped));
+  const bandSize = 8;
+  const bandWidth = font.widthOfTextAtSize(band, bandSize);
+  const bandX = PAGE_WIDTH - MARGIN_X - bandWidth;
 
   page.drawCircle({
     x: markerX,
@@ -301,9 +357,9 @@ function drawTraitSignalBar(
   });
 
   page.drawText(band, {
-    x: barX + barWidth + 8,
+    x: bandX,
     y: y + 3,
-    size: 8,
+    size: bandSize,
     font,
     color: palette.muted,
   });
@@ -372,6 +428,10 @@ function drawCompetencySignalBar(
 
   const clamped = Math.max(0, Math.min(100, signal));
   const markerX = barX + (barWidth * clamped) / 100;
+  const signalBandText = bandLabel(toBand(clamped));
+  const bandSize = 7;
+  const bandWidth = bold.widthOfTextAtSize(signalBandText, bandSize);
+  const bandX = PAGE_WIDTH - MARGIN_X - bandWidth;
 
   page.drawCircle({
     x: markerX,
@@ -382,13 +442,218 @@ function drawCompetencySignalBar(
     borderWidth: 1.2,
   });
 
-  page.drawText(bandLabel(toBand(clamped)), {
-    x: barX + barWidth + 8,
+  page.drawText(signalBandText, {
+    x: bandX,
     y: y + 1,
-    size: 7,
+    size: bandSize,
     font: bold,
     color: palette.muted,
   });
+}
+
+function drawVerticalBarChart(
+  page: PDFPage,
+  traits: TraitSignal[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  font: PDFFont,
+  bold: PDFFont,
+) {
+  const colors = [palette.chartA, palette.chartB, palette.chartC, palette.chartD, palette.chartE];
+  const shortLabels = ["OPN", "CON", "EXT", "AGR", "EMR"];
+
+  page.drawText("Signal Bar Graph", {
+    x: x + 10,
+    y: y + height - 18,
+    size: 9,
+    font: bold,
+    color: palette.heading,
+  });
+
+  const plotX = x + 12;
+  const plotY = y + 20;
+  const plotWidth = width - 24;
+  const plotHeight = height - 42;
+
+  page.drawLine({
+    start: { x: plotX, y: plotY },
+    end: { x: plotX + plotWidth, y: plotY },
+    thickness: 1,
+    color: rgb(0.78, 0.83, 0.9),
+  });
+
+  const gap = 8;
+  const barWidth = Math.max(12, (plotWidth - gap * (traits.length - 1)) / traits.length);
+
+  for (let i = 0; i < traits.length; i += 1) {
+    const item = traits[i];
+    const barHeight = Math.max(8, (plotHeight * item.value) / 100);
+    const barX = plotX + i * (barWidth + gap);
+
+    page.drawRectangle({
+      x: barX,
+      y: plotY,
+      width: barWidth,
+      height: barHeight,
+      color: colors[i % colors.length],
+      opacity: 0.9,
+    });
+
+    page.drawText(shortLabels[i] || item.label.slice(0, 3).toUpperCase(), {
+      x: barX + 1,
+      y: plotY - 10,
+      size: 6.8,
+      font,
+      color: palette.muted,
+    });
+  }
+}
+
+function polarPoint(cx: number, cy: number, radius: number, angle: number) {
+  return {
+    x: cx + radius * Math.cos(angle),
+    y: cy + radius * Math.sin(angle),
+  };
+}
+
+function pieSlicePath(cx: number, cy: number, radius: number, startAngle: number, endAngle: number) {
+  const start = polarPoint(cx, cy, radius, startAngle);
+  const end = polarPoint(cx, cy, radius, endAngle);
+  const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
+
+  return `M ${cx} ${cy} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+}
+
+function drawTraitPieChart(
+  page: PDFPage,
+  traits: TraitSignal[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  font: PDFFont,
+  bold: PDFFont,
+) {
+  const colors = [palette.chartA, palette.chartB, palette.chartC, palette.chartD, palette.chartE];
+  const values = traits.map((item) => Math.max(2, item.value));
+  const total = values.reduce((sum, value) => sum + value, 0);
+
+  page.drawText("Trait Mix Pie", {
+    x: x + 10,
+    y: y + height - 18,
+    size: 9,
+    font: bold,
+    color: palette.heading,
+  });
+
+  const cx = x + 52;
+  const cy = y + 45;
+  const radius = 30;
+
+  if (total > 0) {
+    let cursor = -Math.PI / 2;
+    for (let i = 0; i < values.length; i += 1) {
+      const ratio = values[i] / total;
+      const next = cursor + ratio * Math.PI * 2;
+
+      page.drawSvgPath(pieSlicePath(cx, cy, radius, cursor, next), {
+        color: colors[i % colors.length],
+        borderColor: rgb(1, 1, 1),
+        borderWidth: 0.8,
+      });
+
+      cursor = next;
+    }
+  }
+
+  page.drawCircle({
+    x: cx,
+    y: cy,
+    size: 14,
+    color: palette.white,
+    borderColor: rgb(0.82, 0.86, 0.92),
+    borderWidth: 1,
+  });
+
+  let legendY = y + height - 30;
+  for (let i = 0; i < traits.length; i += 1) {
+    const item = traits[i];
+    const lx = x + 96;
+
+    page.drawRectangle({
+      x: lx,
+      y: legendY - 2,
+      width: 7,
+      height: 7,
+      color: colors[i % colors.length],
+    });
+
+    page.drawText(item.label, {
+      x: lx + 11,
+      y: legendY - 1,
+      size: 7.3,
+      font,
+      color: palette.body,
+    });
+
+    legendY -= 12;
+  }
+}
+
+function drawScenarioThemeCard(
+  page: PDFPage,
+  theme: {
+    name: string;
+    category: "strength" | "focus";
+    insight: string;
+  },
+  y: number,
+  font: PDFFont,
+  bold: PDFFont,
+) {
+  const tint = theme.category === "strength" ? palette.strengthTint : palette.focusTint;
+
+  page.drawRectangle({
+    x: MARGIN_X,
+    y: y - 72,
+    width: CONTENT_WIDTH,
+    height: 64,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
+
+  page.drawRectangle({ x: MARGIN_X + 10, y: y - 26, width: 74, height: 14, color: tint });
+  page.drawText(theme.category === "strength" ? "Strength" : "Focus", {
+    x: MARGIN_X + 15,
+    y: y - 21,
+    size: 8,
+    font: bold,
+    color: palette.heading,
+  });
+
+  page.drawText(safeText(theme.name, 58), {
+    x: MARGIN_X + 92,
+    y: y - 20,
+    size: 10,
+    font: bold,
+    color: palette.heading,
+  });
+
+  drawWrappedText(
+    page,
+    safeText(theme.insight, 360),
+    MARGIN_X + 10,
+    y - 40,
+    CONTENT_WIDTH - 20,
+    font,
+    9.5,
+    palette.body,
+    3,
+    2,
+  );
 }
 
 function addPage(pdf: PDFDocument, pages: PDFPage[]) {
@@ -515,7 +780,7 @@ export async function GET(
   const managerGuide = narrative.managerDiscussionGuide || [];
   const competencyThemes = narrative.competencyThemes || [];
 
-  const traitSignals = [
+  const traitSignals: TraitSignal[] = [
     { label: "Openness", value: Number(score.openness || 0) },
     { label: "Conscientiousness", value: Number(score.conscientiousness || 0) },
     { label: "Extraversion", value: Number(score.extraversion || 0) },
@@ -687,6 +952,54 @@ export async function GET(
     2,
   );
 
+  drawSectionHeader(page1, "Signal Visual Snapshot", 156, bold);
+  const visualCardY = 58;
+  const visualCardHeight = 88;
+  const visualGap = 10;
+  const visualCardWidth = (CONTENT_WIDTH - visualGap) / 2;
+
+  page1.drawRectangle({
+    x: MARGIN_X,
+    y: visualCardY,
+    width: visualCardWidth,
+    height: visualCardHeight,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
+
+  page1.drawRectangle({
+    x: MARGIN_X + visualCardWidth + visualGap,
+    y: visualCardY,
+    width: visualCardWidth,
+    height: visualCardHeight,
+    color: palette.white,
+    borderColor: palette.border,
+    borderWidth: 1,
+  });
+
+  drawVerticalBarChart(
+    page1,
+    traitSignals,
+    MARGIN_X,
+    visualCardY,
+    visualCardWidth,
+    visualCardHeight,
+    font,
+    bold,
+  );
+
+  drawTraitPieChart(
+    page1,
+    traitSignals,
+    MARGIN_X + visualCardWidth + visualGap,
+    visualCardY,
+    visualCardWidth,
+    visualCardHeight,
+    font,
+    bold,
+  );
+
   page2.drawText("Strengths, Development, and Role Signals", {
     x: MARGIN_X,
     y: 782,
@@ -787,52 +1100,20 @@ export async function GET(
 
   drawSectionHeader(page2, "Scenario Themes", competencyY + 8, bold);
 
-  const visibleThemes = competencyThemes.slice(0, 3);
+  const visibleThemes = competencyThemes.slice(0, 6);
   let themeY = competencyY - 22;
-  for (const theme of visibleThemes) {
-    const tint = theme.category === "strength" ? palette.strengthTint : palette.focusTint;
+  const themeStep = 78;
+  const minThemeAnchorY = 120;
+  const themeCapacity = Math.max(
+    0,
+    Math.floor((themeY - minThemeAnchorY) / themeStep) + 1,
+  );
+  const page2Themes = visibleThemes.slice(0, themeCapacity);
+  const overflowThemes = visibleThemes.slice(themeCapacity);
 
-    page2.drawRectangle({
-      x: MARGIN_X,
-      y: themeY - 72,
-      width: CONTENT_WIDTH,
-      height: 64,
-      color: palette.white,
-      borderColor: palette.border,
-      borderWidth: 1,
-    });
-
-    page2.drawRectangle({ x: MARGIN_X + 10, y: themeY - 26, width: 74, height: 14, color: tint });
-    page2.drawText(theme.category === "strength" ? "Strength" : "Focus", {
-      x: MARGIN_X + 15,
-      y: themeY - 21,
-      size: 8,
-      font: bold,
-      color: palette.heading,
-    });
-
-    page2.drawText(safeText(theme.name, 58), {
-      x: MARGIN_X + 92,
-      y: themeY - 20,
-      size: 10,
-      font: bold,
-      color: palette.heading,
-    });
-
-    drawWrappedText(
-      page2,
-      safeText(theme.insight, 360),
-      MARGIN_X + 10,
-      themeY - 40,
-      CONTENT_WIDTH - 20,
-      font,
-      9.5,
-      palette.body,
-      3,
-      2,
-    );
-
-    themeY -= 78;
+  for (const theme of page2Themes) {
+    drawScenarioThemeCard(page2, theme, themeY, font, bold);
+    themeY -= themeStep;
   }
 
   page3.drawText("Action Plan and Development Support", {
@@ -950,6 +1231,31 @@ export async function GET(
         maxLinesPerItem: 2,
         itemGap: 4,
       });
+    }
+  }
+
+  if (overflowThemes.length > 0) {
+    const queue = [...overflowThemes];
+
+    while (queue.length > 0) {
+      const themePage = addPage(pdf, pages);
+      themePage.drawText("Scenario Themes (continued)", {
+        x: MARGIN_X,
+        y: 782,
+        size: 23,
+        font: bold,
+        color: palette.heading,
+      });
+      drawSectionHeader(themePage, "Scenario Themes", 748, bold);
+
+      let overflowY = 716;
+      while (queue.length > 0 && overflowY >= 130) {
+        const theme = queue.shift();
+        if (!theme) break;
+
+        drawScenarioThemeCard(themePage, theme, overflowY, font, bold);
+        overflowY -= 78;
+      }
     }
   }
 

@@ -671,3 +671,25 @@ Validation:
 - `npx prisma generate` passed
 - `npm run lint` passed
 - `npm run build` passed
+
+## Journal Addendum - PDF Overflow Fix + New Visual Layer
+
+Timestamp:
+- `2026-02-24` (local implementation pass)
+
+What changed:
+1. Overflow/overlap hardening in PDF renderer
+- Added long-token splitting in PDF line wrapping so very long words cannot overflow outside card/page bounds.
+- Adjusted right-edge band labels for trait/competency bars to stay inside page margins.
+- Added scenario-theme overflow handling:
+  - if page 2 runs out of vertical room, remaining themes now continue on additional pages instead of rendering below footer.
+
+2. New visuals added (without removing existing report content)
+- Added a new `Signal Visual Snapshot` section on page 1 with:
+  - vertical bar graph (trait signal columns)
+  - pie chart (trait mix)
+- Existing content sections remain in place.
+
+Validation:
+- `npm run lint` passed
+- `npm run build` passed

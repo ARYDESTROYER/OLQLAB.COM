@@ -709,3 +709,32 @@ Verification executed:
 - `npx prisma generate` -> passed
 - `npm run lint` -> passed
 - `npm run build` -> passed
+
+## 21. Journey Update (2026-02-24: PDF Overflow Fix + Additional Visuals)
+
+Summary:
+- Fixed PDF formatting defects where some long text tokens could overflow outside layout bounds.
+- Prevented scenario theme cards from rendering below footer by introducing overflow continuation pages.
+- Added a new visual block on page 1 while keeping all existing report sections:
+  - vertical bar graph (trait signal columns)
+  - trait mix pie chart
+- Kept numeric-score hiding behavior intact (visual signals only).
+
+Technical changes in `src/app/api/reports/me/[assessmentId]/pdf/route.ts`:
+1. Wrapping hardening
+- Added long-token splitting helper for wrap logic to avoid out-of-bounds rendering.
+
+2. Margin-safe label placement
+- Trait/competency band labels are now right-aligned inside printable width.
+
+3. Theme pagination
+- Scenario theme cards are capacity-limited on page 2 and overflow to continuation pages.
+
+4. Additional visual indicators
+- Added `Signal Visual Snapshot` section with:
+  - mini vertical bar chart
+  - mini pie chart
+
+Validation:
+- `npm run lint` -> passed
+- `npm run build` -> passed
