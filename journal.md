@@ -312,3 +312,23 @@ This file is the append-only engineering diary for implementation work in this r
   - Full new feature set (explicit enrollments/unenroll jobs/share links) still requires DB migration to be applied for complete functionality.
 - Next step:
   - Apply production DB migration (`prisma migrate deploy`) and then run full admin action smoke tests.
+
+## Entry 2026-02-25-01
+- Timestamp (UTC): 2026-02-25T05:38:44Z
+- Timestamp (Local): 2026-02-25 11:08:44 IST (+0530)
+- Task: Refine Assessment Enrollment UI on the Users admin dashboard.
+- Why: Requiring admins to memorize or manually paste an `Assessment ID` string to enroll/unenroll users was highly impractical and error-prone.
+- What changed:
+  - Modified `UsersClient.tsx` to automatically fetch available assessments from `/api/admin/assessments`.
+  - Replaced the free-text `Assessment ID for row actions` input with a dynamic `<select>` dropdown menu.
+- How:
+  - Implemented `loadAssessments` callback triggered on component mount.
+  - Mapped API response to `<option>` elements displaying the assessment title (and a `(Draft)` flag for unpublished ones).
+  - Updated validation in `enrollmentAction` to handle the dropdown state directly.
+- Validation/output:
+  - Verified logic statically; standard build validation (`npm run build`) could not be run locally due to missing Node.js path environment.
+- Risks/unknowns:
+  - Visual layout should be verified once deployed to ensure the dropdown aligns cleanly with neighboring inputs.
+- Next step:
+  - Deploy to testing environment to manually verify the dropdown populates options correctly and successfully dispatches enrollment actions.
+
