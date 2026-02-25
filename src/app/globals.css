@@ -81,12 +81,10 @@ body {
 }
 
 .glass-panel {
-  background: linear-gradient(
-      135deg,
+  background: linear-gradient(135deg,
       rgba(255, 255, 255, 0.92) 0%,
       rgba(255, 255, 255, 0.76) 56%,
-      rgba(248, 250, 252, 0.9) 100%
-    );
+      rgba(248, 250, 252, 0.9) 100%);
   backdrop-filter: blur(10px);
 }
 
@@ -129,13 +127,11 @@ body {
   inset: -1px;
   z-index: -1;
   border-radius: inherit;
-  background: conic-gradient(
-    from 130deg,
-    rgba(56, 189, 248, 0.4),
-    rgba(250, 204, 21, 0.32),
-    rgba(34, 197, 94, 0.28),
-    rgba(56, 189, 248, 0.4)
-  );
+  background: conic-gradient(from 130deg,
+      rgba(56, 189, 248, 0.4),
+      rgba(250, 204, 21, 0.32),
+      rgba(34, 197, 94, 0.28),
+      rgba(56, 189, 248, 0.4));
   filter: blur(12px);
   opacity: 0.78;
   animation: pulse-ring 8s ease-in-out infinite;
@@ -293,6 +289,7 @@ body {
     opacity: 0;
     transform: translateY(18px) scale(0.99);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -300,10 +297,12 @@ body {
 }
 
 @keyframes float-slow {
+
   0%,
   100% {
     transform: translate(0, 0);
   }
+
   50% {
     transform: translate(22px, -16px);
   }
@@ -314,6 +313,7 @@ body {
     opacity: 0;
     transform: translateY(36px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -321,40 +321,48 @@ body {
 }
 
 @keyframes float-medium {
+
   0%,
   100% {
     transform: translate(0, 0);
   }
+
   50% {
     transform: translate(-18px, 18px);
   }
 }
 
 @keyframes aurora-one {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
+
   50% {
     transform: translate3d(40px, 16px, 0) scale(1.04);
   }
 }
 
 @keyframes aurora-two {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
+
   50% {
     transform: translate3d(-26px, 24px, 0) scale(1.08);
   }
 }
 
 @keyframes aurora-three {
+
   0%,
   100% {
     transform: translate3d(0, 0, 0) scale(1);
   }
+
   50% {
     transform: translate3d(18px, -22px, 0) scale(1.06);
   }
@@ -364,17 +372,20 @@ body {
   0% {
     transform: translateX(0);
   }
+
   100% {
     transform: translateX(-50%);
   }
 }
 
 @keyframes pulse-ring {
+
   0%,
   100% {
     opacity: 0.72;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.92;
     transform: scale(1.02);
@@ -392,6 +403,7 @@ textarea {
     opacity: 0;
     transform: translateX(24px) scale(0.96);
   }
+
   to {
     opacity: 1;
     transform: translateX(0) scale(1);
@@ -403,6 +415,7 @@ textarea {
     opacity: 0;
     transform: translateY(-4px) scale(0.97);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -417,7 +430,22 @@ textarea {
   animation: slide-in-menu 180ms ease-out both;
 }
 
+@keyframes slide-in-panel {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-in-panel {
+  animation: slide-in-panel 260ms ease-out both;
+}
+
 @media (prefers-reduced-motion: reduce) {
+
   .surface-fade,
   .surface-fade-delay,
   .surface-fade-delay-2,

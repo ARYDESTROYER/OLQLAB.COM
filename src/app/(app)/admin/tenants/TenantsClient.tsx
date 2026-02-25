@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import EmptyState from "@/components/admin/EmptyState";
+import InspectPanel from "@/components/admin/InspectPanel";
 
 type Tenant = {
   id: string;
@@ -17,18 +18,25 @@ type Tenant = {
 export default function TenantsClient() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [query, setQuery] = useState("");
-  const [includeArchived, setIncludeArchived] = useState(true);
+  const [includeArchived, setIncludeArchived] = useState(false);
   const [busyTenantId, setBusyTenantId] = useState("");
 
   const [createForm, setCreateForm] = useState({
     name: "",
-    type: "ORGANIZATION" as "ORGANIZATION" | "SOLO",
     seatLimit: 50,
   });
 
   const [editByTenant, setEditByTenant] = useState<
-    Record<string, { name: string; seatLimit: number; type: "ORGANIZATION" | "SOLO"; isArchived: boolean }>
+    Record<string, { name: string; seatLimit: number; isArchived: boolean }>
   >({});
+
+  // Inspect panel state
+  const [inspectPanel, setInspectPanel] = useState<{
+    open: boolean;
+    title: string;
+    data: unknown[] | null;
+    loading: boolean;
+  }>({ open: false, title: "", data: null, loading: false });
 
   const loadTenants = useCallback(async () => {
     const params = new URLSearchParams();
@@ -37,7 +45,8 @@ export default function TenantsClient() {
 
     const res = await fetch(`/api/admin/tenants?${params.toString()}`);
     const data = await res.json();
-    const rows = data.tenants || [];
+    // Filter: only show ORGANIZATION tenants in the UI
+    const rows = (data.tenants || []).filter((t: Tenant) => t.type === "ORGANIZATION");
     setTenants(rows);
 
     setEditByTenant((prev) => {
@@ -47,7 +56,6 @@ export default function TenantsClient() {
           next[tenant.id] = {
             name: tenant.name,
             seatLimit: tenant.seatLimit,
-            type: tenant.type,
             isArchived: tenant.isArchived,
           };
         }
@@ -66,23 +74,27 @@ export default function TenantsClient() {
 
   async function createTenant() {
     if (!createForm.name.trim()) {
-      toast("Tenant name is required.", "error");
+      toast("Organization name is required.", "error");
       return;
     }
 
     const res = await fetch("/api/admin/tenants", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(createForm),
+      body: JSON.stringify({
+        name: createForm.name,
+        type: "ORGANIZATION",
+        seatLimit: createForm.seatLimit,
+      }),
     });
     const data = await res.json();
 
     if (res.ok) {
-      toast(`Tenant "${createForm.name}" created.`, "success");
-      setCreateForm({ name: "", type: "ORGANIZATION", seatLimit: 50 });
+      toast(`Organization "${createForm.name}" created.`, "success");
+      setCreateForm({ name: "", seatLimit: 50 });
       await loadTenants();
     } else {
-      toast(data.error || "Failed to create tenant.", "error");
+      toast(data.error || "Failed to create organization.", "error");
     }
   }
 
@@ -99,70 +111,87 @@ export default function TenantsClient() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast("Tenant updated.", "success");
+        toast("Organization updated.", "success");
         await loadTenants();
       } else {
-        toast(data.error || "Failed to update tenant.", "error");
+        toast(data.error || "Failed to update organization.", "error");
       }
     } finally {
       setBusyTenantId("");
     }
   }
 
-  async function inspect(tenantId: string, type: "users" | "access") {
-    const res = await fetch(`/api/admin/tenants/${tenantId}/${type}`);
-    const data = await res.json();
-    toast(`${type === "users" ? "Users" : "Access"} data loaded — check console.`, "info");
-    console.log(`[Admin] Tenant ${tenantId} ${type}:`, data);
+  async function inspect(tenant: Tenant, type: "users" | "access") {
+    setInspectPanel({
+      open: true,
+      title: `${tenant.name} — ${type === "users" ? "Users" : "Access"}`,
+      data: null,
+      loading: true,
+    });
+
+    try {
+      const res = await fetch(`/api/admin/tenants/${tenant.id}/${type}`);
+      const data = await res.json();
+      setInspectPanel((prev) => ({
+        ...prev,
+        data: type === "users" ? data.users || [] : data.access || data.enrollments || [],
+        loading: false,
+      }));
+    } catch {
+      toast("Failed to load data.", "error");
+      setInspectPanel((prev) => ({ ...prev, loading: false }));
+    }
   }
 
   return (
     <div className="space-y-6">
+      {/* ── Create Organization ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Create Tenant</h2>
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Tenant name"
-            value={createForm.name}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
-          />
-          <select
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.type}
-            onChange={(e) =>
-              setCreateForm((prev) => ({
-                ...prev,
-                type: e.target.value as "ORGANIZATION" | "SOLO",
-              }))
-            }
+        <h2 className="text-lg font-semibold">Create Organization</h2>
+        <p className="mt-1 text-xs text-slate-500">Add a new client organization to the platform.</p>
+
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[220px]">
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Name</label>
+            <input
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Organization name"
+              value={createForm.name}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
+            />
+          </div>
+
+          <div className="w-28">
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Seats</label>
+            <input
+              type="number"
+              min={1}
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={createForm.seatLimit}
+              onChange={(e) =>
+                setCreateForm((prev) => ({ ...prev, seatLimit: Number(e.target.value) }))
+              }
+            />
+          </div>
+
+          <button
+            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+            onClick={createTenant}
           >
-            <option value="ORGANIZATION">ORGANIZATION</option>
-            <option value="SOLO">SOLO</option>
-          </select>
-          <input
-            type="number"
-            min={1}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.seatLimit}
-            onChange={(e) =>
-              setCreateForm((prev) => ({ ...prev, seatLimit: Number(e.target.value) }))
-            }
-          />
+            Create
+          </button>
         </div>
-        <button className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={createTenant}>
-          Create Tenant
-        </button>
       </section>
 
+      {/* ── Organization Directory ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-center gap-2">
           <input
-            className="rounded-xl border border-slate-300 px-3 py-2"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search tenants"
+            placeholder="Search organizations…"
           />
           <label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
             <input
@@ -173,7 +202,7 @@ export default function TenantsClient() {
             Include archived
           </label>
           <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
             onClick={loadTenants}
           >
             Refresh
@@ -184,19 +213,19 @@ export default function TenantsClient() {
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
-                <th className="px-3 py-2">Tenant</th>
-                <th className="px-3 py-2">Type</th>
+                <th className="px-3 py-2">Organization</th>
                 <th className="px-3 py-2">Seat Limit</th>
                 <th className="px-3 py-2">Archived</th>
-                <th className="px-3 py-2">Actions</th>
+                <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
               {tenants.length === 0 ? (
                 <EmptyState
                   icon="🏢"
-                  title="No tenants found"
-                  description="Try adjusting your search or create a new tenant."
+                  title="No organizations found"
+                  description="Create a new organization or adjust your search."
+                  colSpan={4}
                 />
               ) : (
                 tenants.map((tenant) => (
@@ -215,25 +244,7 @@ export default function TenantsClient() {
                           }))
                         }
                       />
-                      <p className="mt-1 text-[11px] text-slate-500">{tenant.id}</p>
-                    </td>
-                    <td className="px-3 py-2">
-                      <select
-                        className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
-                        value={editByTenant[tenant.id]?.type || tenant.type}
-                        onChange={(e) =>
-                          setEditByTenant((prev) => ({
-                            ...prev,
-                            [tenant.id]: {
-                              ...prev[tenant.id],
-                              type: e.target.value as "ORGANIZATION" | "SOLO",
-                            },
-                          }))
-                        }
-                      >
-                        <option value="ORGANIZATION">ORGANIZATION</option>
-                        <option value="SOLO">SOLO</option>
-                      </select>
+                      <p className="mt-1 text-[11px] text-slate-400">{tenant.id}</p>
                     </td>
                     <td className="px-3 py-2">
                       <input
@@ -271,21 +282,21 @@ export default function TenantsClient() {
                       </label>
                     </td>
                     <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap justify-end gap-1.5">
                         <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
-                          onClick={() => inspect(tenant.id, "users")}
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
+                          onClick={() => inspect(tenant, "users")}
                         >
                           Users
                         </button>
                         <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
-                          onClick={() => inspect(tenant.id, "access")}
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
+                          onClick={() => inspect(tenant, "access")}
                         >
                           Access
                         </button>
                         <button
-                          className="rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] text-white"
+                          className="rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] text-white hover:bg-slate-800 transition-colors"
                           onClick={() => saveTenant(tenant.id)}
                           disabled={busyTenantId === tenant.id}
                         >
@@ -300,6 +311,25 @@ export default function TenantsClient() {
           </table>
         </div>
       </section>
+
+      {/* ── Inspect Panel ── */}
+      <InspectPanel
+        open={inspectPanel.open}
+        title={inspectPanel.title}
+        onClose={() => setInspectPanel((prev) => ({ ...prev, open: false }))}
+      >
+        {inspectPanel.loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-sm text-slate-400">Loading…</div>
+          </div>
+        ) : inspectPanel.data && Array.isArray(inspectPanel.data) ? (
+          inspectPanel.data.length === 0 ? (
+            <p className="py-8 text-center text-sm text-slate-400">No data found.</p>
+          ) : (
+            <pre className="overflow-auto rounded-lg bg-slate-50 p-4 text-xs">{JSON.stringify(inspectPanel.data, null, 2)}</pre>
+          )
+        ) : null}
+      </InspectPanel>
     </div>
   );
 }

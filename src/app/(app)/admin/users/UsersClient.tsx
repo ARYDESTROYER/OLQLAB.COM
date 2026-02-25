@@ -5,6 +5,7 @@ import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
 import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
+import InspectPanel, { TestsView, AccessView } from "@/components/admin/InspectPanel";
 
 type Tenant = {
   id: string;
@@ -38,13 +39,13 @@ export default function UsersClient() {
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [assessmentIdInput, setAssessmentIdInput] = useState("");
   const [busyUserId, setBusyUserId] = useState("");
+  const [showOptionalFields, setShowOptionalFields] = useState(false);
 
   const [createForm, setCreateForm] = useState({
     tenantId: "",
     email: "",
     firstName: "",
     lastName: "",
-    role: "EMPLOYEE" as "EMPLOYEE" | "LEADER",
     managerEmail: "",
   });
 
@@ -60,7 +61,20 @@ export default function UsersClient() {
     busy: boolean;
   }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
 
-  const tenantOptions = useMemo(() => tenants.filter((item) => !item.isArchived), [tenants]);
+  // Inspect panel state
+  const [inspectPanel, setInspectPanel] = useState<{
+    open: boolean;
+    title: string;
+    type: "tests" | "access";
+    data: Record<string, unknown> | null;
+    loading: boolean;
+  }>({ open: false, title: "", type: "tests", data: null, loading: false });
+
+  // Only show ORGANIZATION tenants (hide SOLO)
+  const orgTenants = useMemo(
+    () => tenants.filter((t) => t.type === "ORGANIZATION" && !t.isArchived),
+    [tenants],
+  );
 
   // ----- Data loaders -----
 
@@ -69,8 +83,12 @@ export default function UsersClient() {
     const data = await res.json();
     setTenants(data.tenants || []);
     setCreateForm((prev) => {
-      if (prev.tenantId || !data.tenants?.[0]?.id) return prev;
-      return { ...prev, tenantId: data.tenants[0].id };
+      if (prev.tenantId) return prev;
+      const firstOrg = (data.tenants || []).find(
+        (t: Tenant) => t.type === "ORGANIZATION" && !t.isArchived,
+      );
+      if (firstOrg) return { ...prev, tenantId: firstOrg.id };
+      return prev;
     });
   }, []);
 
@@ -103,7 +121,7 @@ export default function UsersClient() {
 
   async function createUser() {
     if (!createForm.tenantId || !createForm.email.trim()) {
-      toast("Tenant and email are required.", "error");
+      toast("Organization and email are required.", "error");
       return;
     }
 
@@ -113,16 +131,16 @@ export default function UsersClient() {
       body: JSON.stringify({
         tenantId: createForm.tenantId,
         email: createForm.email,
-        firstName: createForm.firstName,
-        lastName: createForm.lastName,
-        role: createForm.role,
+        firstName: createForm.firstName || undefined,
+        lastName: createForm.lastName || undefined,
+        role: "EMPLOYEE",
         managerEmail: createForm.managerEmail || undefined,
       }),
     });
 
     const data = await res.json();
     if (res.ok) {
-      toast(`User ${data.user?.email || createForm.email} created.`, "success");
+      toast(`User ${data.user?.email || createForm.email} added.`, "success");
       setCreateForm((prev) => ({
         ...prev,
         email: "",
@@ -130,6 +148,7 @@ export default function UsersClient() {
         lastName: "",
         managerEmail: "",
       }));
+      setShowOptionalFields(false);
       await loadUsers();
     } else {
       toast(data.error || "Failed to create user.", "error");
@@ -166,7 +185,7 @@ export default function UsersClient() {
   async function moveUser(userId: string) {
     const targetTenantId = moveTenantByUser[userId];
     if (!targetTenantId) {
-      toast("Select a target tenant first.", "error");
+      toast("Select a target organization first.", "error");
       return;
     }
 
@@ -179,7 +198,7 @@ export default function UsersClient() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast("User moved to new tenant.", "success");
+        toast("User moved.", "success");
         await loadUsers();
       } else {
         toast(data.error || "Failed to move user.", "error");
@@ -189,31 +208,23 @@ export default function UsersClient() {
     }
   }
 
-  async function convertToSolo(userId: string) {
-    setBusyUserId(userId);
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ convertToSolo: true }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast("Converted to solo tenant.", "success");
-        await Promise.all([loadUsers(), loadTenants()]);
-      } else {
-        toast(data.error || "Failed to convert to solo.", "error");
-      }
-    } finally {
-      setBusyUserId("");
-    }
-  }
+  async function openInspect(user: UserRow, type: "tests" | "access") {
+    setInspectPanel({
+      open: true,
+      title: `${user.firstName} ${user.lastName} — ${type === "tests" ? "Tests" : "Access"}`,
+      type,
+      data: null,
+      loading: true,
+    });
 
-  async function inspect(userId: string, type: "tests" | "access") {
-    const res = await fetch(`/api/admin/users/${userId}/${type}`);
-    const data = await res.json();
-    toast(`${type === "tests" ? "Tests" : "Access"} data loaded — check console.`, "info");
-    console.log(`[Admin] User ${userId} ${type}:`, data);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}/${type}`);
+      const data = await res.json();
+      setInspectPanel((prev) => ({ ...prev, data, loading: false }));
+    } catch {
+      toast("Failed to load data.", "error");
+      setInspectPanel((prev) => ({ ...prev, loading: false }));
+    }
   }
 
   async function enrollmentAction(userId: string, action: "ENROLL" | "UNENROLL") {
@@ -257,93 +268,106 @@ export default function UsersClient() {
     const isBusy = busyUserId === user.id;
 
     return [
-      { label: "View Tests", onClick: () => inspect(user.id, "tests") },
-      { label: "View Access", onClick: () => inspect(user.id, "access") },
+      { label: "View Tests", onClick: () => openInspect(user, "tests") },
+      { label: "View Access", onClick: () => openInspect(user, "access") },
       { label: "Enroll", onClick: () => enrollmentAction(user.id, "ENROLL"), variant: "primary", disabled: isBusy },
       { label: "Unenroll", onClick: () => enrollmentAction(user.id, "UNENROLL"), disabled: isBusy },
-      { label: "Convert to Solo", onClick: () => convertToSolo(user.id), disabled: isBusy || isAdmin },
       { label: "Delete", onClick: () => requestDeleteUser(user), variant: "danger", disabled: isBusy || isAdmin },
     ];
   }
 
   return (
     <div className="space-y-6">
-      {/* Create User */}
+      {/* ── Add Participant ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Create User</h2>
-        <div className="mt-3 grid gap-2 md:grid-cols-3">
-          <select
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.tenantId}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, tenantId: e.target.value }))}
+        <h2 className="text-lg font-semibold">Add Participant</h2>
+        <p className="mt-1 text-xs text-slate-500">Add a user to an organization. They will be created as an Employee.</p>
+
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[180px]">
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Organization</label>
+            <select
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              value={createForm.tenantId}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, tenantId: e.target.value }))}
+            >
+              <option value="">Select organization</option>
+              {orgTenants.map((tenant) => (
+                <option key={tenant.id} value={tenant.id}>
+                  {tenant.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex-1 min-w-[220px]">
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Email</label>
+            <input
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="participant@company.com"
+              type="email"
+              value={createForm.email}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
+            />
+          </div>
+
+          <button
+            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+            onClick={createUser}
           >
-            <option value="">Select tenant</option>
-            {tenantOptions.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.name} ({tenant.type})
-              </option>
-            ))}
-          </select>
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="email"
-            value={createForm.email}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, email: e.target.value }))}
-          />
-          <select
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.role}
-            onChange={(e) =>
-              setCreateForm((prev) => ({
-                ...prev,
-                role: e.target.value as "EMPLOYEE" | "LEADER",
-              }))
-            }
-          >
-            <option value="EMPLOYEE">EMPLOYEE</option>
-            <option value="LEADER">LEADER</option>
-          </select>
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="first name"
-            value={createForm.firstName}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, firstName: e.target.value }))}
-          />
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="last name"
-            value={createForm.lastName}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, lastName: e.target.value }))}
-          />
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="manager email (optional)"
-            value={createForm.managerEmail}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
-          />
+            Add
+          </button>
         </div>
-        <button className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={createUser}>
-          Create User
+
+        {/* Optional fields toggle */}
+        <button
+          className="mt-3 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+          onClick={() => setShowOptionalFields(!showOptionalFields)}
+        >
+          {showOptionalFields ? "▾ Hide optional fields" : "▸ More options (name, manager)"}
         </button>
+
+        {showOptionalFields && (
+          <div className="mt-2 grid gap-2 md:grid-cols-3 animate-slide-in-menu">
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="First name"
+              value={createForm.firstName}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, firstName: e.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Last name"
+              value={createForm.lastName}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, lastName: e.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Manager email"
+              value={createForm.managerEmail}
+              onChange={(e) => setCreateForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
+            />
+          </div>
+        )}
       </section>
 
-      {/* Users Table */}
+      {/* ── User Directory ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-center gap-2">
           <input
-            className="rounded-xl border border-slate-300 px-3 py-2"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search users"
+            placeholder="Search users…"
           />
           <select
             className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={selectedTenantId}
             onChange={(e) => setSelectedTenantId(e.target.value)}
           >
-            <option value="">All tenants</option>
-            {tenants.map((tenant) => (
+            <option value="">All organizations</option>
+            {orgTenants.map((tenant) => (
               <option key={tenant.id} value={tenant.id}>
                 {tenant.name}
               </option>
@@ -362,7 +386,7 @@ export default function UsersClient() {
             ))}
           </select>
           <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
             onClick={loadUsers}
           >
             Refresh
@@ -374,10 +398,9 @@ export default function UsersClient() {
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">User</th>
-                <th className="px-3 py-2">Role</th>
-                <th className="px-3 py-2">Tenant</th>
+                <th className="px-3 py-2">Organization</th>
                 <th className="px-3 py-2">Manager</th>
-                <th className="px-3 py-2">Actions</th>
+                <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -385,7 +408,8 @@ export default function UsersClient() {
                 <EmptyState
                   icon="👤"
                   title="No users found"
-                  description="Try adjusting your search or filters."
+                  description="Try adjusting your search or add a participant above."
+                  colSpan={4}
                 />
               ) : (
                 users.map((user) => (
@@ -393,12 +417,14 @@ export default function UsersClient() {
                     <td className="px-3 py-2">
                       <div className="font-medium">{user.firstName} {user.lastName}</div>
                       <div className="text-xs text-slate-500">{user.email}</div>
+                      {user.role === "ADMIN" && (
+                        <span className="mt-0.5 inline-block rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">Admin</span>
+                      )}
                     </td>
-                    <td className="px-3 py-2">{user.role}</td>
-                    <td className="px-3 py-2">{user.tenant?.name}</td>
-                    <td className="px-3 py-2">{user.manager?.email || "-"}</td>
+                    <td className="px-3 py-2 text-slate-600">{user.tenant?.name}</td>
+                    <td className="px-3 py-2 text-slate-500 text-xs">{user.manager?.email || "—"}</td>
                     <td className="px-3 py-2">
-                      <div className="flex flex-wrap items-center gap-1.5">
+                      <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <ActionMenu actions={getRowActions(user)} />
 
                         <select
@@ -408,15 +434,15 @@ export default function UsersClient() {
                             setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
                           }
                         >
-                          <option value="">Move to tenant</option>
-                          {tenantOptions.map((tenant) => (
+                          <option value="">Move to…</option>
+                          {orgTenants.map((tenant) => (
                             <option key={tenant.id} value={tenant.id}>
                               {tenant.name}
                             </option>
                           ))}
                         </select>
                         <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
                           onClick={() => moveUser(user.id)}
                           disabled={busyUserId === user.id || user.role === "ADMIN"}
                         >
@@ -432,6 +458,29 @@ export default function UsersClient() {
         </div>
       </section>
 
+      {/* ── Inspect Panel (Tests / Access) ── */}
+      <InspectPanel
+        open={inspectPanel.open}
+        title={inspectPanel.title}
+        onClose={() => setInspectPanel((prev) => ({ ...prev, open: false }))}
+      >
+        {inspectPanel.loading ? (
+          <div className="flex items-center justify-center py-16">
+            <div className="text-sm text-slate-400">Loading…</div>
+          </div>
+        ) : inspectPanel.data ? (
+          inspectPanel.type === "tests" ? (
+            <TestsView
+              sessions={(inspectPanel.data.testsTaken || []) as never[]}
+              archives={(inspectPanel.data.reportArchiveHistory || []) as never[]}
+            />
+          ) : (
+            <AccessView access={(inspectPanel.data.access || []) as never[]} />
+          )
+        ) : null}
+      </InspectPanel>
+
+      {/* ── Confirm Dialog ── */}
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}

@@ -6,17 +6,10 @@ import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
 
-type Tenant = {
-  id: string;
-  name: string;
-};
-
 type Assessment = {
   id: string;
   title: string;
   isPublished: boolean;
-  ownerTenantId?: string | null;
-  ownerTenant?: { id: string; name: string } | null;
   _count?: {
     questions: number;
     sessions: number;
@@ -40,14 +33,10 @@ type Assessment = {
 
 export default function AssessmentsClient() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
-  const [tenants, setTenants] = useState<Tenant[]>([]);
   const [query, setQuery] = useState("");
   const [busyAssessmentId, setBusyAssessmentId] = useState("");
 
-  const [createForm, setCreateForm] = useState({
-    title: "",
-    ownerTenantId: "",
-  });
+  const [createTitle, setCreateTitle] = useState("");
 
   // Confirm dialog state
   const [confirmState, setConfirmState] = useState<{
@@ -59,12 +48,6 @@ export default function AssessmentsClient() {
     busy: boolean;
   }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
 
-  const loadTenants = useCallback(async () => {
-    const res = await fetch("/api/admin/tenants");
-    const data = await res.json();
-    setTenants(data.tenants || []);
-  }, []);
-
   const loadAssessments = useCallback(async () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
@@ -75,10 +58,6 @@ export default function AssessmentsClient() {
   }, [query]);
 
   useEffect(() => {
-    loadTenants();
-  }, [loadTenants]);
-
-  useEffect(() => {
     loadAssessments();
   }, [loadAssessments]);
 
@@ -87,7 +66,7 @@ export default function AssessmentsClient() {
   }
 
   async function createAssessment() {
-    if (!createForm.title.trim()) {
+    if (!createTitle.trim()) {
       toast("Assessment title is required.", "error");
       return;
     }
@@ -95,17 +74,14 @@ export default function AssessmentsClient() {
     const res = await fetch("/api/admin/assessments", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: createForm.title,
-        ownerTenantId: createForm.ownerTenantId || undefined,
-      }),
+      body: JSON.stringify({ title: createTitle }),
     });
 
     const data = await res.json();
 
     if (res.ok) {
-      toast(`Assessment "${createForm.title}" created.`, "success");
-      setCreateForm({ title: "", ownerTenantId: "" });
+      toast(`Assessment "${createTitle}" created.`, "success");
+      setCreateTitle("");
       await loadAssessments();
     } else {
       toast(data.error || "Failed to create assessment.", "error");
@@ -171,47 +147,42 @@ export default function AssessmentsClient() {
 
   return (
     <div className="space-y-6">
+      {/* ── Create Assessment ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Create Global Assessment</h2>
-        <div className="mt-3 grid gap-2 md:grid-cols-2">
-          <input
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Assessment title"
-            value={createForm.title}
-            onChange={(e) => setCreateForm((prev) => ({ ...prev, title: e.target.value }))}
-          />
-          <select
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            value={createForm.ownerTenantId}
-            onChange={(e) =>
-              setCreateForm((prev) => ({ ...prev, ownerTenantId: e.target.value }))
-            }
-          >
-            <option value="">No owner tenant (fully global)</option>
-            {tenants.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <h2 className="text-lg font-semibold">Create Assessment</h2>
+        <p className="mt-1 text-xs text-slate-500">Create a new assessment. Access can be managed from the assessment settings page.</p>
 
-        <button className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={createAssessment}>
-          Create Assessment
-        </button>
+        <div className="mt-4 flex flex-wrap items-end gap-2">
+          <div className="flex-1 min-w-[280px]">
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Title</label>
+            <input
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="Assessment title"
+              value={createTitle}
+              onChange={(e) => setCreateTitle(e.target.value)}
+            />
+          </div>
+          <button
+            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+            onClick={createAssessment}
+          >
+            Create
+          </button>
+        </div>
       </section>
 
+      {/* ── Assessment Library ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-center gap-2">
           <input
-            className="rounded-xl border border-slate-300 px-3 py-2"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search assessments"
+            placeholder="Search assessments…"
           />
           <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
             onClick={loadAssessments}
           >
             Refresh
@@ -223,10 +194,9 @@ export default function AssessmentsClient() {
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">Assessment</th>
-                <th className="px-3 py-2">Owner</th>
                 <th className="px-3 py-2">Participants</th>
                 <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Actions</th>
+                <th className="px-3 py-2 text-right">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -234,29 +204,28 @@ export default function AssessmentsClient() {
                 <EmptyState
                   icon="📋"
                   title="No assessments found"
-                  description="Create a new assessment or adjust your search."
+                  description="Create a new assessment above."
+                  colSpan={4}
                 />
               ) : (
                 assessments.map((assessment) => (
                   <tr key={assessment.id} className="border-t border-slate-100 align-top">
                     <td className="px-3 py-2">
                       <div className="font-medium">{assessment.title}</div>
-                      <div className="mt-1 text-[11px] text-slate-500">{assessment.id}</div>
-                      <div className="mt-1 text-[11px] text-slate-500">
-                        Questions: {assessment._count?.questions || 0} | Sessions: {assessment._count?.sessions || 0}
+                      <div className="mt-1 text-[11px] text-slate-400">
+                        {assessment._count?.questions || 0} questions · {assessment._count?.sessions || 0} sessions
                       </div>
                     </td>
-                    <td className="px-3 py-2">{assessment.ownerTenant?.name || "Global"}</td>
                     <td className="px-3 py-2">
                       {assessment.participantCounts ? (
                         <>
-                          <div>Total: {assessment.participantCounts.total}</div>
-                          <div className="text-xs text-slate-500">
-                            Done: {assessment.participantCounts.completed} | In progress: {assessment.participantCounts.inProgress}
+                          <div className="font-medium">{assessment.participantCounts.total}</div>
+                          <div className="text-[11px] text-slate-400">
+                            {assessment.participantCounts.completed} done · {assessment.participantCounts.inProgress} active
                           </div>
                         </>
                       ) : (
-                        "-"
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
@@ -270,22 +239,22 @@ export default function AssessmentsClient() {
                       </span>
                     </td>
                     <td className="px-3 py-2">
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap justify-end gap-1.5">
                         <Link
                           href={`/admin/assessments/${assessment.id}`}
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
                         >
                           Open
                         </Link>
                         <button
-                          className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px]"
+                          className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px] hover:bg-cyan-100 transition-colors"
                           onClick={() => togglePublish(assessment)}
                           disabled={busyAssessmentId === assessment.id}
                         >
                           {assessment.isPublished ? "Unpublish" : "Publish"}
                         </button>
                         <button
-                          className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px]"
+                          className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors"
                           onClick={() => requestDeleteAssessment(assessment)}
                           disabled={busyAssessmentId === assessment.id}
                         >
@@ -301,6 +270,7 @@ export default function AssessmentsClient() {
         </div>
       </section>
 
+      {/* ── Confirm Dialog ── */}
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}

@@ -358,3 +358,39 @@ This file is the append-only engineering diary for implementation work in this r
   - `ActionMenu` z-index may need adjustment if used inside overflow-hidden containers.
 - Next step:
   - Deploy and confirm toast animations, confirm dialog interactions, and action menu positioning across admin pages.
+
+## Entry 2026-02-26-02
+- Timestamp (UTC): 2026-02-25T20:33:03Z
+- Timestamp (Local): 2026-02-26 02:03:03 IST (+0530)
+- Task: Comprehensive admin console UX redesign addressing 6 user-reported issues.
+- Why: User reported confusing Create User form (too many fields, SOLO tenants visible), inspect data dumping to console instead of UI, unnecessary assessment owner tenant, confusing tenant types, and overall low-effort UX.
+- What changed:
+  - Created `src/components/admin/InspectPanel.tsx` — slide-over side panel with `TestsView` and `AccessView` sub-components for structured data display.
+  - Added `@keyframes slide-in-panel` animation to `globals.css`.
+  - Rewrote `UsersClient.tsx`:
+    - Renamed section to "Add Participant" (org + email required, optional name/manager behind toggle).
+    - Role removed from form (defaults to EMPLOYEE).
+    - SOLO tenants hidden from all dropdowns.
+    - Tests/Access buttons now open InspectPanel with formatted tables.
+    - "Convert to Solo" removed from action menu.
+  - Rewrote `TenantsClient.tsx`:
+    - Renamed to "Organizations" throughout.
+    - SOLO tenants filtered out of table and create form.
+    - Type column/dropdown removed (always ORGANIZATION).
+    - Users/Access buttons now open InspectPanel.
+  - Rewrote `AssessmentsClient.tsx`:
+    - Owner tenant dropdown removed from create form (just title).
+    - Owner column removed from table.
+    - Helper text added: "Access can be managed from the assessment settings page."
+  - Updated `guide.md` §2 (Admin IA) and §12 (Admin UX behavior) to reflect all changes.
+- How:
+  - All changes are UI-only — no schema migrations, no API contract changes.
+  - InspectPanel uses native Escape key handling and body scroll lock.
+  - SOLO tenant filtering done client-side via `.filter(t => t.type === "ORGANIZATION")`.
+- Validation/output:
+  - All files verified structurally. Build validation deferred to deployment.
+- Risks/unknowns:
+  - InspectPanel z-index (9991) should be verified against other overlays.
+  - Tenant inspect panel for Access/Users renders raw JSON pending structured sub-views.
+- Next step:
+  - Deploy and verify UX improvements across all admin pages in production.

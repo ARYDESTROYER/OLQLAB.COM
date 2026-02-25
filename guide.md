@@ -19,14 +19,14 @@ Current model (canonical):
 
 Admin console is route-sectioned:
 - `/admin`: overview dashboard, KPIs, pending unenroll jobs, recent actions
-- `/admin/users`: directory + CRUD + tenant move + solo conversion + tests/access + direct enrollment actions
-- `/admin/tenants`: tenant CRUD + seat limits + archive + roster + tenant enrollment actions
-- `/admin/assessments`: global library + create/edit/delete/publish + access stats
+- `/admin/users`: participant directory + add participant (org + email) + move between orgs + tests/access inspection panel + direct enrollment actions
+- `/admin/tenants`: organization directory + CRUD + seat limits + archive + roster/access inspection panel
+- `/admin/assessments`: global library + create (title only) + publish/unpublish + access management via detail page
 - `/admin/assessments/:id`: detail tabs
 
 Assessment detail tabs:
 - `Content`
-- `Access`
+- `Access` (manage user/tenant enrollments)
 - `Participants`
 - `Policy`
 - `Jobs`
@@ -234,27 +234,28 @@ Validation rules:
 
 ## 12. Admin UX behavior details
 
-### 12.1 Users section
-- create user
-- delete user (non-admin)
-- move user between tenants (seat checks)
-- convert to solo (creates `SOLO` tenant)
-- inspect tests/access
-- direct enroll/unenroll wrapper actions
+### 12.1 Users section (Participant Directory)
+- add participant: simplified form (organization + email required, optional name/manager behind toggle, role defaults to EMPLOYEE)
+- delete user (non-admin, with confirmation dialog)
+- move user between organizations (seat checks)
+- inspect tests: slide-over panel showing sessions table, report archives
+- inspect access: slide-over panel showing enrolled assessments and access status
+- direct enroll/unenroll via action menu dropdown
+- SOLO tenants hidden from all dropdowns
 
-### 12.2 Tenants section
-- create/edit tenant
-- manage seat limit/type/archive
-- inspect tenant users/access
-- tenant enrollment and unenrollment wrappers
+### 12.2 Tenants section (Organization Directory)
+- create organization: name + seat limit (always ORGANIZATION type, SOLO tenants hidden from UI)
+- inline edit name, seat limit, archived status
+- inspect organization users/access via slide-over panel
+- SOLO tenants filtered out of table view
 
 ### 12.3 Assessments section
-- create global assessment (optional owner tenant)
+- create assessment: title only (no owner tenant — access managed from detail page)
 - publish/unpublish
-- open detail view
-- manage explicit user/tenant enrollments
+- open detail view for enrollment management, policy, content editing
+- delete with confirmation dialog
+- manage explicit user/tenant enrollments from detail page Access tab
 - run unenroll wizard with scheduling and report mode controls
-- inspect and manually run jobs
 
 ## 13. Validation checklist
 
