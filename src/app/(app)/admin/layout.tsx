@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getServerAuthSession } from "@/lib/auth";
+import ToastContainer from "@/components/admin/Toast";
 
 const links = [
   { href: "/admin", label: "Overview" },
@@ -43,6 +44,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       </header>
 
       {children}
+      <ToastContainer />
     </main>
   );
 }
+

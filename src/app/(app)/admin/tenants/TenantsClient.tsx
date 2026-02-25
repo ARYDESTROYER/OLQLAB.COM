@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "@/components/admin/Toast";
+import EmptyState from "@/components/admin/EmptyState";
 
 type Tenant = {
   id: string;
@@ -16,7 +18,6 @@ export default function TenantsClient() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [query, setQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(true);
-  const [output, setOutput] = useState("");
   const [busyTenantId, setBusyTenantId] = useState("");
 
   const [createForm, setCreateForm] = useState({
@@ -56,16 +57,16 @@ export default function TenantsClient() {
   }, [includeArchived, query]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadTenants();
-    }, 200);
-
-    return () => clearTimeout(timer);
+    loadTenants();
   }, [loadTenants]);
+
+  function handleSearchKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") loadTenants();
+  }
 
   async function createTenant() {
     if (!createForm.name.trim()) {
-      setOutput("Tenant name is required.");
+      toast("Tenant name is required.", "error");
       return;
     }
 
@@ -75,11 +76,13 @@ export default function TenantsClient() {
       body: JSON.stringify(createForm),
     });
     const data = await res.json();
-    setOutput(JSON.stringify(data, null, 2));
 
     if (res.ok) {
+      toast(`Tenant "${createForm.name}" created.`, "success");
       setCreateForm({ name: "", type: "ORGANIZATION", seatLimit: 50 });
       await loadTenants();
+    } else {
+      toast(data.error || "Failed to create tenant.", "error");
     }
   }
 
@@ -95,8 +98,12 @@ export default function TenantsClient() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
-      if (res.ok) await loadTenants();
+      if (res.ok) {
+        toast("Tenant updated.", "success");
+        await loadTenants();
+      } else {
+        toast(data.error || "Failed to update tenant.", "error");
+      }
     } finally {
       setBusyTenantId("");
     }
@@ -105,7 +112,8 @@ export default function TenantsClient() {
   async function inspect(tenantId: string, type: "users" | "access") {
     const res = await fetch(`/api/admin/tenants/${tenantId}/${type}`);
     const data = await res.json();
-    setOutput(JSON.stringify(data, null, 2));
+    toast(`${type === "users" ? "Users" : "Access"} data loaded — check console.`, "info");
+    console.log(`[Admin] Tenant ${tenantId} ${type}:`, data);
   }
 
   return (
@@ -153,6 +161,7 @@ export default function TenantsClient() {
             className="rounded-xl border border-slate-300 px-3 py-2"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder="Search tenants"
           />
           <label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
@@ -183,113 +192,114 @@ export default function TenantsClient() {
               </tr>
             </thead>
             <tbody>
-              {tenants.map((tenant) => (
-                <tr key={tenant.id} className="border-t border-slate-100 align-top">
-                  <td className="px-3 py-2">
-                    <input
-                      className="w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"
-                      value={editByTenant[tenant.id]?.name || tenant.name}
-                      onChange={(e) =>
-                        setEditByTenant((prev) => ({
-                          ...prev,
-                          [tenant.id]: {
-                            ...prev[tenant.id],
-                            name: e.target.value,
-                          },
-                        }))
-                      }
-                    />
-                    <p className="mt-1 text-[11px] text-slate-500">{tenant.id}</p>
-                  </td>
-                  <td className="px-3 py-2">
-                    <select
-                      className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
-                      value={editByTenant[tenant.id]?.type || tenant.type}
-                      onChange={(e) =>
-                        setEditByTenant((prev) => ({
-                          ...prev,
-                          [tenant.id]: {
-                            ...prev[tenant.id],
-                            type: e.target.value as "ORGANIZATION" | "SOLO",
-                          },
-                        }))
-                      }
-                    >
-                      <option value="ORGANIZATION">ORGANIZATION</option>
-                      <option value="SOLO">SOLO</option>
-                    </select>
-                  </td>
-                  <td className="px-3 py-2">
-                    <input
-                      type="number"
-                      min={1}
-                      className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm"
-                      value={editByTenant[tenant.id]?.seatLimit || tenant.seatLimit}
-                      onChange={(e) =>
-                        setEditByTenant((prev) => ({
-                          ...prev,
-                          [tenant.id]: {
-                            ...prev[tenant.id],
-                            seatLimit: Number(e.target.value),
-                          },
-                        }))
-                      }
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <label className="flex items-center gap-2 text-xs">
+              {tenants.length === 0 ? (
+                <EmptyState
+                  icon="🏢"
+                  title="No tenants found"
+                  description="Try adjusting your search or create a new tenant."
+                />
+              ) : (
+                tenants.map((tenant) => (
+                  <tr key={tenant.id} className="border-t border-slate-100 align-top">
+                    <td className="px-3 py-2">
                       <input
-                        type="checkbox"
-                        checked={editByTenant[tenant.id]?.isArchived || false}
+                        className="w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        value={editByTenant[tenant.id]?.name || tenant.name}
                         onChange={(e) =>
                           setEditByTenant((prev) => ({
                             ...prev,
                             [tenant.id]: {
                               ...prev[tenant.id],
-                              isArchived: e.target.checked,
+                              name: e.target.value,
                             },
                           }))
                         }
                       />
-                      Archived
-                    </label>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      <button
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
-                        onClick={() => inspect(tenant.id, "users")}
+                      <p className="mt-1 text-[11px] text-slate-500">{tenant.id}</p>
+                    </td>
+                    <td className="px-3 py-2">
+                      <select
+                        className="rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        value={editByTenant[tenant.id]?.type || tenant.type}
+                        onChange={(e) =>
+                          setEditByTenant((prev) => ({
+                            ...prev,
+                            [tenant.id]: {
+                              ...prev[tenant.id],
+                              type: e.target.value as "ORGANIZATION" | "SOLO",
+                            },
+                          }))
+                        }
                       >
-                        Users
-                      </button>
-                      <button
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
-                        onClick={() => inspect(tenant.id, "access")}
-                      >
-                        Access
-                      </button>
-                      <button
-                        className="rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] text-white"
-                        onClick={() => saveTenant(tenant.id)}
-                        disabled={busyTenantId === tenant.id}
-                      >
-                        {busyTenantId === tenant.id ? "Saving..." : "Save"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        <option value="ORGANIZATION">ORGANIZATION</option>
+                        <option value="SOLO">SOLO</option>
+                      </select>
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min={1}
+                        className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        value={editByTenant[tenant.id]?.seatLimit || tenant.seatLimit}
+                        onChange={(e) =>
+                          setEditByTenant((prev) => ({
+                            ...prev,
+                            [tenant.id]: {
+                              ...prev[tenant.id],
+                              seatLimit: Number(e.target.value),
+                            },
+                          }))
+                        }
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <label className="flex items-center gap-2 text-xs">
+                        <input
+                          type="checkbox"
+                          checked={editByTenant[tenant.id]?.isArchived || false}
+                          onChange={(e) =>
+                            setEditByTenant((prev) => ({
+                              ...prev,
+                              [tenant.id]: {
+                                ...prev[tenant.id],
+                                isArchived: e.target.checked,
+                              },
+                            }))
+                          }
+                        />
+                        Archived
+                      </label>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        <button
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                          onClick={() => inspect(tenant.id, "users")}
+                        >
+                          Users
+                        </button>
+                        <button
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                          onClick={() => inspect(tenant.id, "access")}
+                        >
+                          Access
+                        </button>
+                        <button
+                          className="rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] text-white"
+                          onClick={() => saveTenant(tenant.id)}
+                          disabled={busyTenantId === tenant.id}
+                        >
+                          {busyTenantId === tenant.id ? "Saving…" : "Save"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
-
-      {output && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold">Output</h3>
-          <pre className="mt-3 overflow-auto rounded bg-slate-50 p-3 text-xs">{output}</pre>
-        </section>
-      )}
     </div>
   );
 }

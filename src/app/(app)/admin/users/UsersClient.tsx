@@ -1,6 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "@/components/admin/Toast";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import EmptyState from "@/components/admin/EmptyState";
+import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
 
 type Tenant = {
   id: string;
@@ -33,7 +37,6 @@ export default function UsersClient() {
   const [query, setQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [assessmentIdInput, setAssessmentIdInput] = useState("");
-  const [output, setOutput] = useState("");
   const [busyUserId, setBusyUserId] = useState("");
 
   const [createForm, setCreateForm] = useState({
@@ -47,7 +50,19 @@ export default function UsersClient() {
 
   const [moveTenantByUser, setMoveTenantByUser] = useState<Record<string, string>>({});
 
+  // Confirm dialog state
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant: "danger" | "default";
+    busy: boolean;
+  }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
+
   const tenantOptions = useMemo(() => tenants.filter((item) => !item.isArchived), [tenants]);
+
+  // ----- Data loaders -----
 
   const loadTenants = useCallback(async () => {
     const res = await fetch("/api/admin/tenants?includeArchived=1");
@@ -81,16 +96,14 @@ export default function UsersClient() {
   }, [loadTenants, loadAssessments]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadUsers();
-    }, 200);
-
-    return () => clearTimeout(timer);
+    loadUsers();
   }, [loadUsers]);
+
+  // ----- Actions -----
 
   async function createUser() {
     if (!createForm.tenantId || !createForm.email.trim()) {
-      setOutput("Tenant and email are required.");
+      toast("Tenant and email are required.", "error");
       return;
     }
 
@@ -108,8 +121,8 @@ export default function UsersClient() {
     });
 
     const data = await res.json();
-    setOutput(JSON.stringify(data, null, 2));
     if (res.ok) {
+      toast(`User ${data.user?.email || createForm.email} created.`, "success");
       setCreateForm((prev) => ({
         ...prev,
         email: "",
@@ -118,25 +131,42 @@ export default function UsersClient() {
         managerEmail: "",
       }));
       await loadUsers();
+    } else {
+      toast(data.error || "Failed to create user.", "error");
     }
   }
 
-  async function deleteUser(userId: string) {
-    setBusyUserId(userId);
+  function requestDeleteUser(user: UserRow) {
+    setConfirmState({
+      open: true,
+      title: "Delete User",
+      message: `Are you sure you want to delete "${user.firstName} ${user.lastName}" (${user.email})? This action cannot be undone.`,
+      variant: "danger",
+      busy: false,
+      onConfirm: () => executeDeleteUser(user.id),
+    });
+  }
+
+  async function executeDeleteUser(userId: string) {
+    setConfirmState((prev) => ({ ...prev, busy: true }));
     try {
       const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
-      if (res.ok) await loadUsers();
+      if (res.ok) {
+        toast("User deleted.", "success");
+        await loadUsers();
+      } else {
+        toast(data.error || "Failed to delete user.", "error");
+      }
     } finally {
-      setBusyUserId("");
+      setConfirmState((prev) => ({ ...prev, open: false, busy: false }));
     }
   }
 
   async function moveUser(userId: string) {
     const targetTenantId = moveTenantByUser[userId];
     if (!targetTenantId) {
-      setOutput("Select a target tenant first.");
+      toast("Select a target tenant first.", "error");
       return;
     }
 
@@ -148,8 +178,12 @@ export default function UsersClient() {
         body: JSON.stringify({ tenantId: targetTenantId }),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
-      if (res.ok) await loadUsers();
+      if (res.ok) {
+        toast("User moved to new tenant.", "success");
+        await loadUsers();
+      } else {
+        toast(data.error || "Failed to move user.", "error");
+      }
     } finally {
       setBusyUserId("");
     }
@@ -164,9 +198,11 @@ export default function UsersClient() {
         body: JSON.stringify({ convertToSolo: true }),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
       if (res.ok) {
+        toast("Converted to solo tenant.", "success");
         await Promise.all([loadUsers(), loadTenants()]);
+      } else {
+        toast(data.error || "Failed to convert to solo.", "error");
       }
     } finally {
       setBusyUserId("");
@@ -176,12 +212,13 @@ export default function UsersClient() {
   async function inspect(userId: string, type: "tests" | "access") {
     const res = await fetch(`/api/admin/users/${userId}/${type}`);
     const data = await res.json();
-    setOutput(JSON.stringify(data, null, 2));
+    toast(`${type === "tests" ? "Tests" : "Access"} data loaded — check console.`, "info");
+    console.log(`[Admin] User ${userId} ${type}:`, data);
   }
 
   async function enrollmentAction(userId: string, action: "ENROLL" | "UNENROLL") {
     if (!assessmentIdInput) {
-      setOutput("Please select an assessment for the enrollment action.");
+      toast("Please select an assessment first.", "error");
       return;
     }
 
@@ -191,22 +228,47 @@ export default function UsersClient() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          assessmentId: assessmentIdInput.trim(),
+          assessmentId: assessmentIdInput,
           action,
           reportMode: "KEEP_APP_ACCESS",
           notifyByEmail: false,
         }),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
-      await loadUsers();
+      if (res.ok) {
+        toast(`User ${action === "ENROLL" ? "enrolled" : "unenrolled"} successfully.`, "success");
+        await loadUsers();
+      } else {
+        toast(data.error || `Failed to ${action.toLowerCase()} user.`, "error");
+      }
     } finally {
       setBusyUserId("");
     }
   }
 
+  function handleSearchKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") loadUsers();
+  }
+
+  // ----- Row actions -----
+
+  function getRowActions(user: UserRow): ActionItem[] {
+    const isAdmin = user.role === "ADMIN";
+    const isBusy = busyUserId === user.id;
+
+    return [
+      { label: "View Tests", onClick: () => inspect(user.id, "tests") },
+      { label: "View Access", onClick: () => inspect(user.id, "access") },
+      { label: "Enroll", onClick: () => enrollmentAction(user.id, "ENROLL"), variant: "primary", disabled: isBusy },
+      { label: "Unenroll", onClick: () => enrollmentAction(user.id, "UNENROLL"), disabled: isBusy },
+      { label: "Convert to Solo", onClick: () => convertToSolo(user.id), disabled: isBusy || isAdmin },
+      { label: "Delete", onClick: () => requestDeleteUser(user), variant: "danger", disabled: isBusy || isAdmin },
+    ];
+  }
+
   return (
     <div className="space-y-6">
+      {/* Create User */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Create User</h2>
         <div className="mt-3 grid gap-2 md:grid-cols-3">
@@ -265,12 +327,14 @@ export default function UsersClient() {
         </button>
       </section>
 
+      {/* Users Table */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-center gap-2">
           <input
             className="rounded-xl border border-slate-300 px-3 py-2"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder="Search users"
           />
           <select
@@ -317,95 +381,67 @@ export default function UsersClient() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-t border-slate-100 align-top">
-                  <td className="px-3 py-2">
-                    <div className="font-medium">{user.firstName} {user.lastName}</div>
-                    <div className="text-xs text-slate-500">{user.email}</div>
-                  </td>
-                  <td className="px-3 py-2">{user.role}</td>
-                  <td className="px-3 py-2">{user.tenant?.name}</td>
-                  <td className="px-3 py-2">{user.manager?.email || "-"}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      <button
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
-                        onClick={() => inspect(user.id, "tests")}
-                      >
-                        Tests
-                      </button>
-                      <button
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
-                        onClick={() => inspect(user.id, "access")}
-                      >
-                        Access
-                      </button>
-                      <button
-                        className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px]"
-                        onClick={() => enrollmentAction(user.id, "ENROLL")}
-                        disabled={busyUserId === user.id}
-                      >
-                        Enroll
-                      </button>
-                      <button
-                        className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px]"
-                        onClick={() => enrollmentAction(user.id, "UNENROLL")}
-                        disabled={busyUserId === user.id}
-                      >
-                        Unenroll
-                      </button>
-                      <button
-                        className="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-[11px]"
-                        onClick={() => convertToSolo(user.id)}
-                        disabled={busyUserId === user.id || user.role === "ADMIN"}
-                      >
-                        Solo
-                      </button>
-                      <button
-                        className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px]"
-                        onClick={() => deleteUser(user.id)}
-                        disabled={busyUserId === user.id || user.role === "ADMIN"}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <select
-                        className="rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
-                        value={moveTenantByUser[user.id] || ""}
-                        onChange={(e) =>
-                          setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
-                        }
-                      >
-                        <option value="">Move to tenant</option>
-                        {tenantOptions.map((tenant) => (
-                          <option key={tenant.id} value={tenant.id}>
-                            {tenant.name}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
-                        onClick={() => moveUser(user.id)}
-                        disabled={busyUserId === user.id || user.role === "ADMIN"}
-                      >
-                        Move
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {users.length === 0 ? (
+                <EmptyState
+                  icon="👤"
+                  title="No users found"
+                  description="Try adjusting your search or filters."
+                />
+              ) : (
+                users.map((user) => (
+                  <tr key={user.id} className="border-t border-slate-100 align-top">
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{user.firstName} {user.lastName}</div>
+                      <div className="text-xs text-slate-500">{user.email}</div>
+                    </td>
+                    <td className="px-3 py-2">{user.role}</td>
+                    <td className="px-3 py-2">{user.tenant?.name}</td>
+                    <td className="px-3 py-2">{user.manager?.email || "-"}</td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <ActionMenu actions={getRowActions(user)} />
+
+                        <select
+                          className="rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
+                          value={moveTenantByUser[user.id] || ""}
+                          onChange={(e) =>
+                            setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
+                          }
+                        >
+                          <option value="">Move to tenant</option>
+                          {tenantOptions.map((tenant) => (
+                            <option key={tenant.id} value={tenant.id}>
+                              {tenant.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                          onClick={() => moveUser(user.id)}
+                          disabled={busyUserId === user.id || user.role === "ADMIN"}
+                        >
+                          Move
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {output && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold">Output</h3>
-          <pre className="mt-3 overflow-auto rounded bg-slate-50 p-3 text-xs">{output}</pre>
-        </section>
-      )}
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel="Delete"
+        variant={confirmState.variant}
+        busy={confirmState.busy}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }

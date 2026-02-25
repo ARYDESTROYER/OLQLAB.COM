@@ -332,3 +332,29 @@ This file is the append-only engineering diary for implementation work in this r
 - Next step:
   - Deploy to testing environment to manually verify the dropdown populates options correctly and successfully dispatches enrollment actions.
 
+## Entry 2026-02-26-01
+- Timestamp (UTC): 2026-02-25T19:50:48Z
+- Timestamp (Local): 2026-02-26 01:20:48 IST (+0530)
+- Task: Admin console QoL improvement pass — toasts, confirmations, empty states, action menus, and search UX.
+- Why: Raw JSON output dumping, missing delete confirmations, empty table states, cluttered row action buttons, and aggressive search debounce degraded admin usability.
+- What changed:
+  - Created `src/components/admin/Toast.tsx` — imperative toast notification system with auto-dismiss and variant styling.
+  - Created `src/components/admin/ConfirmDialog.tsx` — native HTML `<dialog>` confirmation modal with danger/default variants.
+  - Created `src/components/admin/EmptyState.tsx` — table row empty state component.
+  - Created `src/components/admin/ActionMenu.tsx` — kebab dropdown for row-level actions with variant support.
+  - Added `@keyframes slide-in-toast` and `@keyframes slide-in-menu` animations to `globals.css`.
+  - Wired `ToastContainer` into `src/app/(app)/admin/layout.tsx`.
+  - Rewrote `UsersClient.tsx`: replaced raw JSON output with toast notifications, added confirm dialog for delete, added empty state, replaced inline action buttons with `ActionMenu` dropdown, added Enter-key search trigger.
+  - Rewrote `TenantsClient.tsx`: replaced raw JSON output with toast notifications, added empty state, added Enter-key search trigger.
+  - Rewrote `AssessmentsClient.tsx`: replaced raw JSON output with toast notifications, added confirm dialog for delete, added empty state, added Enter-key search trigger.
+- How:
+  - Built four zero-dependency shared UI primitives using only React state, refs, and native HTML dialog.
+  - Used global singleton pattern for toast API so any client component can call `toast()` without prop drilling.
+  - Maintained all existing API contracts and data flows; only UI presentation layer changed.
+- Validation/output:
+  - All files verified structurally. Build validation (`npm run build`) deferred to deployment environment due to missing local Node.js.
+- Risks/unknowns:
+  - Visual alignment and animation behavior should be confirmed in browser after deployment.
+  - `ActionMenu` z-index may need adjustment if used inside overflow-hidden containers.
+- Next step:
+  - Deploy and confirm toast animations, confirm dialog interactions, and action menu positioning across admin pages.

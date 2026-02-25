@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "@/components/admin/Toast";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import EmptyState from "@/components/admin/EmptyState";
 
 type Tenant = {
   id: string;
@@ -39,13 +42,22 @@ export default function AssessmentsClient() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [query, setQuery] = useState("");
-  const [output, setOutput] = useState("");
   const [busyAssessmentId, setBusyAssessmentId] = useState("");
 
   const [createForm, setCreateForm] = useState({
     title: "",
     ownerTenantId: "",
   });
+
+  // Confirm dialog state
+  const [confirmState, setConfirmState] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    variant: "danger" | "default";
+    busy: boolean;
+  }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
 
   const loadTenants = useCallback(async () => {
     const res = await fetch("/api/admin/tenants");
@@ -67,16 +79,16 @@ export default function AssessmentsClient() {
   }, [loadTenants]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      loadAssessments();
-    }, 200);
-
-    return () => clearTimeout(timer);
+    loadAssessments();
   }, [loadAssessments]);
+
+  function handleSearchKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "Enter") loadAssessments();
+  }
 
   async function createAssessment() {
     if (!createForm.title.trim()) {
-      setOutput("Assessment title is required.");
+      toast("Assessment title is required.", "error");
       return;
     }
 
@@ -90,23 +102,40 @@ export default function AssessmentsClient() {
     });
 
     const data = await res.json();
-    setOutput(JSON.stringify(data, null, 2));
 
     if (res.ok) {
+      toast(`Assessment "${createForm.title}" created.`, "success");
       setCreateForm({ title: "", ownerTenantId: "" });
       await loadAssessments();
+    } else {
+      toast(data.error || "Failed to create assessment.", "error");
     }
   }
 
-  async function deleteAssessment(id: string) {
-    setBusyAssessmentId(id);
+  function requestDeleteAssessment(assessment: Assessment) {
+    setConfirmState({
+      open: true,
+      title: "Delete Assessment",
+      message: `Are you sure you want to delete "${assessment.title}"? All associated questions, sessions, scores, and reports will be permanently removed.`,
+      variant: "danger",
+      busy: false,
+      onConfirm: () => executeDeleteAssessment(assessment.id),
+    });
+  }
+
+  async function executeDeleteAssessment(id: string) {
+    setConfirmState((prev) => ({ ...prev, busy: true }));
     try {
       const res = await fetch(`/api/admin/assessments/${id}`, { method: "DELETE" });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
-      if (res.ok) await loadAssessments();
+      if (res.ok) {
+        toast("Assessment deleted.", "success");
+        await loadAssessments();
+      } else {
+        toast(data.error || "Failed to delete assessment.", "error");
+      }
     } finally {
-      setBusyAssessmentId("");
+      setConfirmState((prev) => ({ ...prev, open: false, busy: false }));
     }
   }
 
@@ -126,8 +155,15 @@ export default function AssessmentsClient() {
         }),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
-      if (res.ok) await loadAssessments();
+      if (res.ok) {
+        toast(
+          assessment.isPublished ? "Assessment unpublished." : "Assessment published.",
+          "success",
+        );
+        await loadAssessments();
+      } else {
+        toast(data.error || "Failed to change publish status.", "error");
+      }
     } finally {
       setBusyAssessmentId("");
     }
@@ -171,6 +207,7 @@ export default function AssessmentsClient() {
             className="rounded-xl border border-slate-300 px-3 py-2"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleSearchKeyDown}
             placeholder="Search assessments"
           />
           <button
@@ -193,76 +230,87 @@ export default function AssessmentsClient() {
               </tr>
             </thead>
             <tbody>
-              {assessments.map((assessment) => (
-                <tr key={assessment.id} className="border-t border-slate-100 align-top">
-                  <td className="px-3 py-2">
-                    <div className="font-medium">{assessment.title}</div>
-                    <div className="mt-1 text-[11px] text-slate-500">{assessment.id}</div>
-                    <div className="mt-1 text-[11px] text-slate-500">
-                      Questions: {assessment._count?.questions || 0} | Sessions: {assessment._count?.sessions || 0}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">{assessment.ownerTenant?.name || "Global"}</td>
-                  <td className="px-3 py-2">
-                    {assessment.participantCounts ? (
-                      <>
-                        <div>Total: {assessment.participantCounts.total}</div>
-                        <div className="text-xs text-slate-500">
-                          Done: {assessment.participantCounts.completed} | In progress: {assessment.participantCounts.inProgress}
-                        </div>
-                      </>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-semibold ${
-                        assessment.isPublished
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-slate-100 text-slate-700"
-                      }`}
-                    >
-                      {assessment.isPublished ? "Published" : "Draft"}
-                    </span>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap gap-1.5">
-                      <Link
-                        href={`/admin/assessments/${assessment.id}`}
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+              {assessments.length === 0 ? (
+                <EmptyState
+                  icon="📋"
+                  title="No assessments found"
+                  description="Create a new assessment or adjust your search."
+                />
+              ) : (
+                assessments.map((assessment) => (
+                  <tr key={assessment.id} className="border-t border-slate-100 align-top">
+                    <td className="px-3 py-2">
+                      <div className="font-medium">{assessment.title}</div>
+                      <div className="mt-1 text-[11px] text-slate-500">{assessment.id}</div>
+                      <div className="mt-1 text-[11px] text-slate-500">
+                        Questions: {assessment._count?.questions || 0} | Sessions: {assessment._count?.sessions || 0}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">{assessment.ownerTenant?.name || "Global"}</td>
+                    <td className="px-3 py-2">
+                      {assessment.participantCounts ? (
+                        <>
+                          <div>Total: {assessment.participantCounts.total}</div>
+                          <div className="text-xs text-slate-500">
+                            Done: {assessment.participantCounts.completed} | In progress: {assessment.participantCounts.inProgress}
+                          </div>
+                        </>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${assessment.isPublished
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-slate-100 text-slate-700"
+                          }`}
                       >
-                        Open
-                      </Link>
-                      <button
-                        className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px]"
-                        onClick={() => togglePublish(assessment)}
-                        disabled={busyAssessmentId === assessment.id}
-                      >
-                        {assessment.isPublished ? "Unpublish" : "Publish"}
-                      </button>
-                      <button
-                        className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px]"
-                        onClick={() => deleteAssessment(assessment.id)}
-                        disabled={busyAssessmentId === assessment.id}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {assessment.isPublished ? "Published" : "Draft"}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-1.5">
+                        <Link
+                          href={`/admin/assessments/${assessment.id}`}
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                        >
+                          Open
+                        </Link>
+                        <button
+                          className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px]"
+                          onClick={() => togglePublish(assessment)}
+                          disabled={busyAssessmentId === assessment.id}
+                        >
+                          {assessment.isPublished ? "Unpublish" : "Publish"}
+                        </button>
+                        <button
+                          className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px]"
+                          onClick={() => requestDeleteAssessment(assessment)}
+                          disabled={busyAssessmentId === assessment.id}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </section>
 
-      {output && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold">Output</h3>
-          <pre className="mt-3 overflow-auto rounded bg-slate-50 p-3 text-xs">{output}</pre>
-        </section>
-      )}
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel="Delete"
+        variant={confirmState.variant}
+        busy={confirmState.busy}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState((prev) => ({ ...prev, open: false }))}
+      />
     </div>
   );
 }
