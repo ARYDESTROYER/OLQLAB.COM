@@ -10,6 +10,12 @@ type Tenant = {
   isArchived: boolean;
 };
 
+type Assessment = {
+  id: string;
+  title: string;
+  isPublished: boolean;
+};
+
 type UserRow = {
   id: string;
   email: string;
@@ -22,6 +28,7 @@ type UserRow = {
 
 export default function UsersClient() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [query, setQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
@@ -62,9 +69,16 @@ export default function UsersClient() {
     setUsers(data.users || []);
   }, [query, selectedTenantId]);
 
+  const loadAssessments = useCallback(async () => {
+    const res = await fetch("/api/admin/assessments");
+    const data = await res.json();
+    setAssessments(data.assessments || []);
+  }, []);
+
   useEffect(() => {
     loadTenants();
-  }, [loadTenants]);
+    loadAssessments();
+  }, [loadTenants, loadAssessments]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -166,8 +180,8 @@ export default function UsersClient() {
   }
 
   async function enrollmentAction(userId: string, action: "ENROLL" | "UNENROLL") {
-    if (!assessmentIdInput.trim()) {
-      setOutput("Assessment ID is required for enrollment action.");
+    if (!assessmentIdInput) {
+      setOutput("Please select an assessment for the enrollment action.");
       return;
     }
 
@@ -271,12 +285,18 @@ export default function UsersClient() {
               </option>
             ))}
           </select>
-          <input
+          <select
             className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            placeholder="Assessment ID for row actions"
             value={assessmentIdInput}
             onChange={(e) => setAssessmentIdInput(e.target.value)}
-          />
+          >
+            <option value="">Select assessment for actions</option>
+            {assessments.map((assessment) => (
+              <option key={assessment.id} value={assessment.id}>
+                {assessment.title} {!assessment.isPublished && "(Draft)"}
+              </option>
+            ))}
+          </select>
           <button
             className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold"
             onClick={loadUsers}
