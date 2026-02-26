@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
-import { requireAdmin } from "@/lib/api-auth";
+import { getServerAuthSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { notFound } from "next/navigation";
 import ReportEditorClient from "./ReportEditorClient";
 
@@ -8,8 +9,9 @@ export default async function AdminReportEditorPage({
 }: {
     params: Promise<{ reportId: string }>;
 }) {
-    const check = await requireAdmin();
-    if ("error" in check) return check.error;
+    const session = await getServerAuthSession();
+    if (!session?.user?.id) redirect("/signin");
+    if (session.user.role !== "ADMIN") redirect("/dashboard");
 
     const { reportId } = await params;
 
