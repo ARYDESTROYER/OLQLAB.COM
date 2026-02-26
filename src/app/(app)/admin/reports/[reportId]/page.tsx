@@ -18,13 +18,6 @@ export default async function AdminReportEditorPage({
     const report = await db.report.findUnique({
         where: { id: reportId },
         include: {
-            user: {
-                select: {
-                    firstName: true,
-                    lastName: true,
-                    email: true,
-                },
-            },
             assessment: {
                 select: {
                     title: true,
@@ -37,5 +30,18 @@ export default async function AdminReportEditorPage({
         notFound();
     }
 
-    return <ReportEditorClient report={report} />;
+    const user = await db.user.findUnique({
+        where: { id: report.userId },
+        select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+        },
+    });
+
+    if (!user) {
+        notFound();
+    }
+
+    return <ReportEditorClient report={{ ...report, user }} />;
 }

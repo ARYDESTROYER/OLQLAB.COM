@@ -23,13 +23,34 @@ export async function POST(
 
     const report = await db.report.findUnique({
         where: { id: reportId },
-        include: {
-            user: true,
-            assessment: true,
-        }
+        select: {
+            id: true,
+            assessmentId: true,
+            userId: true,
+        },
     });
 
     if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 });
+
+    const [user, assessment] = await Promise.all([
+        db.user.findUnique({
+            where: { id: report.userId },
+            select: {
+                firstName: true,
+                email: true,
+            },
+        }),
+        db.assessment.findUnique({
+            where: { id: report.assessmentId },
+            select: {
+                title: true,
+            },
+        }),
+    ]);
+
+    if (!user || !assessment) {
+        return NextResponse.json({ error: "Related report data not found" }, { status: 404 });
+    }
 
     const updateData: any = {
         status: "PUBLISHED",
@@ -63,10 +84,10 @@ export async function POST(
             try {
                 await resend.emails.send({
                     from: env.EMAIL_FROM,
-                    to: report.user.email,
-                    subject: `Your assessment report is ready: ${report.assessment.title}`,
-                    html: `<p>Hi ${report.user.firstName},</p>
-<p>Your report for <strong>${report.assessment.title}</strong> has been published and is now available.</p>
+                    to: user.email,
+                    subject: `Your assessment report is ready: ${assessment.title}`,
+                    html: `<p>Hi ${user.firstName},</p>
+<p>Your report for <strong>${assessment.title}</strong> has been published and is now available.</p>
 <p><a href="${reportUrl}">View your report online</a></p>
 <p><a href="${pdfUrl}">Download PDF version</a></p>
 <p>This secure link will expire in 7 days. No sign-in is required to view your report.</p>`
