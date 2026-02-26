@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import PublicHeader from "@/components/navigation/PublicHeader";
 
 const expertiseAreas = [
@@ -110,6 +111,14 @@ export default function HomePage() {
 
       <section className="mx-auto max-w-7xl px-6 pt-16 md:px-10 md:pt-24">
         <div className="section-frame glass-panel rounded-[2rem] p-8 text-center shadow-[0_36px_80px_-40px_rgba(15,23,42,0.62)] md:p-14">
+          <Image
+            src="/logo.png"
+            alt="OLQLab Logo"
+            width={72}
+            height={72}
+            className="mx-auto mb-6 rounded-full shadow-md"
+            priority
+          />
           <p className="hero-chip mx-auto">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-500" />
             Leadership begins within
@@ -327,9 +336,13 @@ export default function HomePage() {
             </div>
           </div>
 
-          <div className="mt-7 border-t border-slate-200 pt-7">
+          <div className="mt-7 flex flex-col items-center gap-4 border-t border-slate-200 pt-7 md:flex-row md:justify-between md:gap-0">
+            <div className="flex items-center gap-3">
+              <Image src="/logo.png" alt="OLQLab Logo" width={32} height={32} className="rounded-full opacity-80" />
+              <p className="text-sm font-semibold tracking-wider text-slate-900">OLQLAB</p>
+            </div>
             <p className="text-center text-sm text-slate-600">&copy; 2026 OLQLab. All rights reserved.</p>
-            <p className="mt-2 text-center text-sm text-slate-500">Leadership begins within.</p>
+            <p className="text-center text-sm text-slate-500">Leadership begins within.</p>
           </div>
         </div>
       </footer>

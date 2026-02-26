@@ -154,6 +154,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     scope: "USER" as "USER" | "TENANT",
     targetId: "",
     includeFutureUsers: true,
+    reportMode: "AUTO" as "AUTO" | "MANUAL",
+    reportDelayHours: 0,
   });
 
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -556,9 +558,38 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 />
                 Include future users
               </label>
+
+              <select
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={enrollForm.reportMode}
+                onChange={(e) =>
+                  setEnrollForm((prev) => ({
+                    ...prev,
+                    reportMode: e.target.value as "AUTO" | "MANUAL",
+                  }))
+                }
+              >
+                <option value="AUTO">AUTO REPORT</option>
+                <option value="MANUAL">MANUAL REPORT</option>
+              </select>
+
+              {enrollForm.reportMode === "AUTO" && (
+                <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2">
+                  <span className="whitespace-nowrap">Delay (hrs):</span>
+                  <input
+                    type="number"
+                    min="0"
+                    className="w-20 rounded border border-slate-200 px-1"
+                    value={enrollForm.reportDelayHours}
+                    onChange={(e) =>
+                      setEnrollForm((prev) => ({ ...prev, reportDelayHours: parseInt(e.target.value) || 0 }))
+                    }
+                  />
+                </div>
+              )}
             </div>
 
-            <button className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={createEnrollment} disabled={busy}>
+            <button className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm flex items-center gap-2 text-white" onClick={createEnrollment} disabled={busy}>
               Create / Reactivate Enrollment
             </button>
           </div>

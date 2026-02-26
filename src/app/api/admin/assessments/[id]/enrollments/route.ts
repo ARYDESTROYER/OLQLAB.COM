@@ -7,6 +7,8 @@ type EnrollmentBody = {
   scope?: "USER" | "TENANT";
   targetId?: string;
   includeFutureUsers?: boolean;
+  reportMode?: "AUTO" | "MANUAL";
+  reportDelayHours?: number;
 };
 
 export async function POST(
@@ -71,10 +73,14 @@ export async function POST(
           assessmentId,
           userId: user.id,
           active: true,
+          reportMode: body?.reportMode ?? "AUTO",
+          reportDelayHours: body?.reportDelayHours ?? 0,
           createdByAdminId: check.session.user.id,
         },
         update: {
           active: true,
+          reportMode: body?.reportMode ?? "AUTO",
+          reportDelayHours: body?.reportDelayHours ?? 0,
           createdByAdminId: check.session.user.id,
         },
       });
@@ -113,9 +119,9 @@ export async function POST(
     });
     tenant = legacyTenant
       ? {
-          id: legacyTenant.id,
-          isArchived: false,
-        }
+        id: legacyTenant.id,
+        isArchived: false,
+      }
       : null;
   }
 
@@ -144,11 +150,15 @@ export async function POST(
         tenantId: tenant.id,
         includeFutureUsers: body?.includeFutureUsers ?? true,
         active: true,
+        reportMode: body?.reportMode ?? "AUTO",
+        reportDelayHours: body?.reportDelayHours ?? 0,
         createdByAdminId: check.session.user.id,
       },
       update: {
         active: true,
         includeFutureUsers: body?.includeFutureUsers ?? true,
+        reportMode: body?.reportMode ?? "AUTO",
+        reportDelayHours: body?.reportDelayHours ?? 0,
         createdByAdminId: check.session.user.id,
       },
     });

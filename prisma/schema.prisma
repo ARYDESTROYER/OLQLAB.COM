@@ -44,6 +44,21 @@ enum ReportAccessMode {
   REVOKE
 }
 
+enum ReportGenerationMode {
+  AUTO
+  MANUAL
+}
+
+enum ReportStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum ReportDeliveryMethod {
+  DASHBOARD_ONLY
+  EMAIL_LINK
+}
+
 enum UnenrollJobStatus {
   PENDING
   COMPLETED
@@ -260,6 +275,8 @@ model AssessmentTenantEnrollment {
   tenantId           String
   includeFutureUsers Boolean  @default(true)
   active             Boolean  @default(true)
+  reportMode         ReportGenerationMode @default(AUTO)
+  reportDelayHours   Int      @default(0)
   createdByAdminId   String?
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
@@ -278,6 +295,8 @@ model AssessmentUserEnrollment {
   assessmentId     String
   userId           String
   active           Boolean  @default(true)
+  reportMode       ReportGenerationMode @default(AUTO)
+  reportDelayHours Int      @default(0)
   createdByAdminId String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
@@ -422,11 +441,15 @@ model Score {
 }
 
 model Report {
-  id            String   @id @default(cuid())
-  assessmentId  String
-  userId        String
-  narrativeJson String
-  createdAt     DateTime @default(now())
+  id             String                @id @default(cuid())
+  assessmentId   String
+  userId         String
+  narrativeJson  String
+  status         ReportStatus          @default(PUBLISHED)
+  availableAt    DateTime?
+  deliveryMethod ReportDeliveryMethod?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
 

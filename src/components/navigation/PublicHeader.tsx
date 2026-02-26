@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getServerAuthSession } from "@/lib/auth";
 import ProfileMenu from "@/components/navigation/ProfileMenu";
 
@@ -11,9 +12,14 @@ export default async function PublicHeader() {
     <header className="sticky top-0 z-40 border-b border-slate-200/75 bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 md:px-10">
         <Link href="/" className="flex items-center gap-3">
-          <div className="gradient-ring flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">
-            OQ
-          </div>
+          <Image
+            src="/logo.png"
+            alt="OLQLab Logo"
+            width={44}
+            height={44}
+            className="rounded-full"
+            priority
+          />
           <div>
             <p className="text-sm font-semibold tracking-[0.14em] text-slate-900">OLQLAB</p>
             <p className="text-[11px] uppercase tracking-[0.16em] text-slate-500">Leadership Development</p>
