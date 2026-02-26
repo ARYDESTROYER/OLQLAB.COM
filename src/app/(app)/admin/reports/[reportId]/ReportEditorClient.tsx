@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -105,19 +105,6 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
             setSending(false);
         }
     };
-
-    const setLink = useCallback(() => {
-        if (!editor) return;
-        const previousUrl = editor.getAttributes('link').href;
-        const url = window.prompt('URL', previousUrl);
-        if (url === null) return;
-        if (url === '') {
-            editor.chain().focus().extendMarkRange('link').unsetLink().run();
-            return;
-        }
-        // Note: Link extension is not in StarterKit, would need @tiptap/extension-link
-        // but ignoring for this lightweight editor unless requested.
-    }, [editor]);
 
     if (!editor) {
         return <div>Loading editor...</div>;
@@ -229,7 +216,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                                 />
                                 <div className="ml-3">
                                     <span className="block text-sm font-medium text-gray-700">Dashboard Only</span>
-                                    <span className="block text-xs text-gray-500 mt-1">Publishes report to participant's /reports view. Requires sign-in.</span>
+                                    <span className="block text-xs text-gray-500 mt-1">Publishes report to participant&apos;s /reports view. Requires sign-in.</span>
                                 </div>
                             </label>
 
