@@ -428,4 +428,6 @@ This file is the append-only engineering diary for implementation work in this r
 - Validation/output: Verified statically. Vercel deployment needed to test NPM installations since local Node environments had pathing issues.
 - Risks/unknowns: 
   - The share-link PDF endpoint assumes standard layout formatting. Custom rich texts might need print-styling refinements.
+- Deployment Note:
+  - First Vercel deployment failed on `npx prisma db push --accept-data-loss` because the `Report` table already contained rows but the new `updatedAt` required column lacked a default. Fixed by adding `@default(now())` to `Report.updatedAt`.
 - Next step: Have the user commit changes, push to Vercel, and verify the Admin Editor workflow.
