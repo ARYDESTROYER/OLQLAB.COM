@@ -231,8 +231,8 @@ export default function AssessmentsClient() {
                     <td className="px-3 py-2">
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-semibold ${assessment.isPublished
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-100 text-slate-700"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-700"
                           }`}
                       >
                         {assessment.isPublished ? "Published" : "Draft"}
@@ -244,7 +244,7 @@ export default function AssessmentsClient() {
                           href={`/admin/assessments/${assessment.id}`}
                           className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
                         >
-                          Open
+                          Manage
                         </Link>
                         <button
                           className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px] hover:bg-cyan-100 transition-colors"

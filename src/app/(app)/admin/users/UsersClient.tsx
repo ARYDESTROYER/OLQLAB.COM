@@ -15,12 +15,6 @@ type Tenant = {
   isArchived: boolean;
 };
 
-type Assessment = {
-  id: string;
-  title: string;
-  isPublished: boolean;
-};
-
 type UserRow = {
   id: string;
   email: string;
@@ -33,13 +27,14 @@ type UserRow = {
 
 export default function UsersClient() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [query, setQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
-  const [assessmentIdInput, setAssessmentIdInput] = useState("");
   const [busyUserId, setBusyUserId] = useState("");
   const [showOptionalFields, setShowOptionalFields] = useState(false);
+
+  // "solo" or "org" mode for the Add User form
+  const [addMode, setAddMode] = useState<"org" | "solo">("org");
 
   const [createForm, setCreateForm] = useState({
     tenantId: "",
@@ -51,7 +46,7 @@ export default function UsersClient() {
 
   const [moveTenantByUser, setMoveTenantByUser] = useState<Record<string, string>>({});
 
-  // Confirm dialog state
+  // Confirm dialog
   const [confirmState, setConfirmState] = useState<{
     open: boolean;
     title: string;
@@ -61,7 +56,7 @@ export default function UsersClient() {
     busy: boolean;
   }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
 
-  // Inspect panel state
+  // Inspect panel
   const [inspectPanel, setInspectPanel] = useState<{
     open: boolean;
     title: string;
@@ -70,7 +65,6 @@ export default function UsersClient() {
     loading: boolean;
   }>({ open: false, title: "", type: "tests", data: null, loading: false });
 
-  // Only show ORGANIZATION tenants (hide SOLO)
   const orgTenants = useMemo(
     () => tenants.filter((t) => t.type === "ORGANIZATION" && !t.isArchived),
     [tenants],
@@ -102,16 +96,9 @@ export default function UsersClient() {
     setUsers(data.users || []);
   }, [query, selectedTenantId]);
 
-  const loadAssessments = useCallback(async () => {
-    const res = await fetch("/api/admin/assessments");
-    const data = await res.json();
-    setAssessments(data.assessments || []);
-  }, []);
-
   useEffect(() => {
     loadTenants();
-    loadAssessments();
-  }, [loadTenants, loadAssessments]);
+  }, [loadTenants]);
 
   useEffect(() => {
     loadUsers();
@@ -120,22 +107,34 @@ export default function UsersClient() {
   // ----- Actions -----
 
   async function createUser() {
-    if (!createForm.tenantId || !createForm.email.trim()) {
-      toast("Organization and email are required.", "error");
+    if (!createForm.email.trim()) {
+      toast("Email is required.", "error");
       return;
+    }
+
+    if (addMode === "org" && !createForm.tenantId) {
+      toast("Select an organization.", "error");
+      return;
+    }
+
+    const payload: Record<string, unknown> = {
+      email: createForm.email,
+      firstName: createForm.firstName || undefined,
+      lastName: createForm.lastName || undefined,
+      role: "EMPLOYEE",
+      managerEmail: createForm.managerEmail || undefined,
+    };
+
+    if (addMode === "solo") {
+      payload.createSoloTenant = true;
+    } else {
+      payload.tenantId = createForm.tenantId;
     }
 
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tenantId: createForm.tenantId,
-        email: createForm.email,
-        firstName: createForm.firstName || undefined,
-        lastName: createForm.lastName || undefined,
-        role: "EMPLOYEE",
-        managerEmail: createForm.managerEmail || undefined,
-      }),
+      body: JSON.stringify(payload),
     });
 
     const data = await res.json();
@@ -149,7 +148,7 @@ export default function UsersClient() {
         managerEmail: "",
       }));
       setShowOptionalFields(false);
-      await loadUsers();
+      await Promise.all([loadUsers(), loadTenants()]);
     } else {
       toast(data.error || "Failed to create user.", "error");
     }
@@ -227,41 +226,11 @@ export default function UsersClient() {
     }
   }
 
-  async function enrollmentAction(userId: string, action: "ENROLL" | "UNENROLL") {
-    if (!assessmentIdInput) {
-      toast("Please select an assessment first.", "error");
-      return;
-    }
-
-    setBusyUserId(userId);
-    try {
-      const res = await fetch(`/api/admin/users/${userId}/enrollments`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assessmentId: assessmentIdInput,
-          action,
-          reportMode: "KEEP_APP_ACCESS",
-          notifyByEmail: false,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        toast(`User ${action === "ENROLL" ? "enrolled" : "unenrolled"} successfully.`, "success");
-        await loadUsers();
-      } else {
-        toast(data.error || `Failed to ${action.toLowerCase()} user.`, "error");
-      }
-    } finally {
-      setBusyUserId("");
-    }
-  }
-
   function handleSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") loadUsers();
   }
 
-  // ----- Row actions -----
+  // ----- Row actions (enrollment removed — lives in Assessment > Access) -----
 
   function getRowActions(user: UserRow): ActionItem[] {
     const isAdmin = user.role === "ADMIN";
@@ -270,35 +239,58 @@ export default function UsersClient() {
     return [
       { label: "View Tests", onClick: () => openInspect(user, "tests") },
       { label: "View Access", onClick: () => openInspect(user, "access") },
-      { label: "Enroll", onClick: () => enrollmentAction(user.id, "ENROLL"), variant: "primary", disabled: isBusy },
-      { label: "Unenroll", onClick: () => enrollmentAction(user.id, "UNENROLL"), disabled: isBusy },
       { label: "Delete", onClick: () => requestDeleteUser(user), variant: "danger", disabled: isBusy || isAdmin },
     ];
   }
 
   return (
     <div className="space-y-6">
-      {/* ── Add Participant ── */}
+      {/* ── Add User ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Add Participant</h2>
-        <p className="mt-1 text-xs text-slate-500">Add a user to an organization. They will be created as an Employee.</p>
+        <h2 className="text-lg font-semibold">Add User</h2>
 
-        <div className="mt-4 flex flex-wrap items-end gap-2">
-          <div className="flex-1 min-w-[180px]">
-            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Organization</label>
-            <select
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              value={createForm.tenantId}
-              onChange={(e) => setCreateForm((prev) => ({ ...prev, tenantId: e.target.value }))}
-            >
-              <option value="">Select organization</option>
-              {orgTenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Mode toggle */}
+        <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+          <button
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${addMode === "org" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            onClick={() => setAddMode("org")}
+          >
+            Add to Organization
+          </button>
+          <button
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${addMode === "solo" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            onClick={() => setAddMode("solo")}
+          >
+            Add Solo Participant
+          </button>
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500">
+          {addMode === "org"
+            ? "Add a user to an existing organization."
+            : "Create an independent participant. They can be grouped into an organization later."}
+        </p>
+
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          {addMode === "org" && (
+            <div className="flex-1 min-w-[180px]">
+              <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Organization</label>
+              <select
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                value={createForm.tenantId}
+                onChange={(e) => setCreateForm((prev) => ({ ...prev, tenantId: e.target.value }))}
+              >
+                <option value="">Select organization</option>
+                {orgTenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div className="flex-1 min-w-[220px]">
             <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Email</label>
@@ -373,18 +365,6 @@ export default function UsersClient() {
               </option>
             ))}
           </select>
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={assessmentIdInput}
-            onChange={(e) => setAssessmentIdInput(e.target.value)}
-          >
-            <option value="">Select assessment for actions</option>
-            {assessments.map((assessment) => (
-              <option key={assessment.id} value={assessment.id}>
-                {assessment.title} {!assessment.isPublished && "(Draft)"}
-              </option>
-            ))}
-          </select>
           <button
             className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
             onClick={loadUsers}
@@ -408,7 +388,7 @@ export default function UsersClient() {
                 <EmptyState
                   icon="👤"
                   title="No users found"
-                  description="Try adjusting your search or add a participant above."
+                  description="Try adjusting your search or add a user above."
                   colSpan={4}
                 />
               ) : (
@@ -421,7 +401,12 @@ export default function UsersClient() {
                         <span className="mt-0.5 inline-block rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">Admin</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">{user.tenant?.name}</td>
+                    <td className="px-3 py-2 text-slate-600">
+                      {user.tenant?.name}
+                      {user.tenant?.type === "SOLO" && (
+                        <span className="ml-1.5 text-[10px] text-slate-400">(Solo)</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-slate-500 text-xs">{user.manager?.email || "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
@@ -458,7 +443,7 @@ export default function UsersClient() {
         </div>
       </section>
 
-      {/* ── Inspect Panel (Tests / Access) ── */}
+      {/* ── Inspect Panel ── */}
       <InspectPanel
         open={inspectPanel.open}
         title={inspectPanel.title}

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "@/components/admin/Toast";
 
 type TabKey = "CONTENT" | "ACCESS" | "PARTICIPANTS" | "POLICY" | "JOBS";
 
@@ -128,6 +129,7 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 
 export default function AssessmentDetailClient({ assessmentId }: { assessmentId: string }) {
   const [tab, setTab] = useState<TabKey>("CONTENT");
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -139,7 +141,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [users, setUsers] = useState<User[]>([]);
 
-  const [contentForm, setContentForm] = useState({ title: "", ownerTenantId: "" });
+  const [contentForm, setContentForm] = useState({ title: "" });
   const [policyForm, setPolicyForm] = useState({
     isPublished: false,
     showResultsToEmployee: true,
@@ -205,7 +207,6 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         setDetail(detailData.assessment);
         setContentForm({
           title: detailData.assessment.title,
-          ownerTenantId: detailData.assessment.ownerTenantId || "",
         });
         setPolicyForm({
           isPublished: Boolean(detailData.assessment.isPublished),
@@ -252,11 +253,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: contentForm.title,
-          ownerTenantId: contentForm.ownerTenantId || null,
         }),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
+      if (res.ok) toast("Content saved.", "success");
+      else toast(data.error || "Failed to save.", "error");
       await loadAll();
     } finally {
       setBusy(false);
@@ -272,7 +273,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         body: JSON.stringify(policyForm),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
+      if (res.ok) toast("Policy saved.", "success");
+      else toast(data.error || "Failed to save policy.", "error");
       await loadAll();
     } finally {
       setBusy(false);
@@ -281,7 +283,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
   async function createEnrollment() {
     if (!enrollForm.targetId) {
-      setOutput("Select a target before creating enrollment.");
+      toast("Select a target before creating enrollment.", "error");
       return;
     }
 
@@ -293,7 +295,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         body: JSON.stringify(enrollForm),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
+      if (res.ok) toast("Enrollment created.", "success");
+      else toast(data.error || "Failed to create enrollment.", "error");
       if (res.ok) {
         setEnrollForm((prev) => ({ ...prev, targetId: "" }));
         await loadAll();
@@ -317,7 +320,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   async function previewWizard() {
     const effectiveAt = toEffectiveAt();
     if (!effectiveAt || !wizardForm.targetId) {
-      setOutput("Wizard timing or target is invalid.");
+      toast("Wizard timing or target is invalid.", "error");
       return;
     }
 
@@ -336,7 +339,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     });
 
     const data = await res.json();
-    setOutput(JSON.stringify(data, null, 2));
+    if (!res.ok) toast(data.error || "Preview failed.", "error");
 
     if (res.ok) {
       setWizardPreview(data.impactedUsers || []);
@@ -347,7 +350,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   async function confirmWizard() {
     const effectiveAt = toEffectiveAt();
     if (!effectiveAt || !wizardForm.targetId) {
-      setOutput("Wizard timing or target is invalid.");
+      toast("Wizard timing or target is invalid.", "error");
       return;
     }
 
@@ -366,7 +369,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         }),
       });
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
+      if (res.ok) toast("Unenroll job created.", "success");
+      else toast(data.error || "Failed to create job.", "error");
       if (res.ok) {
         setWizardOpen(false);
         setWizardStep(1);
@@ -383,7 +387,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       method: "POST",
     });
     const data = await res.json();
-    setOutput(JSON.stringify(data, null, 2));
+    if (res.ok) toast("Job started.", "success");
+    else toast(data.error || "Failed to run job.", "error");
     await loadAll();
   }
 
@@ -417,7 +422,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       }
 
       const data = await res.json();
-      setOutput(JSON.stringify(data, null, 2));
+      if (res.ok) toast(`${action} completed.`, "success");
+      else toast(data.error || `Failed to ${action.toLowerCase()}.`, "error");
       await loadAll();
     } finally {
       setBusy(false);
@@ -452,11 +458,10 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           {tabs.map((item) => (
             <button
               key={item.key}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
-                tab === item.key
-                  ? "bg-slate-900 text-white"
-                  : "border border-slate-300 bg-white text-slate-700"
-              }`}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === item.key
+                ? "bg-slate-900 text-white"
+                : "border border-slate-300 bg-white text-slate-700"
+                }`}
               onClick={() => setTab(item.key)}
             >
               {item.label}
@@ -468,26 +473,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       {tab === "CONTENT" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-lg font-semibold">Assessment Content</h3>
-          <div className="mt-3 grid gap-2 md:grid-cols-2">
+          <div className="mt-3">
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Title</label>
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2"
               value={contentForm.title}
               onChange={(e) => setContentForm((prev) => ({ ...prev, title: e.target.value }))}
             />
-            <select
-              className="rounded-lg border border-slate-300 px-3 py-2"
-              value={contentForm.ownerTenantId}
-              onChange={(e) =>
-                setContentForm((prev) => ({ ...prev, ownerTenantId: e.target.value }))
-              }
-            >
-              <option value="">Global (no owner tenant)</option>
-              {tenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
-                </option>
-              ))}
-            </select>
           </div>
           <p className="mt-3 text-sm text-slate-600">
             Sections: {detail._count?.sections || 0} | Questions: {detail._count?.questions || 0} |
@@ -541,17 +533,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 <option value="">Select target</option>
                 {enrollForm.scope === "USER"
                   ? users
-                      .filter((user) => user.role !== "ADMIN")
-                      .map((user) => (
-                        <option key={user.id} value={user.id}>
-                          {user.firstName} {user.lastName} ({user.email})
-                        </option>
-                      ))
-                  : tenants.map((tenant) => (
-                      <option key={tenant.id} value={tenant.id}>
-                        {tenant.name}
+                    .filter((user) => user.role !== "ADMIN")
+                    .map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.firstName} {user.lastName} ({user.email})
                       </option>
-                    ))}
+                    ))
+                  : tenants.map((tenant) => (
+                    <option key={tenant.id} value={tenant.id}>
+                      {tenant.name}
+                    </option>
+                  ))}
               </select>
 
               <label className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm">
@@ -657,15 +649,15 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <option value="">Select unenroll target</option>
                     {wizardForm.scope === "USER"
                       ? (access?.enrollments.users || []).map((enrollment) => (
-                          <option key={enrollment.userId} value={enrollment.userId}>
-                            {enrollment.user.firstName} {enrollment.user.lastName} ({enrollment.user.email})
-                          </option>
-                        ))
+                        <option key={enrollment.userId} value={enrollment.userId}>
+                          {enrollment.user.firstName} {enrollment.user.lastName} ({enrollment.user.email})
+                        </option>
+                      ))
                       : (access?.enrollments.tenants || []).map((enrollment) => (
-                          <option key={enrollment.tenantId} value={enrollment.tenantId}>
-                            {enrollment.tenant.name}
-                          </option>
-                        ))}
+                        <option key={enrollment.tenantId} value={enrollment.tenantId}>
+                          {enrollment.tenant.name}
+                        </option>
+                      ))}
                   </select>
                 </div>
               )}
@@ -824,11 +816,10 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             {(["ALL", "NOT_STARTED", "IN_PROGRESS", "SUBMITTED"] as const).map((status) => (
               <button
                 key={status}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
-                  participantStatusFilter === status
-                    ? "bg-slate-900 text-white"
-                    : "border border-slate-300 bg-white text-slate-700"
-                }`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${participantStatusFilter === status
+                  ? "bg-slate-900 text-white"
+                  : "border border-slate-300 bg-white text-slate-700"
+                  }`}
                 onClick={() => setParticipantStatusFilter(status)}
               >
                 {status.replace("_", " ")}
@@ -857,6 +848,15 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <td className="px-3 py-2">{participant.sources.map((source) => source.scope).join(", ")}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1.5">
+                        {participant.status === "SUBMITTED" && (
+                          <Link
+                            href={`/reports/leader/${participant.userId}/${assessmentId}`}
+                            target="_blank"
+                            className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] hover:bg-emerald-100 transition-colors"
+                          >
+                            View Report
+                          </Link>
+                        )}
                         <button
                           className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
                           onClick={() => participantAction(participant, "REGENERATE")}
@@ -991,12 +991,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         </section>
       )}
 
-      {output && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold">Output</h3>
-          <pre className="mt-3 overflow-auto rounded bg-slate-50 p-3 text-xs">{output}</pre>
-        </section>
-      )}
+      {/* Output section removed — using toast notifications instead */}
     </div>
   );
 }

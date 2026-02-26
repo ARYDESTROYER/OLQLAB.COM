@@ -19,9 +19,9 @@ Current model (canonical):
 
 Admin console is route-sectioned:
 - `/admin`: overview dashboard, KPIs, pending unenroll jobs, recent actions
-- `/admin/users`: participant directory + add participant (org + email) + move between orgs + tests/access inspection panel + direct enrollment actions
+- `/admin/users`: participant directory + add user (solo or organization) + move between orgs + tests/access inspection panel
 - `/admin/tenants`: organization directory + CRUD + seat limits + archive + roster/access inspection panel
-- `/admin/assessments`: global library + create (title only) + publish/unpublish + access management via detail page
+- `/admin/assessments`: global library + create (title only) + publish/unpublish + manage via detail page
 - `/admin/assessments/:id`: detail tabs
 
 Assessment detail tabs:
@@ -235,13 +235,14 @@ Validation rules:
 ## 12. Admin UX behavior details
 
 ### 12.1 Users section (Participant Directory)
-- add participant: simplified form (organization + email required, optional name/manager behind toggle, role defaults to EMPLOYEE)
+- add user: toggle between "Add to Organization" (org + email) or "Add Solo Participant" (email only)
+- solo participants can be grouped into an organization later via Move
 - delete user (non-admin, with confirmation dialog)
 - move user between organizations (seat checks)
 - inspect tests: slide-over panel showing sessions table, report archives
 - inspect access: slide-over panel showing enrolled assessments and access status
-- direct enroll/unenroll via action menu dropdown
-- SOLO tenants hidden from all dropdowns
+- enrollment/unenrollment managed from Assessment > Access tab (not on users page)
+- SOLO tenants hidden from org dropdowns but users show "(Solo)" label
 
 ### 12.2 Tenants section (Organization Directory)
 - create organization: name + seat limit (always ORGANIZATION type, SOLO tenants hidden from UI)
@@ -252,9 +253,11 @@ Validation rules:
 ### 12.3 Assessments section
 - create assessment: title only (no owner tenant — access managed from detail page)
 - publish/unpublish
-- open detail view for enrollment management, policy, content editing
+- "Manage" button opens detail view for enrollment, policy, content editing
 - delete with confirmation dialog
 - manage explicit user/tenant enrollments from detail page Access tab
+- view submitted participant reports from detail page Participants tab
+- all actions display toast notifications instead of raw JSON output
 - run unenroll wizard with scheduling and report mode controls
 
 ## 13. Validation checklist

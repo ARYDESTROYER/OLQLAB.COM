@@ -394,3 +394,17 @@ This file is the append-only engineering diary for implementation work in this r
   - Tenant inspect panel for Access/Users renders raw JSON pending structured sub-views.
 - Next step:
   - Deploy and verify UX improvements across all admin pages in production.
+
+## Entry 2026-02-26-03
+- Timestamp (UTC): 2026-02-26T07:00:00Z
+- Timestamp (Local): 2026-02-26 12:30:00 IST (+0530)
+- Task: Admin UX Round 3 — solo/org user creation, enrollment flow relocation, assessment detail improvements.
+- Why: Users could not add solo participants, enrollment actions were confusingly placed on the Users page instead of inside the assessment, owner tenant dropdown persisted in detail page, admin had no way to view participant reports, and raw JSON output was unfriendly.
+- What changed:
+  - `UsersClient.tsx` rewritten: "Add to Organization" / "Add Solo Participant" toggle. Solo calls API with `createSoloTenant: true`. Enrollment actions removed (managed from Assessment > Access tab). Solo users labeled "(Solo)" in table.
+  - `AssessmentsClient.tsx`: "Open" button renamed to "Manage".
+  - `AssessmentDetailClient.tsx`: Owner tenant dropdown removed from Content tab. "View Report" link added for submitted participants (opens `/reports/leader/:userId/:assessmentId` in new tab). All `setOutput(JSON.stringify(...))` calls replaced with `toast()` notifications. Raw JSON Output section removed.
+  - `guide.md` §2, §12.1, §12.3 updated to reflect all changes.
+- How: UI-only changes, no schema/API modifications.
+- Validation/output: All files verified structurally. Build validation deferred to deploy.
+- Next step: Deploy and verify Round 3 changes in production.
