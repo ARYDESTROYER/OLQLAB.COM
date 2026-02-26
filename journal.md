@@ -406,5 +406,26 @@ This file is the append-only engineering diary for implementation work in this r
   - `AssessmentDetailClient.tsx`: Owner tenant dropdown removed from Content tab. "View Report" link added for submitted participants (opens `/reports/leader/:userId/:assessmentId` in new tab). All `setOutput(JSON.stringify(...))` calls replaced with `toast()` notifications. Raw JSON Output section removed.
   - `guide.md` §2, §12.1, §12.3 updated to reflect all changes.
 - How: UI-only changes, no schema/API modifications.
-- Validation/output: All files verified structurally. Build validation deferred to deploy.
 - Next step: Deploy and verify Round 3 changes in production.
+
+## Entry 2026-02-26-04
+- Timestamp (UTC): 2026-02-26T09:12:00Z
+- Timestamp (Local): 2026-02-26 14:42:00 IST (+0530)
+- Task: Implement comprehensive Report Delivery Workflow (AUTO vs MANUAL).
+- Why: Admins need control over when reports are released (delays) and the ability to review/edit AI-generated reports before sending them securely to participants.
+- What changed:
+  - Updated Prisma schema: `reportMode`, `reportDelayHours` (on enrollments), `status`, `availableAt`, `deliveryMethod` (on `Report`).
+  - Updated `AssessmentDetailClient.tsx`: added Report Mode and Delay Hours selection UI to the Access tab enrollment forms.
+  - Added `package.json` TipTap dependencies for rich-text editing.
+  - Updated `submit/route.ts` and `assessment-access.ts`: modified logic to assign initial report status (DRAFT/PUBLISHED) based on configured `reportMode` and `reportDelayHours`.
+  - Created Google Docs-lite Report Editor (`ReportEditorClient.tsx` & page) at `/admin/reports/[reportId]`.
+  - Added Admin API routes to save drafts (`PATCH /api/admin/reports/[id]`) and send/publish reports (`POST /api/admin/reports/[id]/send`).
+  - Created public, no-login frontend share link page at `/reports/shared/[token]`.
+  - Corrected `unenroll-jobs.ts` and `send/route.ts` to email the frontend URL instead of the JSON API endpoint.
+- How: 
+  - Integrated `@tiptap/react` for the Rich Text Editor. Built a custom UI for editing the `aiNarrative` JSON node.
+  - Leveraged `unenroll-jobs.ts`'s existing `issueReportShareToken` and Resend logic for the `EMAIL_LINK` delivery method.
+- Validation/output: Verified statically. Vercel deployment needed to test NPM installations since local Node environments had pathing issues.
+- Risks/unknowns: 
+  - The share-link PDF endpoint assumes standard layout formatting. Custom rich texts might need print-styling refinements.
+- Next step: Have the user commit changes, push to Vercel, and verify the Admin Editor workflow.

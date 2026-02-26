@@ -4,12 +4,12 @@ import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 export type EnrollmentSource =
   | { scope: "USER"; enrollmentId: string }
   | {
-      scope: "TENANT";
-      enrollmentId: string;
-      tenantId: string;
-      includeFutureUsers: boolean;
-      enrolledAt: Date;
-    };
+    scope: "TENANT";
+    enrollmentId: string;
+    tenantId: string;
+    includeFutureUsers: boolean;
+    enrolledAt: Date;
+  };
 
 export type AssessmentAccessResolution = {
   assessmentId: string;
@@ -25,6 +25,8 @@ export type AssessmentAccessResolution = {
   canViewViaLinkOnly: boolean;
   isRevoked: boolean;
   sources: EnrollmentSource[];
+  enrollmentReportMode: "AUTO" | "MANUAL";
+  enrollmentReportDelayHours: number;
 };
 
 export async function resolveAssessmentAccess(
@@ -61,6 +63,8 @@ export async function resolveAssessmentAccess(
         select: {
           id: true,
           createdAt: true,
+          reportMode: true,
+          reportDelayHours: true,
         },
       }),
       db.assessmentReportAccessOverride.findUnique({
@@ -78,21 +82,23 @@ export async function resolveAssessmentAccess(
 
     const tenantEnrollments = user
       ? await db.assessmentTenantEnrollment.findMany({
-          where: {
-            assessmentId,
-            active: true,
-            createdAt: {
-              lte: atTime,
-            },
-            tenantId: user.tenantId,
+        where: {
+          assessmentId,
+          active: true,
+          createdAt: {
+            lte: atTime,
           },
-          select: {
-            id: true,
-            tenantId: true,
-            includeFutureUsers: true,
-            createdAt: true,
-          },
-        })
+          tenantId: user.tenantId,
+        },
+        select: {
+          id: true,
+          tenantId: true,
+          includeFutureUsers: true,
+          createdAt: true,
+          reportMode: true,
+          reportDelayHours: true,
+        },
+      })
       : [];
 
     const directSources: EnrollmentSource[] =
@@ -131,6 +137,20 @@ export async function resolveAssessmentAccess(
     const isRevoked =
       !hasActiveEnrollment && (overrideMode === "LINK_ONLY" || overrideMode === "REVOKE");
 
+    let enrollmentReportMode: "AUTO" | "MANUAL" = "AUTO";
+    let enrollmentReportDelayHours = 0;
+
+    if (directEnrollment && directEnrollment.createdAt <= atTime) {
+      enrollmentReportMode = (directEnrollment as any).reportMode || "AUTO";
+      enrollmentReportDelayHours = (directEnrollment as any).reportDelayHours || 0;
+    } else if (tenantEnrollments.length > 0) {
+      const qualifying = tenantEnrollments.find((e: any) => e.includeFutureUsers || (user && user.createdAt <= e.createdAt));
+      if (qualifying) {
+        enrollmentReportMode = (qualifying as any).reportMode || "AUTO";
+        enrollmentReportDelayHours = (qualifying as any).reportDelayHours || 0;
+      }
+    }
+
     return {
       assessmentId,
       userId,
@@ -145,6 +165,8 @@ export async function resolveAssessmentAccess(
       canViewViaLinkOnly,
       isRevoked,
       sources: [...directSources, ...tenantSources],
+      enrollmentReportMode,
+      enrollmentReportDelayHours,
     };
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;
@@ -189,6 +211,8 @@ export async function resolveAssessmentAccess(
       canViewViaLinkOnly: false,
       isRevoked: !hasActiveEnrollment,
       sources: [],
+      enrollmentReportMode: "AUTO",
+      enrollmentReportDelayHours: 0,
     };
   }
 }
@@ -239,12 +263,12 @@ export async function listResolvedAssessmentUsers(
             role: { in: ["EMPLOYEE", "LEADER"] },
             ...(q
               ? {
-                  OR: [
-                    { firstName: { contains: q, mode: "insensitive" } },
-                    { lastName: { contains: q, mode: "insensitive" } },
-                    { email: { contains: q, mode: "insensitive" } },
-                  ],
-                }
+                OR: [
+                  { firstName: { contains: q, mode: "insensitive" } },
+                  { lastName: { contains: q, mode: "insensitive" } },
+                  { email: { contains: q, mode: "insensitive" } },
+                ],
+              }
               : {}),
           },
         },
@@ -285,12 +309,12 @@ export async function listResolvedAssessmentUsers(
                   role: { in: ["EMPLOYEE", "LEADER"] },
                   ...(q
                     ? {
-                        OR: [
-                          { firstName: { contains: q, mode: "insensitive" } },
-                          { lastName: { contains: q, mode: "insensitive" } },
-                          { email: { contains: q, mode: "insensitive" } },
-                        ],
-                      }
+                      OR: [
+                        { firstName: { contains: q, mode: "insensitive" } },
+                        { lastName: { contains: q, mode: "insensitive" } },
+                        { email: { contains: q, mode: "insensitive" } },
+                      ],
+                    }
                     : {}),
                 },
                 select: {
@@ -330,12 +354,12 @@ export async function listResolvedAssessmentUsers(
         role: { in: ["EMPLOYEE", "LEADER"] },
         ...(q
           ? {
-              OR: [
-                { firstName: { contains: q, mode: "insensitive" } },
-                { lastName: { contains: q, mode: "insensitive" } },
-                { email: { contains: q, mode: "insensitive" } },
-              ],
-            }
+            OR: [
+              { firstName: { contains: q, mode: "insensitive" } },
+              { lastName: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+            ],
+          }
           : {}),
       },
       select: {

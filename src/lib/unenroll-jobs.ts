@@ -135,16 +135,16 @@ export async function runDueUnenrollJobs(options?: {
       where: {
         ...(options?.forceJobId
           ? {
-              id: options.forceJobId,
-            }
+            id: options.forceJobId,
+          }
           : {
-              status: UnenrollJobStatus.PENDING,
-              effectiveAt: { lte: now },
-            }),
+            status: UnenrollJobStatus.PENDING,
+            effectiveAt: { lte: now },
+          }),
         ...(options?.assessmentId
           ? {
-              assessmentId: options.assessmentId,
-            }
+            assessmentId: options.assessmentId,
+          }
           : {}),
       },
       include: {
@@ -180,28 +180,28 @@ export async function runDueUnenrollJobs(options?: {
       const impactedUsers =
         job.targetScope === "USER"
           ? await db.user.findMany({
-              where: {
-                id: job.targetId,
-              },
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            })
+            where: {
+              id: job.targetId,
+            },
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          })
           : await db.user.findMany({
-              where: {
-                tenantId: job.targetId,
-                role: { in: ["EMPLOYEE", "LEADER"] },
-              },
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-              },
-            });
+            where: {
+              tenantId: job.targetId,
+              role: { in: ["EMPLOYEE", "LEADER"] },
+            },
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+            },
+          });
 
       if (options?.userId) {
         const filtered = impactedUsers.filter((user) => user.id === options.userId);
@@ -272,10 +272,10 @@ export async function runDueUnenrollJobs(options?: {
                 userId: user.id,
                 expiresAt: new Date(
                   now.getTime() +
-                    1000 *
-                      60 *
-                      60 *
-                      (job.linkTtlHours && job.linkTtlHours > 0 ? job.linkTtlHours : 168),
+                  1000 *
+                  60 *
+                  60 *
+                  (job.linkTtlHours && job.linkTtlHours > 0 ? job.linkTtlHours : 168),
                 ),
                 sourceJobId: job.id,
               },
@@ -306,7 +306,7 @@ export async function runDueUnenrollJobs(options?: {
         const baseUrl = shareBaseUrl();
 
         for (const item of tokensForEmail) {
-          const reportUrl = `${baseUrl}/api/reports/shared/${encodeURIComponent(item.token)}`;
+          const reportUrl = `${baseUrl}/reports/shared/${encodeURIComponent(item.token)}`;
           const pdfUrl = `${baseUrl}/api/reports/shared/${encodeURIComponent(item.token)}/pdf`;
 
           await resend.emails.send({

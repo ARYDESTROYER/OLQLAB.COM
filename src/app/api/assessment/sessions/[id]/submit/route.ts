@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireSession } from "@/lib/api-auth";
 import { computeScores, generateNarrative } from "@/lib/score";
 import { generateAiNarrative } from "@/lib/ai-report";
+import { resolveAssessmentAccess } from "@/lib/assessment-access";
 
 export async function POST(
   _req: NextRequest,
@@ -72,6 +73,13 @@ export async function POST(
     aiNarrative,
   };
 
+  const access = await resolveAssessmentAccess(session.userId, session.assessmentId);
+  const status = access.enrollmentReportMode === "MANUAL" ? "DRAFT" : "PUBLISHED";
+  const availableAt =
+    access.enrollmentReportMode === "AUTO" && access.enrollmentReportDelayHours > 0
+      ? new Date(submittedAt.getTime() + access.enrollmentReportDelayHours * 60 * 60 * 1000)
+      : submittedAt;
+
   await db.$transaction([
     db.quizSession.update({
       where: { id },
@@ -106,8 +114,14 @@ export async function POST(
         assessmentId: session.assessmentId,
         userId: session.userId,
         narrativeJson: JSON.stringify(narrative),
+        status,
+        availableAt,
       },
-      update: { narrativeJson: JSON.stringify(narrative) },
+      update: {
+        narrativeJson: JSON.stringify(narrative),
+        status,
+        availableAt,
+      },
     }),
   ]);
 

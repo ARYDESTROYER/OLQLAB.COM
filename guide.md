@@ -156,11 +156,13 @@ Rollback behavior:
 - `GET /api/admin/tenants/:id/access`
 - `POST /api/admin/tenants/:id/enrollments`
 
-### 7.4 Jobs and links
+### 7.4 Jobs, Links, and Reports
 - `POST /api/internal/jobs/unenrollments/run`
 - `POST /api/internal/jobs/unenrollments/:id/run`
 - `GET /api/reports/shared/:token`
 - `GET /api/reports/shared/:token/pdf`
+- `PATCH /api/admin/reports/:reportId` (Save Draft)
+- `POST /api/admin/reports/:reportId/send` (Publish/Email)
 
 ## 8. Canonical payload contracts
 
@@ -170,7 +172,9 @@ Enrollment payload (`POST /api/admin/assessments/:id/enrollments`):
 {
   "scope": "USER | TENANT",
   "targetId": "string",
-  "includeFutureUsers": true
+  "includeFutureUsers": true,
+  "reportMode": "AUTO | MANUAL",
+  "reportDelayHours": 0
 }
 ```
 
@@ -254,9 +258,9 @@ Validation rules:
 - create assessment: title only (no owner tenant — access managed from detail page)
 - publish/unpublish
 - "Manage" button opens detail view for enrollment, policy, content editing
-- delete with confirmation dialog
-- manage explicit user/tenant enrollments from detail page Access tab
+- manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
 - view submitted participant reports from detail page Participants tab
+- clicking "View Report" opens the Google Docs-lite Report Editor (`/admin/reports/[id]`) to review/edit AI drafts or publish them.
 - all actions display toast notifications instead of raw JSON output
 - run unenroll wizard with scheduling and report mode controls
 
