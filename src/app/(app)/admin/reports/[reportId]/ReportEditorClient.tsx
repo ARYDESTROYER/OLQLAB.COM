@@ -75,6 +75,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
 
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
+    const [editMode, setEditMode] = useState<"RICH" | "JSON">("RICH");
     const [deliveryMethod, setDeliveryMethod] = useState<"DASHBOARD_ONLY" | "EMAIL_LINK">("DASHBOARD_ONLY");
 
     let parsedNarrative: Record<string, unknown>;
@@ -86,8 +87,22 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
 
     const aiNarrativeHtml = resolveEditableHtml(parsedNarrative);
     const [htmlContent, setHtmlContent] = useState(aiNarrativeHtml);
+    const [jsonContent, setJsonContent] = useState(() => JSON.stringify(parsedNarrative, null, 2));
+
+    const parseJsonNarrative = () => {
+        try {
+            const parsed = JSON.parse(jsonContent) as Record<string, unknown>;
+            return parsed;
+        } catch {
+            throw new Error("Full report JSON is invalid. Please fix JSON formatting before saving/sending.");
+        }
+    };
 
     const buildUpdatedNarrative = () => {
+        if (editMode === "JSON") {
+            return parseJsonNarrative();
+        }
+
         const updatedNarrative: Record<string, unknown> = {
             ...parsedNarrative,
             adminEditedHtml: htmlContent,
@@ -182,6 +197,23 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                     {/* Editor Toolbar */}
                     <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center rounded-t-lg shadow-sm">
                         <button
+                            onClick={() => setEditMode("RICH")}
+                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "RICH" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
+                            title="Edit rich text"
+                        >
+                            Rich Text
+                        </button>
+                        <button
+                            onClick={() => setEditMode("JSON")}
+                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "JSON" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
+                            title="Edit full report JSON"
+                        >
+                            Full JSON
+                        </button>
+                        <div className="w-px h-6 bg-gray-300 mx-1"></div>
+                        {editMode === "RICH" && (
+                            <>
+                        <button
                             onClick={() => editor.chain().focus().toggleBold().run()}
                             disabled={!editor.can().chain().focus().toggleBold().run()}
                             className={`p-2 rounded hover:bg-gray-100 ${editor.isActive("bold") ? "bg-gray-200" : ""}`}
@@ -233,9 +265,24 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                         >
                             1. List
                         </button>
+                            </>
+                        )}
                     </div>
 
-                    <EditorContent editor={editor} className="p-8 md:p-12 lg:p-16" />
+                    {editMode === "RICH" ? (
+                        <EditorContent editor={editor} className="p-8 md:p-12 lg:p-16" />
+                    ) : (
+                        <div className="p-4 md:p-6 lg:p-8">
+                            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-slate-500">
+                                Full Report JSON (all sections editable)
+                            </label>
+                            <textarea
+                                className="min-h-[680px] w-full rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                                value={jsonContent}
+                                onChange={(e) => setJsonContent(e.target.value)}
+                            />
+                        </div>
+                    )}
                 </div>
             </div>
 
