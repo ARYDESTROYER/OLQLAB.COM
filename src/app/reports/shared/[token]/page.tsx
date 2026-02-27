@@ -2,6 +2,42 @@ import { db } from "@/lib/db";
 import { lookupReportShareToken } from "@/lib/unenroll-jobs";
 import Image from "next/image";
 
+function resolveSharedNarrativeHtml(narrative: Record<string, unknown> | null) {
+    if (!narrative) return "";
+
+    const adminEditedHtml = narrative.adminEditedHtml;
+    if (typeof adminEditedHtml === "string" && adminEditedHtml.trim()) {
+        return adminEditedHtml;
+    }
+
+    const aiNarrative = narrative.aiNarrative;
+    if (typeof aiNarrative === "string" && aiNarrative.trim()) {
+        return aiNarrative;
+    }
+
+    if (aiNarrative && typeof aiNarrative === "object") {
+        const ai = aiNarrative as {
+            executiveSummary?: string;
+            strengthsNarrative?: string;
+            developmentNarrative?: string;
+            managerCoaching?: string;
+        };
+
+        const blocks = [
+            ai.executiveSummary,
+            ai.strengthsNarrative,
+            ai.developmentNarrative,
+            ai.managerCoaching,
+        ].filter((item): item is string => Boolean(item && item.trim()));
+
+        if (blocks.length) {
+            return blocks.map((block) => `<p>${block}</p>`).join("");
+        }
+    }
+
+    return "";
+}
+
 export default async function SharedReportPage({
     params,
 }: {
@@ -35,7 +71,8 @@ export default async function SharedReportPage({
         }
     });
 
-    const narrative = report ? JSON.parse(report.narrativeJson) : null;
+    const narrative = report ? (JSON.parse(report.narrativeJson) as Record<string, unknown>) : null;
+    const renderedHtml = resolveSharedNarrativeHtml(narrative);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -68,8 +105,8 @@ export default async function SharedReportPage({
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-24">
                 <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden relative min-h-[800px]">
                     <div className="p-8 md:p-16 lg:px-24 prose prose-sm sm:prose-base lg:prose-lg max-w-none text-gray-900">
-                        {narrative?.aiNarrative ? (
-                            <div dangerouslySetInnerHTML={{ __html: narrative.aiNarrative }} />
+                        {renderedHtml ? (
+                            <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
                         ) : (
                             <div className="flex flex-col items-center justify-center py-20 text-center">
                                 <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

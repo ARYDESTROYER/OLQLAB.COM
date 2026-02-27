@@ -7,6 +7,52 @@ import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 
+function resolveEditableHtml(narrative: Record<string, unknown>) {
+    const adminEditedHtml = narrative.adminEditedHtml;
+    if (typeof adminEditedHtml === "string" && adminEditedHtml.trim()) {
+        return adminEditedHtml;
+    }
+
+    const aiNarrative = narrative.aiNarrative;
+    if (typeof aiNarrative === "string" && aiNarrative.trim()) {
+        return aiNarrative;
+    }
+
+    if (aiNarrative && typeof aiNarrative === "object") {
+        const ai = aiNarrative as {
+            executiveSummary?: string;
+            strengthsNarrative?: string;
+            developmentNarrative?: string;
+            managerCoaching?: string;
+            improvementRoadmap?: string[];
+            cautionNotes?: string[];
+        };
+
+        const blocks: string[] = [];
+        if (ai.executiveSummary) blocks.push(`<p>${ai.executiveSummary}</p>`);
+        if (ai.strengthsNarrative) blocks.push(`<p>${ai.strengthsNarrative}</p>`);
+        if (ai.developmentNarrative) blocks.push(`<p>${ai.developmentNarrative}</p>`);
+        if (ai.managerCoaching) blocks.push(`<p>${ai.managerCoaching}</p>`);
+        if (Array.isArray(ai.improvementRoadmap) && ai.improvementRoadmap.length) {
+            blocks.push(`<h3>Improvement Roadmap</h3><ul>${ai.improvementRoadmap.map((item) => `<li>${item}</li>`).join("")}</ul>`);
+        }
+        if (Array.isArray(ai.cautionNotes) && ai.cautionNotes.length) {
+            blocks.push(`<h3>Caution Notes</h3><ul>${ai.cautionNotes.map((item) => `<li>${item}</li>`).join("")}</ul>`);
+        }
+
+        if (blocks.length) {
+            return blocks.join("");
+        }
+    }
+
+    const summary = narrative.summary;
+    if (typeof summary === "string" && summary.trim()) {
+        return `<p>${summary}</p>`;
+    }
+
+    return "<p>No report content found.</p>";
+}
+
 type ReportEditorClientProps = {
     report: {
         id: string;
@@ -31,15 +77,32 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
     const [sending, setSending] = useState(false);
     const [deliveryMethod, setDeliveryMethod] = useState<"DASHBOARD_ONLY" | "EMAIL_LINK">("DASHBOARD_ONLY");
 
-    let parsedNarrative;
+    let parsedNarrative: Record<string, unknown>;
     try {
-        parsedNarrative = JSON.parse(report.narrativeJson);
+        parsedNarrative = JSON.parse(report.narrativeJson) as Record<string, unknown>;
     } catch (e) {
         parsedNarrative = {};
     }
 
-    const aiNarrativeHtml = parsedNarrative.aiNarrative || "<p>No report content found.</p>";
+    const aiNarrativeHtml = resolveEditableHtml(parsedNarrative);
     const [htmlContent, setHtmlContent] = useState(aiNarrativeHtml);
+
+    const buildUpdatedNarrative = () => {
+        const updatedNarrative: Record<string, unknown> = {
+            ...parsedNarrative,
+            adminEditedHtml: htmlContent,
+        };
+
+        if (
+            typeof parsedNarrative.aiNarrative === "string" ||
+            typeof parsedNarrative.aiNarrative === "undefined" ||
+            parsedNarrative.aiNarrative === null
+        ) {
+            updatedNarrative.aiNarrative = htmlContent;
+        }
+
+        return updatedNarrative;
+    };
 
     const editor = useEditor({
         extensions: [
@@ -63,7 +126,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
     const handleSaveProgress = async () => {
         setSaving(true);
         try {
-            const updatedNarrative = { ...parsedNarrative, aiNarrative: htmlContent };
+            const updatedNarrative = buildUpdatedNarrative();
             const res = await fetch(`/api/admin/reports/${report.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
@@ -84,7 +147,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
 
         setSending(true);
         try {
-            const updatedNarrative = { ...parsedNarrative, aiNarrative: htmlContent };
+            const updatedNarrative = buildUpdatedNarrative();
             const res = await fetch(`/api/admin/reports/${report.id}/send`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
