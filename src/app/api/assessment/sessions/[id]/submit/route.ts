@@ -61,6 +61,11 @@ export async function POST(
   );
   const submittedAt = new Date();
   const baseNarrative = generateNarrative(traits, competencies);
+  const cprScores = {
+    composite: Math.round((traits.conscientiousness + traits.openness) / 2),
+    pattern: Math.round((traits.openness + traits.extraversion) / 2),
+    recognition: Math.round((traits.agreeableness + (100 - traits.neuroticism)) / 2),
+  };
   const aiNarrative = await generateAiNarrative(traits, competencies, {
     fullName: `${session.user.firstName} ${session.user.lastName}`.trim() || "Participant",
     email: session.user.email,
@@ -71,6 +76,7 @@ export async function POST(
     assessmentTakenAt: submittedAt.toISOString(),
     assessmentTitle: session.assessment.title,
     participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    cprScores,
     aiNarrative,
     adminEditedHtml: buildReportHtmlTemplate(
       {
@@ -78,6 +84,7 @@ export async function POST(
         assessmentTakenAt: submittedAt.toISOString(),
         assessmentTitle: session.assessment.title,
         participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+        cprScores,
         aiNarrative,
       },
       {

@@ -211,7 +211,14 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
     };
 
     const handleUseTemplate = () => {
-        const nextHtml = buildReportHtmlTemplate(parsedNarrative, {
+        let sourceNarrative: Record<string, unknown> = parsedNarrative;
+        try {
+            sourceNarrative = JSON.parse(jsonContent) as Record<string, unknown>;
+        } catch {
+            sourceNarrative = parsedNarrative;
+        }
+
+        const nextHtml = buildReportHtmlTemplate(sourceNarrative, {
             assessmentTitle: report.assessment.title,
             participantName: `${report.user.firstName || ""} ${report.user.lastName || ""}`.trim() || "Participant",
         });

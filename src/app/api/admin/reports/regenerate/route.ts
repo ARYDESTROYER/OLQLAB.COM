@@ -71,6 +71,12 @@ export async function POST(req: NextRequest) {
     session.answers,
   );
 
+  const cprScores = {
+    composite: Math.round((traits.conscientiousness + traits.openness) / 2),
+    pattern: Math.round((traits.openness + traits.extraversion) / 2),
+    recognition: Math.round((traits.agreeableness + (100 - traits.neuroticism)) / 2),
+  };
+
   const baseNarrative = generateNarrative(traits, competencies);
   const aiNarrative = await generateAiNarrative(traits, competencies, {
     fullName: `${session.user.firstName} ${session.user.lastName}`.trim() || "Participant",
@@ -84,6 +90,7 @@ export async function POST(req: NextRequest) {
     assessmentTakenAt: session.submittedAt?.toISOString() || now.toISOString(),
     assessmentTitle: session.assessment.title,
     participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+    cprScores,
     regeneratedAt: now.toISOString(),
     regeneratedByAdminId: check.session.user.id,
     aiNarrative,
@@ -93,6 +100,7 @@ export async function POST(req: NextRequest) {
         assessmentTakenAt: session.submittedAt?.toISOString() || now.toISOString(),
         assessmentTitle: session.assessment.title,
         participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+        cprScores,
         aiNarrative,
       },
       {
