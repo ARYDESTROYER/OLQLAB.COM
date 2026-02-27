@@ -215,6 +215,39 @@ export default function UsersClient() {
     }
   }
 
+  async function makeUserSolo(user: UserRow) {
+    if (user.tenant?.type === "SOLO") {
+      toast("User is already solo.", "error");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Convert ${user.email} to a solo participant tenant? This will move them out of their current organization.`,
+    );
+    if (!confirmed) return;
+
+    setBusyUserId(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          convertToSolo: true,
+          soloTenantName: `Solo - ${user.email}`,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast("User converted to solo.", "success");
+        await Promise.all([loadUsers(), loadTenants()]);
+      } else {
+        toast(data.error || "Failed to convert user to solo.", "error");
+      }
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
   function startEditUser(user: UserRow) {
     setEditingUserId(user.id);
     setEditForm({
@@ -293,6 +326,11 @@ export default function UsersClient() {
 
     return [
       { label: "Edit", onClick: () => startEditUser(user), disabled: isBusy || isAdmin },
+      {
+        label: "Make Solo",
+        onClick: () => makeUserSolo(user),
+        disabled: isBusy || isAdmin || user.tenant?.type === "SOLO",
+      },
       { label: "View Tests", onClick: () => openInspect(user, "tests") },
       { label: "View Access", onClick: () => openInspect(user, "access") },
     ];
@@ -487,6 +525,17 @@ export default function UsersClient() {
                           disabled={busyUserId === user.id || user.role === "ADMIN"}
                         >
                           Move
+                        </button>
+                        <button
+                          className="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-100 transition-colors"
+                          onClick={() => makeUserSolo(user)}
+                          disabled={
+                            busyUserId === user.id ||
+                            user.role === "ADMIN" ||
+                            user.tenant?.type === "SOLO"
+                          }
+                        >
+                          Make Solo
                         </button>
                         <button
                           className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors"

@@ -431,3 +431,30 @@ This file is the append-only engineering diary for implementation work in this r
 - Deployment Note:
   - First Vercel deployment failed on `npx prisma db push --accept-data-loss` because the `Report` table already contained rows but the new `updatedAt` required column lacked a default. Fixed by adding `@default(now())` to `Report.updatedAt`.
 - Next step: Have the user commit changes, push to Vercel, and verify the Admin Editor workflow.
+
+## Entry 2026-02-27-01
+- Timestamp (UTC): 2026-02-27T06:20:00Z
+- Timestamp (Local): 2026-02-27 11:50:00 IST (+0530)
+- Task: Close admin workflow gaps for solo conversion and manual report review/publish flow.
+- Why: User reported three blockers: no UI path to convert an org user back to solo, unclear/manual report handoff from assessment completion to admin review, and requested journal logging of these updates.
+- What changed:
+  - Updated `src/app/(app)/admin/users/UsersClient.tsx`:
+    - Added `Make Solo` action (both in row action menu and inline button) that calls existing `PATCH /api/admin/users/:id` with `convertToSolo: true`.
+    - Added confirmation + success/error toasts and disabled state when user is already solo/admin.
+  - Updated `src/app/api/admin/assessments/[id]/participants/route.ts`:
+    - Included participant report metadata (`reportId`, `reportStatus`, `reportAvailableAt`, `reportDeliveryMethod`) so admin can see draft/published state directly in the participants table.
+  - Updated `src/app/(app)/admin/assessments/[id]/AssessmentDetailClient.tsx`:
+    - Added a dedicated `Report` column in Participants.
+    - Added `Review Draft` deep-link to `/admin/reports/:reportId` for DRAFT reports and `Open Report` for published ones.
+    - Added explicit helper text explaining manual flow: draft -> admin review/edit -> publish via dashboard/email link.
+- How:
+  - Reused existing backend support (`convertToSolo`) instead of adding new API surface.
+  - Reused existing report editor + send routes and wired discoverability from assessment participants where admins operate daily.
+- Validation/output:
+  - Client/server files compile clean in editor diagnostics for touched files.
+  - Structural issue introduced during table update was corrected (header/body alignment fixed).
+- Risks/unknowns:
+  - Full production build remains pending local Node/npm availability in this shell.
+  - Manual QA still recommended for end-to-end report draft review -> publish -> email link flow.
+- Next step:
+  - Deploy and verify with one manual enrollment + submitted attempt: confirm status remains `DRAFT`, admin can open `Review Draft`, and `Send Report` with `EMAIL_LINK` sends no-login share link.

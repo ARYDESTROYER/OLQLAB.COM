@@ -117,6 +117,10 @@ type Participant = {
   status: "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED";
   startedAt: string | null;
   submittedAt: string | null;
+  reportId: string | null;
+  reportStatus: "DRAFT" | "PUBLISHED" | null;
+  reportAvailableAt: string | null;
+  reportDeliveryMethod: "DASHBOARD_ONLY" | "EMAIL_LINK" | null;
   retestEligibleAt: string | null;
   canRetestNow: boolean;
   sources: Array<{ scope: "USER" | "TENANT"; enrollmentId: string }>;
@@ -1110,6 +1114,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       {tab === "PARTICIPANTS" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-lg font-semibold">Participants</h3>
+          <p className="mt-1 text-xs text-slate-500">
+            Manual reports stay in DRAFT. Use "Review Draft" to edit and then publish via Dashboard or Email Link.
+          </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(["ALL", "NOT_STARTED", "IN_PROGRESS", "SUBMITTED"] as const).map((status) => (
               <button
@@ -1131,6 +1138,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 <tr>
                   <th className="px-3 py-2">User</th>
                   <th className="px-3 py-2">Status</th>
+                  <th className="px-3 py-2">Report</th>
                   <th className="px-3 py-2">Sources</th>
                   <th className="px-3 py-2">Actions</th>
                 </tr>
@@ -1143,6 +1151,21 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                       <div className="text-xs text-slate-500">{participant.email}</div>
                     </td>
                     <td className="px-3 py-2">{participant.status}</td>
+                    <td className="px-3 py-2 text-xs text-slate-600">
+                      {participant.reportStatus ? (
+                        <span
+                          className={`rounded-full px-2 py-1 font-semibold ${
+                            participant.reportStatus === "PUBLISHED"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          {participant.reportStatus}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="px-3 py-2">{participant.sources.map((source) => source.scope).join(", ")}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1.5">
@@ -1153,6 +1176,18 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] hover:bg-emerald-100 transition-colors"
                           >
                             View Report
+                          </Link>
+                        )}
+                        {participant.reportId && (
+                          <Link
+                            href={`/admin/reports/${participant.reportId}`}
+                            className={`rounded-lg border px-2.5 py-1 text-[11px] transition-colors ${
+                              participant.reportStatus === "DRAFT"
+                                ? "border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                                : "border-slate-300 bg-white hover:bg-slate-50"
+                            }`}
+                          >
+                            {participant.reportStatus === "DRAFT" ? "Review Draft" : "Open Report"}
                           </Link>
                         )}
                         <button

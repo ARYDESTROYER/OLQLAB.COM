@@ -27,6 +27,22 @@ async function listParticipants(assessmentId: string, q?: string) {
       })
     : [];
 
+  const reports = userIds.length
+    ? await db.report.findMany({
+        where: {
+          assessmentId,
+          userId: { in: userIds },
+        },
+        select: {
+          id: true,
+          userId: true,
+          status: true,
+          availableAt: true,
+          deliveryMethod: true,
+        },
+      })
+    : [];
+
   let retestEligibility: Array<{ userId: string; eligibleAt: Date }> = [];
   if (userIds.length) {
     try {
@@ -47,6 +63,7 @@ async function listParticipants(assessmentId: string, q?: string) {
   }
 
   const sessionByUser = new Map(sessions.map((session) => [session.userId, session]));
+  const reportByUser = new Map(reports.map((report) => [report.userId, report]));
   const retestByUser = new Map(
     retestEligibility.map((item) => [item.userId, item.eligibleAt]),
   );
@@ -54,6 +71,7 @@ async function listParticipants(assessmentId: string, q?: string) {
 
   return users.map((user) => {
     const userSession = sessionByUser.get(user.userId);
+    const userReport = reportByUser.get(user.userId);
     const retestEligibleAt = retestByUser.get(user.userId) || null;
     const canRetestNow = retestEligibleAt ? now >= retestEligibleAt : false;
 
@@ -67,6 +85,10 @@ async function listParticipants(assessmentId: string, q?: string) {
       status: userSession?.status || "NOT_STARTED",
       startedAt: userSession?.startedAt || null,
       submittedAt: userSession?.submittedAt || null,
+      reportId: userReport?.id || null,
+      reportStatus: userReport?.status || null,
+      reportAvailableAt: userReport?.availableAt || null,
+      reportDeliveryMethod: userReport?.deliveryMethod || null,
       retestEligibleAt,
       canRetestNow,
       sources: user.sources,
