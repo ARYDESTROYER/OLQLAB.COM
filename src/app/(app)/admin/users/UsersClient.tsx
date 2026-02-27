@@ -45,6 +45,13 @@ export default function UsersClient() {
   });
 
   const [moveTenantByUser, setMoveTenantByUser] = useState<Record<string, string>>({});
+  const [editingUserId, setEditingUserId] = useState("");
+  const [editForm, setEditForm] = useState({
+    firstName: "",
+    lastName: "",
+    role: "EMPLOYEE" as "ADMIN" | "EMPLOYEE" | "LEADER",
+    managerEmail: "",
+  });
 
   // Confirm dialog
   const [confirmState, setConfirmState] = useState<{
@@ -155,10 +162,11 @@ export default function UsersClient() {
   }
 
   function requestDeleteUser(user: UserRow) {
+    const displayName = `${user.firstName} ${user.lastName}`.trim() || "No name set";
     setConfirmState({
       open: true,
       title: "Delete User",
-      message: `Are you sure you want to delete "${user.firstName} ${user.lastName}" (${user.email})? This action cannot be undone.`,
+      message: `Are you sure you want to delete "${displayName}" (${user.email})? This action cannot be undone.`,
       variant: "danger",
       busy: false,
       onConfirm: () => executeDeleteUser(user.id),
@@ -207,10 +215,57 @@ export default function UsersClient() {
     }
   }
 
+  function startEditUser(user: UserRow) {
+    setEditingUserId(user.id);
+    setEditForm({
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      role: user.role,
+      managerEmail: user.manager?.email || "",
+    });
+  }
+
+  function cancelEditUser() {
+    setEditingUserId("");
+    setEditForm({
+      firstName: "",
+      lastName: "",
+      role: "EMPLOYEE",
+      managerEmail: "",
+    });
+  }
+
+  async function saveEditUser(userId: string) {
+    setBusyUserId(userId);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          role: editForm.role,
+          managerEmail: editForm.managerEmail.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast("User updated.", "success");
+        cancelEditUser();
+        await loadUsers();
+      } else {
+        toast(data.error || "Failed to update user.", "error");
+      }
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
   async function openInspect(user: UserRow, type: "tests" | "access") {
+    const displayName = `${user.firstName} ${user.lastName}`.trim() || user.email;
     setInspectPanel({
       open: true,
-      title: `${user.firstName} ${user.lastName} — ${type === "tests" ? "Tests" : "Access"}`,
+      title: `${displayName} — ${type === "tests" ? "Tests" : "Access"}`,
       type,
       data: null,
       loading: true,
@@ -237,9 +292,9 @@ export default function UsersClient() {
     const isBusy = busyUserId === user.id;
 
     return [
+      { label: "Edit", onClick: () => startEditUser(user), disabled: isBusy || isAdmin },
       { label: "View Tests", onClick: () => openInspect(user, "tests") },
       { label: "View Access", onClick: () => openInspect(user, "access") },
-      { label: "Delete", onClick: () => requestDeleteUser(user), variant: "danger", disabled: isBusy || isAdmin },
     ];
   }
 
@@ -395,7 +450,7 @@ export default function UsersClient() {
                 users.map((user) => (
                   <tr key={user.id} className="border-t border-slate-100 align-top">
                     <td className="px-3 py-2">
-                      <div className="font-medium">{user.firstName} {user.lastName}</div>
+                      <div className="font-medium">{`${user.firstName} ${user.lastName}`.trim() || "No name set"}</div>
                       <div className="text-xs text-slate-500">{user.email}</div>
                       {user.role === "ADMIN" && (
                         <span className="mt-0.5 inline-block rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">Admin</span>
@@ -433,7 +488,66 @@ export default function UsersClient() {
                         >
                           Move
                         </button>
+                        <button
+                          className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors"
+                          onClick={() => requestDeleteUser(user)}
+                          disabled={busyUserId === user.id || user.role === "ADMIN"}
+                        >
+                          Delete Everything
+                        </button>
                       </div>
+
+                      {editingUserId === user.id && (
+                        <div className="mt-2 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 md:grid-cols-5">
+                          <input
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            placeholder="First name"
+                            value={editForm.firstName}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, firstName: e.target.value }))}
+                          />
+                          <input
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            placeholder="Last name"
+                            value={editForm.lastName}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, lastName: e.target.value }))}
+                          />
+                          <input
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            placeholder="Manager email"
+                            value={editForm.managerEmail}
+                            onChange={(e) => setEditForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
+                          />
+                          <select
+                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            value={editForm.role}
+                            onChange={(e) =>
+                              setEditForm((prev) => ({
+                                ...prev,
+                                role: e.target.value as "ADMIN" | "EMPLOYEE" | "LEADER",
+                              }))
+                            }
+                          >
+                            <option value="EMPLOYEE">EMPLOYEE</option>
+                            <option value="LEADER">LEADER</option>
+                          </select>
+                          <div className="flex items-center gap-1">
+                            <button
+                              className="rounded-md bg-slate-900 px-2 py-1 text-[11px] text-white"
+                              onClick={() => saveEditUser(user.id)}
+                              disabled={busyUserId === user.id}
+                            >
+                              Save
+                            </button>
+                            <button
+                              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px]"
+                              onClick={cancelEditUser}
+                              disabled={busyUserId === user.id}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -457,7 +571,6 @@ export default function UsersClient() {
           inspectPanel.type === "tests" ? (
             <TestsView
               sessions={(inspectPanel.data.testsTaken || []) as never[]}
-              archives={(inspectPanel.data.reportArchiveHistory || []) as never[]}
             />
           ) : (
             <AccessView access={(inspectPanel.data.access || []) as never[]} />
@@ -469,8 +582,8 @@ export default function UsersClient() {
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}
-        message={confirmState.message}
-        confirmLabel="Delete"
+        message={`${confirmState.message} This will permanently delete sessions, answers, scores, reports, enrollments, overrides, share links, auth sessions, and the user record.`}
+        confirmLabel="Delete Everything"
         variant={confirmState.variant}
         busy={confirmState.busy}
         onConfirm={confirmState.onConfirm}

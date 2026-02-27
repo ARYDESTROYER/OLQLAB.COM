@@ -44,8 +44,22 @@ export default async function CurrentReportsPage() {
     }),
   );
 
+  const publishedReports = await db.report.findMany({
+    where: {
+      userId: session.user.id,
+      status: "PUBLISHED",
+      OR: [{ availableAt: null }, { availableAt: { lte: new Date() } }],
+    },
+    select: {
+      assessmentId: true,
+    },
+  });
+  const publishedAssessmentIds = new Set(publishedReports.map((report) => report.assessmentId));
+
   const visibleReports = accessResults
-    .filter((entry) => entry.access.canViewAppReport)
+    .filter(
+      (entry) => entry.access.canViewAppReport && publishedAssessmentIds.has(entry.item.assessment.id),
+    )
     .map((entry) => entry.item);
 
   return (

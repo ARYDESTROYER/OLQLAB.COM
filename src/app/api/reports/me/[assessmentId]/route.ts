@@ -72,6 +72,19 @@ export async function GET(
     where: { assessmentId_userId: { assessmentId, userId: check.session.user.id } },
   });
 
+  if (!report || report.status !== "PUBLISHED") {
+    return NextResponse.json({
+      message:
+        "Your report is still under review and has not been published yet.",
+    });
+  }
+
+  if (report.availableAt && new Date() < report.availableAt) {
+    return NextResponse.json({
+      message: `Your report will be available after ${report.availableAt.toISOString()}.`,
+    });
+  }
+
   return NextResponse.json({
     assessment: {
       id: session.assessment.id,
@@ -79,6 +92,6 @@ export async function GET(
     },
     submittedAt: session.submittedAt,
     score,
-    narrative: report ? JSON.parse(report.narrativeJson) : null,
+    narrative: JSON.parse(report.narrativeJson),
   });
 }

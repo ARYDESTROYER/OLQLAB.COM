@@ -150,7 +150,9 @@ export default function AssessmentsClient() {
       {/* ── Create Assessment ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Create Assessment</h2>
-        <p className="mt-1 text-xs text-slate-500">Create a new assessment. Access can be managed from the assessment settings page.</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Create a new assessment. Then open Manage → Content to add/edit/remove questions.
+        </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[280px]">
@@ -245,6 +247,12 @@ export default function AssessmentsClient() {
                           className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
                         >
                           Manage
+                        </Link>
+                        <Link
+                          href={`/admin/assessments/${assessment.id}`}
+                          className="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-100 transition-colors"
+                        >
+                          Manage Questions
                         </Link>
                         <button
                           className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px] hover:bg-cyan-100 transition-colors"

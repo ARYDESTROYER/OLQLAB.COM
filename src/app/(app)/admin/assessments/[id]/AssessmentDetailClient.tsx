@@ -32,6 +32,21 @@ type Tenant = {
   name: string;
 };
 
+type AssessmentSection = {
+  id: string;
+  title: string;
+  sortOrder: number;
+};
+
+type QuestionRow = {
+  id: string;
+  prompt: string;
+  trait: string | null;
+  reverse: boolean;
+  sectionId: string | null;
+  section?: { id: string; title: string } | null;
+};
+
 type User = {
   id: string;
   email: string;
@@ -140,6 +155,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [sections, setSections] = useState<AssessmentSection[]>([]);
+  const [questions, setQuestions] = useState<QuestionRow[]>([]);
+  const [questionForm, setQuestionForm] = useState({
+    prompt: "",
+    trait: "",
+    reverse: false,
+    sectionId: "",
+  });
 
   const [contentForm, setContentForm] = useState({ title: "" });
   const [policyForm, setPolicyForm] = useState({
@@ -187,22 +210,24 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [detailRes, accessRes, participantsRes, jobsRes, tenantsRes, usersRes] = await Promise.all([
+      const [detailRes, accessRes, participantsRes, jobsRes, tenantsRes, usersRes, questionsRes] = await Promise.all([
         fetch(`/api/admin/assessments/${assessmentId}`),
         fetch(`/api/admin/assessments/${assessmentId}/access`),
         fetch(`/api/admin/assessments/${assessmentId}/participants`),
         fetch(`/api/admin/assessments/${assessmentId}/jobs`),
         fetch("/api/admin/tenants"),
         fetch("/api/admin/users"),
+        fetch(`/api/admin/assessments/${assessmentId}/questions`),
       ]);
 
-      const [detailData, accessData, participantsData, jobsData, tenantsData, usersData] = await Promise.all([
+      const [detailData, accessData, participantsData, jobsData, tenantsData, usersData, questionsData] = await Promise.all([
         detailRes.json(),
         accessRes.json(),
         participantsRes.json(),
         jobsRes.json(),
         tenantsRes.json(),
         usersRes.json(),
+        questionsRes.json(),
       ]);
 
       if (detailRes.ok) {
@@ -238,6 +263,15 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
       setTenants(tenantsData.tenants || []);
       setUsers((usersData.users || []).filter((item: User) => item.role !== "ADMIN"));
+      if (questionsRes.ok) {
+        const nextSections = questionsData.sections || [];
+        setSections(nextSections);
+        setQuestions(questionsData.questions || []);
+        setQuestionForm((prev) => ({
+          ...prev,
+          sectionId: prev.sectionId || nextSections[0]?.id || "",
+        }));
+      }
     } finally {
       setLoading(false);
     }
@@ -303,6 +337,86 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         setEnrollForm((prev) => ({ ...prev, targetId: "" }));
         await loadAll();
       }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function addQuestion() {
+    if (!questionForm.prompt.trim()) {
+      toast("Question prompt is required.", "error");
+      return;
+    }
+
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/admin/assessments/${assessmentId}/questions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: questionForm.prompt,
+          trait: questionForm.trait,
+          reverse: questionForm.reverse,
+          sectionId: questionForm.sectionId,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || "Failed to add question.", "error");
+        return;
+      }
+      toast("Question added.", "success");
+      setQuestionForm((prev) => ({ ...prev, prompt: "", trait: "", reverse: false }));
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveQuestion(question: QuestionRow) {
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/admin/assessments/${assessmentId}/questions/${question.id}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            prompt: question.prompt,
+            trait: question.trait || "",
+            reverse: question.reverse,
+            sectionId: question.sectionId,
+          }),
+        },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || "Failed to save question.", "error");
+        return;
+      }
+      toast("Question updated.", "success");
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeQuestion(questionId: string) {
+    if (!window.confirm("Delete this question? This cannot be undone.")) return;
+
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/admin/assessments/${assessmentId}/questions/${questionId}`,
+        { method: "DELETE" },
+      );
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || "Failed to delete question.", "error");
+        return;
+      }
+      toast("Question deleted.", "success");
+      await loadAll();
     } finally {
       setBusy(false);
     }
@@ -490,6 +604,159 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           <button className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={saveContent} disabled={busy}>
             Save Content Metadata
           </button>
+
+          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold">Question Builder</h4>
+              <span className="text-xs text-slate-500">Add / Edit / Remove questions here.</span>
+            </div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-5">
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+                placeholder="Question prompt"
+                value={questionForm.prompt}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, prompt: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                placeholder="Trait (optional)"
+                value={questionForm.trait}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, trait: e.target.value }))}
+              />
+              <select
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={questionForm.sectionId}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, sectionId: e.target.value }))}
+              >
+                {sections.map((section) => (
+                  <option key={section.id} value={section.id}>
+                    {section.title}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={questionForm.reverse}
+                  onChange={(e) => setQuestionForm((prev) => ({ ...prev, reverse: e.target.checked }))}
+                />
+                Reverse
+              </label>
+            </div>
+
+            <button
+              className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
+              onClick={addQuestion}
+              disabled={busy}
+            >
+              Add Question
+            </button>
+
+            <div className="mt-4 overflow-auto rounded-lg border border-slate-200 bg-white">
+              <table className="min-w-full text-left text-xs">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th className="px-3 py-2">Prompt</th>
+                    <th className="px-3 py-2">Trait</th>
+                    <th className="px-3 py-2">Section</th>
+                    <th className="px-3 py-2">Reverse</th>
+                    <th className="px-3 py-2">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {questions.map((question) => (
+                    <tr key={question.id} className="border-t border-slate-100">
+                      <td className="px-3 py-2">
+                        <input
+                          className="w-full rounded border border-slate-300 px-2 py-1"
+                          value={question.prompt}
+                          onChange={(e) =>
+                            setQuestions((prev) =>
+                              prev.map((item) =>
+                                item.id === question.id ? { ...item, prompt: e.target.value } : item,
+                              ),
+                            )
+                          }
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          className="w-full rounded border border-slate-300 px-2 py-1"
+                          value={question.trait || ""}
+                          onChange={(e) =>
+                            setQuestions((prev) =>
+                              prev.map((item) =>
+                                item.id === question.id ? { ...item, trait: e.target.value } : item,
+                              ),
+                            )
+                          }
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          className="rounded border border-slate-300 px-2 py-1"
+                          value={question.sectionId || ""}
+                          onChange={(e) =>
+                            setQuestions((prev) =>
+                              prev.map((item) =>
+                                item.id === question.id
+                                  ? {
+                                    ...item,
+                                    sectionId: e.target.value,
+                                    section: sections.find((section) => section.id === e.target.value)
+                                      ? { id: e.target.value, title: sections.find((section) => section.id === e.target.value)?.title || "" }
+                                      : null,
+                                  }
+                                  : item,
+                              ),
+                            )
+                          }
+                        >
+                          {sections.map((section) => (
+                            <option key={section.id} value={section.id}>
+                              {section.title}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="checkbox"
+                          checked={question.reverse}
+                          onChange={(e) =>
+                            setQuestions((prev) =>
+                              prev.map((item) =>
+                                item.id === question.id ? { ...item, reverse: e.target.checked } : item,
+                              ),
+                            )
+                          }
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-1">
+                          <button
+                            className="rounded border border-slate-300 bg-white px-2 py-1"
+                            onClick={() => saveQuestion(question)}
+                            disabled={busy}
+                          >
+                            Save
+                          </button>
+                          <button
+                            className="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-rose-700"
+                            onClick={() => removeQuestion(question.id)}
+                            disabled={busy}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </section>
       )}
 

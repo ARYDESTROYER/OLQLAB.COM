@@ -748,6 +748,20 @@ export async function GET(
     return NextResponse.json({ error: "Report not ready" }, { status: 404 });
   }
 
+  if (report.status !== "PUBLISHED") {
+    return NextResponse.json(
+      { error: "Report is still under review and has not been published yet." },
+      { status: 403 },
+    );
+  }
+
+  if (report.availableAt && new Date() < report.availableAt) {
+    return NextResponse.json(
+      { error: `Report will be available after ${report.availableAt.toISOString()}.` },
+      { status: 403 },
+    );
+  }
+
   let narrative: NarrativePayload = {};
   try {
     narrative = JSON.parse(report.narrativeJson || "{}");

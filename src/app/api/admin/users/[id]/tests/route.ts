@@ -26,45 +26,25 @@ export async function GET(
     return NextResponse.json({ error: "User not found." }, { status: 404 });
   }
 
-  const [sessions, archives] = await Promise.all([
-    db.quizSession.findMany({
-      where: {
-        userId,
-      },
-      include: {
-        assessment: {
-          select: {
-            id: true,
-            title: true,
-          },
+  const sessions = await db.quizSession.findMany({
+    where: {
+      userId,
+    },
+    include: {
+      assessment: {
+        select: {
+          id: true,
+          title: true,
         },
       },
-      orderBy: {
-        startedAt: "desc",
-      },
-    }),
-    db.reportArchive.findMany({
-      where: {
-        userId,
-      },
-      select: {
-        id: true,
-        assessmentId: true,
-        assessmentTitle: true,
-        archivedAt: true,
-        archiveReason: true,
-        submittedAt: true,
-      },
-      orderBy: {
-        archivedAt: "desc",
-      },
-      take: 50,
-    }),
-  ]);
+    },
+    orderBy: {
+      startedAt: "desc",
+    },
+  });
 
   return NextResponse.json({
     user,
     testsTaken: sessions,
-    reportArchiveHistory: archives,
   });
 }

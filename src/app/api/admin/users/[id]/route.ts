@@ -17,6 +17,11 @@ type PatchBody = {
   soloTenantName?: string;
 };
 
+function maybeTrimmed(value: string | undefined) {
+  if (typeof value !== "string") return undefined;
+  return value.trim();
+}
+
 async function ensureSeatCapacity(tenantId: string, email: string) {
   const [tenant, existingSeat, seatCount] = await Promise.all([
     db.tenant.findUnique({
@@ -161,8 +166,8 @@ export async function PATCH(
       return await tx.user.update({
         where: { id: user.id },
         data: {
-          firstName: body.firstName?.trim() || undefined,
-          lastName: body.lastName?.trim() || undefined,
+          firstName: maybeTrimmed(body.firstName),
+          lastName: maybeTrimmed(body.lastName),
           role: body.role || undefined,
           tenantId: targetTenantId,
           managerId: body.managerEmail === null ? null : manager?.id,
@@ -190,8 +195,8 @@ export async function PATCH(
       return tx.user.update({
         where: { id: user.id },
         data: {
-          firstName: body.firstName?.trim() || undefined,
-          lastName: body.lastName?.trim() || undefined,
+          firstName: maybeTrimmed(body.firstName),
+          lastName: maybeTrimmed(body.lastName),
           role: body.role || undefined,
           tenantId: targetTenantId,
           managerId: body.managerEmail === null ? null : manager?.id,
@@ -255,16 +260,17 @@ export async function DELETE(
   }
 
   await db.$transaction([
-    db.score.deleteMany({
-      where: {
-        userId: user.id,
-      },
-    }),
-    db.report.deleteMany({
-      where: {
-        userId: user.id,
-      },
-    }),
+    db.answer.deleteMany({ where: { session: { userId: user.id } } }),
+    db.quizSession.deleteMany({ where: { userId: user.id } }),
+    db.score.deleteMany({ where: { userId: user.id } }),
+    db.report.deleteMany({ where: { userId: user.id } }),
+    db.reportArchive.deleteMany({ where: { userId: user.id } }),
+    db.assessmentUserEnrollment.deleteMany({ where: { userId: user.id } }),
+    db.retestEligibility.deleteMany({ where: { userId: user.id } }),
+    db.assessmentReportAccessOverride.deleteMany({ where: { userId: user.id } }),
+    db.assessmentReportShareToken.deleteMany({ where: { userId: user.id } }),
+    db.account.deleteMany({ where: { userId: user.id } }),
+    db.session.deleteMany({ where: { userId: user.id } }),
     db.invite.deleteMany({
       where: {
         tenantId: user.tenantId,
@@ -277,9 +283,7 @@ export async function DELETE(
         userEmail: normalizeEmail(user.email),
       },
     }),
-    db.user.delete({
-      where: { id: user.id },
-    }),
+    db.user.delete({ where: { id: user.id } }),
   ]);
 
   return NextResponse.json({

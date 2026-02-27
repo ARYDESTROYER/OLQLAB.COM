@@ -208,15 +208,17 @@ export async function POST(req: NextRequest) {
     where: { email: normalizedEmail },
     create: {
       email: normalizedEmail,
-      firstName: body.firstName?.trim() || "Participant",
-      lastName: body.lastName?.trim() || "User",
+      firstName: body.firstName?.trim() || "",
+      lastName: body.lastName?.trim() || "",
       role: body.role || "EMPLOYEE",
       tenantId,
       managerId: manager?.id,
     },
     update: {
-      firstName: body.firstName?.trim() || undefined,
-      lastName: body.lastName?.trim() || undefined,
+      firstName:
+        typeof body.firstName === "string" ? body.firstName.trim() : undefined,
+      lastName:
+        typeof body.lastName === "string" ? body.lastName.trim() : undefined,
       role: body.role || undefined,
       tenantId,
       managerId: manager?.id,

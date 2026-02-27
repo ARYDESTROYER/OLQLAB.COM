@@ -80,15 +80,7 @@ type Session = {
     assessment: { id: string; title: string };
 };
 
-type Archive = {
-    id: string;
-    assessmentTitle: string;
-    archiveReason: string;
-    archivedAt: string;
-    submittedAt?: string | null;
-};
-
-export function TestsView({ sessions, archives }: { sessions: Session[]; archives: Archive[] }) {
+export function TestsView({ sessions }: { sessions: Session[] }) {
     return (
         <div className="space-y-6">
             <div>
@@ -131,32 +123,6 @@ export function TestsView({ sessions, archives }: { sessions: Session[]; archive
                     </div>
                 )}
             </div>
-
-            {archives.length > 0 && (
-                <div>
-                    <h3 className="text-sm font-semibold text-slate-700">Report Archives ({archives.length})</h3>
-                    <div className="mt-2 overflow-auto rounded-lg border border-slate-200">
-                        <table className="min-w-full text-left text-xs">
-                            <thead className="bg-slate-50 text-slate-500">
-                                <tr>
-                                    <th className="px-3 py-2">Assessment</th>
-                                    <th className="px-3 py-2">Reason</th>
-                                    <th className="px-3 py-2">Archived</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {archives.map((a) => (
-                                    <tr key={a.id} className="border-t border-slate-100">
-                                        <td className="px-3 py-2 font-medium">{a.assessmentTitle}</td>
-                                        <td className="px-3 py-2 text-slate-500">{a.archiveReason}</td>
-                                        <td className="px-3 py-2 text-slate-500">{new Date(a.archivedAt).toLocaleDateString()}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
