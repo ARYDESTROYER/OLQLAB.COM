@@ -4,6 +4,7 @@ import { generateAiNarrative } from "@/lib/ai-report";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { archiveCurrentAttempt } from "@/lib/report-archive";
+import { buildReportHtmlTemplate } from "@/lib/report-format";
 
 export async function POST(req: NextRequest) {
   const check = await requireAdmin();
@@ -86,6 +87,19 @@ export async function POST(req: NextRequest) {
     regeneratedAt: now.toISOString(),
     regeneratedByAdminId: check.session.user.id,
     aiNarrative,
+    adminEditedHtml: buildReportHtmlTemplate(
+      {
+        ...baseNarrative,
+        assessmentTakenAt: session.submittedAt?.toISOString() || now.toISOString(),
+        assessmentTitle: session.assessment.title,
+        participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+        aiNarrative,
+      },
+      {
+        assessmentTitle: session.assessment.title,
+        participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+      },
+    ),
   };
 
   const archived = await db.$transaction(async (tx) => {

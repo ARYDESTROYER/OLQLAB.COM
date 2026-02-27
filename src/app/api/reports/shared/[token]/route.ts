@@ -56,7 +56,7 @@ export async function GET(
     },
     submittedAt: session?.submittedAt || null,
     score,
-    narrative: report ? JSON.parse(report.narrativeJson) : null,
+    narrative: report && report.status === "PUBLISHED" ? JSON.parse(report.narrativeJson) : null,
     shareLink: {
       expiresAt: tokenRow.expiresAt,
       remainingDownloads: Math.max(tokenRow.maxDownloads - tokenRow.downloadsUsed, 0),

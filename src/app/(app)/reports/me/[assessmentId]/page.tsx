@@ -64,6 +64,7 @@ type Data = {
     assessmentTakenAt?: string;
     assessmentTitle?: string;
     participantName?: string;
+    adminEditedHtml?: string;
     aiNarrative?: {
       executiveSummary?: string;
       strengthsNarrative?: string;
@@ -272,7 +273,7 @@ export default function MyReportPage() {
   ].filter((item): item is string => Boolean(item));
 
   const assessmentTitle =
-    data?.narrative?.assessmentTitle || data?.assessment?.title || "OLQLAB Assessment";
+    data?.narrative?.assessmentTitle || data?.assessment?.title || "Wisses Leadership Assessment";
   const reportHeadline = data?.narrative?.profileHeadline || "Workstyle Development Profile";
   const participantName =
     data?.narrative?.participantName?.trim() || "Participant";
@@ -355,6 +356,32 @@ export default function MyReportPage() {
               Assessment Center
             </Link>
           </div>
+        </section>
+      </main>
+    );
+  }
+
+  const adminEditedHtml = data.narrative?.adminEditedHtml?.trim() || "";
+  if (adminEditedHtml) {
+    return (
+      <main className="mx-auto max-w-5xl p-4 md:p-8 space-y-5">
+        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h1 className="text-2xl font-semibold text-slate-900">{assessmentTitle}</h1>
+          <p className="mt-1 text-sm text-slate-600">Test Taken: {takenAtLabel}</p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <a
+              href={`/api/reports/me/${assessmentId}/pdf`}
+              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+            >
+              Download Full PDF
+            </a>
+            <Link href="/reports/current" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              My Reports
+            </Link>
+          </div>
+        </header>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-10 shadow-sm prose prose-sm sm:prose-base lg:prose-lg max-w-none text-slate-900">
+          <div dangerouslySetInnerHTML={{ __html: adminEditedHtml }} />
         </section>
       </main>
     );

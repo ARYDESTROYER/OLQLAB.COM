@@ -4,6 +4,7 @@ import { requireSession } from "@/lib/api-auth";
 import { computeScores, generateNarrative } from "@/lib/score";
 import { generateAiNarrative } from "@/lib/ai-report";
 import { resolveAssessmentAccess } from "@/lib/assessment-access";
+import { buildReportHtmlTemplate } from "@/lib/report-format";
 
 export async function POST(
   _req: NextRequest,
@@ -71,6 +72,19 @@ export async function POST(
     assessmentTitle: session.assessment.title,
     participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
     aiNarrative,
+    adminEditedHtml: buildReportHtmlTemplate(
+      {
+        ...baseNarrative,
+        assessmentTakenAt: submittedAt.toISOString(),
+        assessmentTitle: session.assessment.title,
+        participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+        aiNarrative,
+      },
+      {
+        assessmentTitle: session.assessment.title,
+        participantName: `${session.user.firstName} ${session.user.lastName}`.trim(),
+      },
+    ),
   };
 
   const access = await resolveAssessmentAccess(session.userId, session.assessmentId);

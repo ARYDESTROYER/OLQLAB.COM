@@ -21,6 +21,7 @@ type Data = {
     workplaceSignals?: string[];
     managerDiscussionGuide?: string[];
     assessmentTakenAt?: string;
+    adminEditedHtml?: string;
     aiNarrative?: {
       executiveSummary?: string;
       managerCoaching?: string;
@@ -132,6 +133,24 @@ export default function LeaderReportPage() {
   const takenAt = formatDateTime(
     data.narrative?.assessmentTakenAt || data.submittedAt || null,
   );
+
+  const adminEditedHtml = data.narrative?.adminEditedHtml?.trim() || "";
+  if (adminEditedHtml) {
+    return (
+      <main className="mx-auto max-w-5xl p-5 md:p-9 space-y-5">
+        <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h1 className="text-2xl font-semibold text-slate-900">
+            {data.employee?.firstName} {data.employee?.lastName}
+          </h1>
+          <p className="mt-1 text-sm text-slate-700">{data.assessment?.title || "Assessment"}</p>
+          <p className="mt-1 text-sm text-slate-600">Test Taken: {takenAt}</p>
+        </header>
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 md:p-10 shadow-sm prose prose-sm sm:prose-base lg:prose-lg max-w-none text-slate-900">
+          <div dangerouslySetInnerHTML={{ __html: adminEditedHtml }} />
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-6xl space-y-6 p-5 md:p-9">

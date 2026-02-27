@@ -69,6 +69,6 @@ export async function GET(
     },
     submittedAt: session?.submittedAt || null,
     score,
-    narrative: report ? JSON.parse(report.narrativeJson) : null,
+    narrative: report && report.status === "PUBLISHED" ? JSON.parse(report.narrativeJson) : null,
   });
 }

@@ -514,7 +514,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
   async function participantAction(
     participant: Participant,
-    action: "REGENERATE" | "RETEST_NOW" | "RESET",
+    action: "REGENERATE" | "RETEST_NOW" | "RESET" | "UNPUBLISH",
   ) {
     setBusy(true);
     try {
@@ -534,6 +534,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             body: JSON.stringify({ mode: "IMMEDIATE" }),
           },
         );
+      } else if (action === "UNPUBLISH") {
+        if (!participant.reportId) {
+          toast("No report found to unpublish.", "error");
+          return;
+        }
+
+        res = await fetch(`/api/admin/reports/${participant.reportId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "DRAFT", availableAt: null }),
+        });
       } else {
         res = await fetch(
           `/api/admin/assessments/${assessmentId}/participants/${participant.userId}/reset`,
@@ -1196,6 +1207,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           disabled={busy || participant.status !== "SUBMITTED"}
                         >
                           Regenerate
+                        </button>
+                        <button
+                          className="rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1 text-[11px]"
+                          onClick={() => participantAction(participant, "UNPUBLISH")}
+                          disabled={busy || participant.reportStatus !== "PUBLISHED" || !participant.reportId}
+                        >
+                          Unpublish
                         </button>
                         <button
                           className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px]"

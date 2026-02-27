@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
+import { buildReportHtmlTemplate } from "@/lib/report-format";
 
 function resolveEditableHtml(narrative: Record<string, unknown>) {
     const adminEditedHtml = narrative.adminEditedHtml;
@@ -50,7 +51,10 @@ function resolveEditableHtml(narrative: Record<string, unknown>) {
         return `<p>${summary}</p>`;
     }
 
-    return "<p>No report content found.</p>";
+    return buildReportHtmlTemplate(narrative, {
+        assessmentTitle: typeof narrative.assessmentTitle === "string" ? narrative.assessmentTitle : "Wisses Leadership Assessment",
+        participantName: typeof narrative.participantName === "string" ? narrative.participantName : "Participant",
+    });
 }
 
 type ReportEditorClientProps = {
@@ -75,7 +79,8 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
 
     const [saving, setSaving] = useState(false);
     const [sending, setSending] = useState(false);
-    const [editMode, setEditMode] = useState<"RICH" | "JSON">("RICH");
+    const [unpublishing, setUnpublishing] = useState(false);
+    const [editMode, setEditMode] = useState<"RICH" | "JSON" | "PREVIEW">("RICH");
     const [deliveryMethod, setDeliveryMethod] = useState<"DASHBOARD_ONLY" | "EMAIL_LINK">("DASHBOARD_ONLY");
 
     let parsedNarrative: Record<string, unknown>;
@@ -88,6 +93,25 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
     const aiNarrativeHtml = resolveEditableHtml(parsedNarrative);
     const [htmlContent, setHtmlContent] = useState(aiNarrativeHtml);
     const [jsonContent, setJsonContent] = useState(() => JSON.stringify(parsedNarrative, null, 2));
+    const [status, setStatus] = useState(report.status);
+
+    const previewHtml = useMemo(() => {
+        if (editMode === "JSON") {
+            try {
+                const parsed = JSON.parse(jsonContent) as Record<string, unknown>;
+                const candidate = parsed.adminEditedHtml;
+                if (typeof candidate === "string" && candidate.trim()) return candidate;
+                return buildReportHtmlTemplate(parsed, {
+                    assessmentTitle: report.assessment.title,
+                    participantName: `${report.user.firstName || ""} ${report.user.lastName || ""}`.trim() || "Participant",
+                });
+            } catch {
+                return "<p>Preview unavailable: JSON is invalid.</p>";
+            }
+        }
+
+        return htmlContent;
+    }, [editMode, htmlContent, jsonContent, report.assessment.title, report.user.firstName, report.user.lastName]);
 
     const parseJsonNarrative = () => {
         try {
@@ -149,6 +173,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
             });
             if (!res.ok) throw new Error("Failed to save draft");
             alert("Draft saved successfully!");
+            setStatus("DRAFT");
             router.refresh();
         } catch (e) {
             alert("Error saving draft: " + String(e));
@@ -176,11 +201,47 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                 throw new Error(err.error || "Failed to send report");
             }
             alert("Report sent successfully!");
+            setStatus("PUBLISHED");
             router.push(`/admin/assessments`);
         } catch (e) {
             alert("Error sending report: " + String(e));
         } finally {
             setSending(false);
+        }
+    };
+
+    const handleUseTemplate = () => {
+        const nextHtml = buildReportHtmlTemplate(parsedNarrative, {
+            assessmentTitle: report.assessment.title,
+            participantName: `${report.user.firstName || ""} ${report.user.lastName || ""}`.trim() || "Participant",
+        });
+        setHtmlContent(nextHtml);
+        editor?.commands.setContent(nextHtml);
+    };
+
+    const handleUnpublish = async () => {
+        if (!window.confirm("Unpublish this report and move it back to DRAFT for editing?")) return;
+
+        setUnpublishing(true);
+        try {
+            const updatedNarrative = buildUpdatedNarrative();
+            const res = await fetch(`/api/admin/reports/${report.id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    narrativeJson: JSON.stringify(updatedNarrative),
+                    status: "DRAFT",
+                    availableAt: null,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to unpublish report");
+            setStatus("DRAFT");
+            alert("Report moved back to DRAFT.");
+            router.refresh();
+        } catch (e) {
+            alert("Error unpublishing report: " + String(e));
+        } finally {
+            setUnpublishing(false);
         }
     };
 
@@ -209,6 +270,20 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                             title="Edit full report JSON"
                         >
                             Full JSON
+                        </button>
+                        <button
+                            onClick={() => setEditMode("PREVIEW")}
+                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "PREVIEW" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
+                            title="Preview report"
+                        >
+                            Preview
+                        </button>
+                        <button
+                            onClick={handleUseTemplate}
+                            className="ml-1 px-2.5 py-1 text-xs rounded border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                            title="Load standard Wisses report format"
+                        >
+                            Load Template
                         </button>
                         <div className="w-px h-6 bg-gray-300 mx-1"></div>
                         {editMode === "RICH" && (
@@ -271,7 +346,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
 
                     {editMode === "RICH" ? (
                         <EditorContent editor={editor} className="p-8 md:p-12 lg:p-16" />
-                    ) : (
+                    ) : editMode === "JSON" ? (
                         <div className="p-4 md:p-6 lg:p-8">
                             <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-slate-500">
                                 Full Report JSON (all sections editable)
@@ -281,6 +356,10 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                                 value={jsonContent}
                                 onChange={(e) => setJsonContent(e.target.value)}
                             />
+                        </div>
+                    ) : (
+                        <div className="p-8 md:p-12 lg:p-16 prose prose-sm sm:prose-base lg:prose-lg max-w-none">
+                            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
                         </div>
                     )}
                 </div>
@@ -305,9 +384,9 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</label>
-                            <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${report.status === "PUBLISHED" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                            <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${status === "PUBLISHED" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
                                 }`}>
-                                {report.status}
+                                {status}
                             </span>
                         </div>
                     </div>
@@ -350,21 +429,29 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                     <div className="mt-10 space-y-3">
                         <button
                             onClick={handleSaveProgress}
-                            disabled={saving || sending}
+                            disabled={saving || sending || unpublishing}
                             className="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                         >
                             {saving ? "Saving..." : "Save Progress"}
                         </button>
 
                         <button
+                            onClick={handleUnpublish}
+                            disabled={saving || sending || unpublishing || status !== "PUBLISHED"}
+                            className="w-full flex justify-center py-2.5 px-4 border border-amber-300 rounded-md shadow-sm text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 disabled:opacity-50"
+                        >
+                            {unpublishing ? "Unpublishing..." : "Unpublish to Edit"}
+                        </button>
+
+                        <button
                             onClick={handleSendReport}
-                            disabled={saving || sending}
-                            className={`w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${report.status === "PUBLISHED"
-                                    ? "bg-gray-400 cursor-not-allowed"
+                            disabled={saving || sending || unpublishing}
+                            className={`w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${status === "PUBLISHED"
+                                    ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"
                                     : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
                                 }`}
                         >
-                            {sending ? "Sending..." : report.status === "PUBLISHED" ? "Already Sent" : "Send Report"}
+                            {sending ? "Sending..." : status === "PUBLISHED" ? "Re-send Report" : "Send Report"}
                         </button>
                     </div>
                 </div>
