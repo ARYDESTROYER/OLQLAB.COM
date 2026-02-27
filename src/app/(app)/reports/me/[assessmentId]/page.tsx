@@ -273,7 +273,7 @@ export default function MyReportPage() {
   ].filter((item): item is string => Boolean(item));
 
   const assessmentTitle =
-    data?.narrative?.assessmentTitle || data?.assessment?.title || "Wisses Leadership Assessment";
+    data?.narrative?.assessmentTitle || data?.assessment?.title || "Wissen Leadership Assessment";
   const reportHeadline = data?.narrative?.profileHeadline || "Workstyle Development Profile";
   const participantName =
     data?.narrative?.participantName?.trim() || "Participant";

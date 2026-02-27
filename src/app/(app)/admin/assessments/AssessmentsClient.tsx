@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
+import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
 
 type Assessment = {
   id: string;
@@ -145,6 +146,25 @@ export default function AssessmentsClient() {
     }
   }
 
+  function getRowActions(assessment: Assessment): ActionItem[] {
+    const isBusy = busyAssessmentId === assessment.id;
+
+    return [
+      {
+        label: assessment.isPublished ? "Unpublish" : "Publish",
+        onClick: () => togglePublish(assessment),
+        variant: "primary",
+        disabled: isBusy,
+      },
+      {
+        label: "Delete",
+        onClick: () => requestDeleteAssessment(assessment),
+        variant: "danger",
+        disabled: isBusy,
+      },
+    ];
+  }
+
   return (
     <div className="space-y-6">
       {/* ── Create Assessment ── */}
@@ -248,26 +268,7 @@ export default function AssessmentsClient() {
                         >
                           Manage
                         </Link>
-                        <Link
-                          href={`/admin/assessments/${assessment.id}`}
-                          className="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-100 transition-colors"
-                        >
-                          Manage Questions
-                        </Link>
-                        <button
-                          className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px] hover:bg-cyan-100 transition-colors"
-                          onClick={() => togglePublish(assessment)}
-                          disabled={busyAssessmentId === assessment.id}
-                        >
-                          {assessment.isPublished ? "Unpublish" : "Publish"}
-                        </button>
-                        <button
-                          className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors"
-                          onClick={() => requestDeleteAssessment(assessment)}
-                          disabled={busyAssessmentId === assessment.id}
-                        >
-                          Delete
-                        </button>
+                        <ActionMenu actions={getRowActions(assessment)} />
                       </div>
                     </td>
                   </tr>

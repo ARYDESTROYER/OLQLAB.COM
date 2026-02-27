@@ -30,7 +30,7 @@ export type RecommendedTemplate = {
 };
 
 export const recommendedTemplate40: RecommendedTemplate = {
-  title: "Wisses Leadership Assessment",
+  title: "Wissen Leadership Assessment",
   competencies: [
     {
       code: "emotional_intelligence",

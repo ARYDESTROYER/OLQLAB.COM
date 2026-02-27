@@ -333,6 +333,12 @@ export default function UsersClient() {
       },
       { label: "View Tests", onClick: () => openInspect(user, "tests") },
       { label: "View Access", onClick: () => openInspect(user, "access") },
+      {
+        label: "Delete Everything",
+        onClick: () => requestDeleteUser(user),
+        variant: "danger",
+        disabled: isBusy || isAdmin,
+      },
     ];
   }
 
@@ -525,24 +531,6 @@ export default function UsersClient() {
                           disabled={busyUserId === user.id || user.role === "ADMIN"}
                         >
                           Move
-                        </button>
-                        <button
-                          className="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-[11px] text-indigo-700 hover:bg-indigo-100 transition-colors"
-                          onClick={() => makeUserSolo(user)}
-                          disabled={
-                            busyUserId === user.id ||
-                            user.role === "ADMIN" ||
-                            user.tenant?.type === "SOLO"
-                          }
-                        >
-                          Make Solo
-                        </button>
-                        <button
-                          className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors"
-                          onClick={() => requestDeleteUser(user)}
-                          disabled={busyUserId === user.id || user.role === "ADMIN"}
-                        >
-                          Delete Everything
                         </button>
                       </div>
 

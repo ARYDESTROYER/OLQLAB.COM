@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import EmptyState from "@/components/admin/EmptyState";
 import InspectPanel from "@/components/admin/InspectPanel";
+import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
 
 type Tenant = {
   id: string;
@@ -141,6 +142,13 @@ export default function TenantsClient() {
       toast("Failed to load data.", "error");
       setInspectPanel((prev) => ({ ...prev, loading: false }));
     }
+  }
+
+  function getRowActions(tenant: Tenant): ActionItem[] {
+    return [
+      { label: "Users", onClick: () => inspect(tenant, "users") },
+      { label: "Access", onClick: () => inspect(tenant, "access") },
+    ];
   }
 
   return (
@@ -283,18 +291,7 @@ export default function TenantsClient() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap justify-end gap-1.5">
-                        <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
-                          onClick={() => inspect(tenant, "users")}
-                        >
-                          Users
-                        </button>
-                        <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
-                          onClick={() => inspect(tenant, "access")}
-                        >
-                          Access
-                        </button>
+                        <ActionMenu actions={getRowActions(tenant)} />
                         <button
                           className="rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] text-white hover:bg-slate-800 transition-colors"
                           onClick={() => saveTenant(tenant.id)}

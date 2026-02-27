@@ -52,7 +52,7 @@ function resolveEditableHtml(narrative: Record<string, unknown>) {
     }
 
     return buildReportHtmlTemplate(narrative, {
-        assessmentTitle: typeof narrative.assessmentTitle === "string" ? narrative.assessmentTitle : "Wisses Leadership Assessment",
+        assessmentTitle: typeof narrative.assessmentTitle === "string" ? narrative.assessmentTitle : "Wissen Leadership Assessment",
         participantName: typeof narrative.participantName === "string" ? narrative.participantName : "Participant",
     });
 }
@@ -288,7 +288,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                         <button
                             onClick={handleUseTemplate}
                             className="ml-1 px-2.5 py-1 text-xs rounded border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                            title="Load standard Wisses report format"
+                            title="Load standard Wissen report format"
                         >
                             Load Template
                         </button>

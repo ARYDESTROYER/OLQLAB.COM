@@ -458,3 +458,23 @@ This file is the append-only engineering diary for implementation work in this r
   - Manual QA still recommended for end-to-end report draft review -> publish -> email link flow.
 - Next step:
   - Deploy and verify with one manual enrollment + submitted attempt: confirm status remains `DRAFT`, admin can open `Review Draft`, and `Send Report` with `EMAIL_LINK` sends no-login share link.
+
+## Entry 2026-02-28-01
+- Timestamp (UTC): 2026-02-28T00:00:00Z
+- Timestamp (Local): 2026-02-28 (local timezone)
+- Task: Investigate GitHub Desktop warning: "This diff contains a change in line endings from 'CRLF' to 'LF'."
+- Why: User reported this as an error while reviewing diffs after recent UI/QOL edits.
+- What changed:
+  - Confirmed repository line-ending policy in `.gitattributes`: `* text=auto eol=lf`.
+  - Determined this is a normalization warning (not a runtime/build failure).
+  - Added troubleshooting and prevention steps in `guide.md`.
+- How:
+  - Reviewed `.gitattributes` and matched warning behavior to enforced LF normalization.
+  - Captured practical GitHub Desktop + Git CLI remediation flow.
+- Validation/output:
+  - No compile/type errors tied to this warning.
+  - Warning is expected when files previously committed/saved as CRLF are normalized to LF.
+- Risks/unknowns:
+  - If normalization is mixed with feature changes, diffs become noisy and code review quality drops.
+- Next step:
+  - Keep LF-only normalization and separate formatting-only commits from functional changes.

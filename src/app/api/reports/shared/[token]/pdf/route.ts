@@ -96,7 +96,7 @@ export async function GET(
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
 
   page.drawRectangle({ x: 0, y: 0, width: 595.28, height: 841.89, color: rgb(0.98, 0.99, 1) });
-  page.drawText("Wisses Leadership Assessment Report", {
+  page.drawText("Wissen Leadership Assessment Report", {
     x: 40,
     y: 790,
     size: 12,

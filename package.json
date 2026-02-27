@@ -10,8 +10,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
+    "assessment:payload:wissen": "tsx prisma/scripts/generate-wissen-upload-payload.ts",
     "prisma:backfill:global-assessments": "tsx prisma/scripts/backfill-global-assessment-enrollments.ts",
-      "assessment:payload:wisses": "tsx prisma/scripts/generate-wisses-upload-payload.ts",
     "prisma:rollback:global-assessments": "tsx prisma/scripts/rollback-global-assessment-enrollments.ts",
     "postinstall": "prisma generate"
   },

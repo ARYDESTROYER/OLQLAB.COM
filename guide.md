@@ -301,3 +301,36 @@ Engineering activity is recorded append-only in `journal.md` with:
 - validation output
 - risks/unknowns
 - next step
+
+## 16. Troubleshooting: GitHub Desktop line-ending warning
+
+Warning text:
+- `This diff contains a change in line endings from 'CRLF' to 'LF'.`
+
+What it means:
+- This is a normalization warning, not an application/runtime error.
+- Repository policy in `.gitattributes` enforces LF for text files: `* text=auto eol=lf`.
+- On Windows, files that were previously CRLF can appear as changed when normalized to LF.
+
+Why it appears after edits:
+- Editor save or tooling rewrites file content and Git re-normalizes line endings to LF.
+- GitHub Desktop highlights this so reviewers know the diff includes end-of-line conversion.
+
+Recommended workflow:
+1. Keep repository policy as LF (do not switch project files back to CRLF).
+2. Stage only intended files and verify content changes are real, not only EOL churn.
+3. If many files are noisy due normalization, do a dedicated normalization commit separate from feature work.
+
+Optional one-time normalization command:
+
+```bash
+git add --renormalize .
+```
+
+Then commit with a message like:
+- `chore: normalize line endings to LF`
+
+Prevention tips:
+- Configure editor default EOL to LF for this repo.
+- Add/keep `.gitattributes` as source of truth for line endings.
+- Avoid mixing large line-ending cleanups with product/UI changes.

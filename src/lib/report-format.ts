@@ -99,8 +99,8 @@ export function buildReportHtmlTemplate(
       : ({} as AiNarrative);
 
   const assessmentTitle =
-    String(narrative.assessmentTitle || defaults?.assessmentTitle || "Wisses Leadership Assessment").trim() ||
-    "Wisses Leadership Assessment";
+    String(narrative.assessmentTitle || defaults?.assessmentTitle || "Wissen Leadership Assessment").trim() ||
+    "Wissen Leadership Assessment";
   const participantName =
     String(narrative.participantName || defaults?.participantName || "Participant").trim() ||
     "Participant";

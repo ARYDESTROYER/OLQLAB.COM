@@ -1,0 +1,1154 @@
+{
+    "title":  "Wissen Leadership Assessment",
+    "competencies":  [
+                         {
+                             "code":  "analysis_practices",
+                             "name":  "Analysis Practices",
+                             "description":  "Performance in Analysis Practices"
+                         },
+                         {
+                             "code":  "project_management",
+                             "name":  "Project Management",
+                             "description":  "Performance in Project Management"
+                         },
+                         {
+                             "code":  "leveraging_external_expertise",
+                             "name":  "Leveraging External Expertise",
+                             "description":  "Performance in Leveraging External Expertise"
+                         },
+                         {
+                             "code":  "people_management",
+                             "name":  "People Management",
+                             "description":  "Performance in People Management"
+                         },
+                         {
+                             "code":  "design_practices",
+                             "name":  "Design Practices",
+                             "description":  "Performance in Design Practices"
+                         },
+                         {
+                             "code":  "internal_stakeholder_management",
+                             "name":  "Internal Stakeholder Management",
+                             "description":  "Performance in Internal Stakeholder Management"
+                         },
+                         {
+                             "code":  "ethics",
+                             "name":  "Ethics",
+                             "description":  "Performance in Ethics"
+                         },
+                         {
+                             "code":  "development_practices",
+                             "name":  "Development Practices",
+                             "description":  "Performance in Development Practices"
+                         },
+                         {
+                             "code":  "customer_management",
+                             "name":  "Customer Management",
+                             "description":  "Performance in Customer Management"
+                         },
+                         {
+                             "code":  "automation_practices",
+                             "name":  "Automation Practices",
+                             "description":  "Performance in Automation Practices"
+                         },
+                         {
+                             "code":  "continuous_learning_culture",
+                             "name":  "Continuous Learning Culture",
+                             "description":  "Performance in Continuous Learning Culture"
+                         }
+                     ],
+    "sections":  [
+                     {
+                         "title":  "Analysis Practices",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q041",
+                                               "prompt":  "Conducting Root Cause AnalysisA compliance system fails a regulatory audit due to data discrepancies. The client is concerned about penalties. What is the first step?",
+                                               "category":  "Analysis Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B identifies systemic issues. Options A, C, D, and E risk recurrence or escalation."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q042",
+                                               "prompt":  "Optimizing System PerformanceYour banking app shows slow response times under high load, frustrating users. The client demands immediate improvement. What is the best approach?",
+                                               "category":  "Analysis Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets specific issues. Options A, C, D, and E risk inefficiency or user dissatisfaction."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q043",
+                                               "prompt":  "Data-Driven Decision MakingYour service desk system needs upgrades, but the team disagrees on priorities (e.g., UI vs. backend). The client expects data-driven decisions. How do you proceed?",
+                                               "category":  "Analysis Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with client expectations. Options A, C, D, and E risk misalignment or delays.[Diagram: Performance Dashboard] A bar chart showing UI and backend metrics."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q044",
+                                               "prompt":  "Assessing Technical RisksYour AI-ML project faces risks from unstable APIs. The client expects a risk-free deployment. How do you assess these risks?",
+                                               "category":  "Analysis Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with PMBOK. Options A, C, D, and E risk oversight or client distrust.[Diagram: Risk Matrix] A 5x5 grid showing API risks."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q045",
+                                               "prompt":  "Analyzing User FeedbackUsers report inconsistent performance in your analytics platform, but feedback is vague. The client expects rapid improvements. What is the first step?",
+                                               "category":  "Analysis Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets root causes. Options A, C, D, and E risk ineffective fixes or client dissatisfaction."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Project Management",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q017",
+                                               "prompt":  "Mitigating Vendor RisksYour compliance project relies on a vendor for data encryption tools, but their delivery is delayed, risking a regulatory deadline. The client is unaware. What is the first step?",
+                                               "category":  "Project Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with PMBOK risk management. Options A, C, D, and E risk premature escalation or disruption.[Diagram: Risk Matrix] A 5x5 grid showing vendor delay (High Likelihood, Major Impact)."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q018",
+                                               "prompt":  "Recovering a Delayed ScheduleYour app development project is two weeks behind due to integration testing failures. The client expects delivery in four weeks. How do you recover the schedule?",
+                                               "category":  "Project Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B maintains quality and alignment. Options A, C, D, and E risk quality or stakeholder trust.[Diagram: Gantt Chart] A timeline showing critical path tasks."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q019",
+                                               "prompt":  "Controlling Budget OverrunsYour AI-ML project is 15% over budget due to cloud computing costs. The client expects cost adherence. How do you address this?",
+                                               "category":  "Project Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets root causes. Options A, C, D, and E risk client dissatisfaction or quality issues."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q020",
+                                               "prompt":  "Managing Scope CreepA client requests real-time analytics for a service desk system mid-project, risking scope creep. Your team is stretched. How do you handle this?",
+                                               "category":  "Project Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with PMI principles. Options A, C, D, and E risk scope creep or misalignment."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q021",
+                                               "prompt":  "Optimizing Resource AllocationYour data science and app development teams compete for cloud resources during peak project phases. Delays risk client dissatisfaction. How do you resolve this?",
+                                               "category":  "Project Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B optimizes resources systematically. Options A, C, D, and E risk inefficiency or delays.[Diagram: Resource Histogram] A stacked bar chart showing resource hours vs. tasks."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q022",
+                                               "prompt":  "Ensuring Quality StandardsA compliance system deliverable fails an internal audit due to incomplete documentation. The client expects delivery soon. What is the first step?",
+                                               "category":  "Project Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets systemic issues. Options A, C, D, and E risk incomplete fixes or client distrust."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Leveraging External Expertise",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q051",
+                                               "prompt":  "Collaborating with PartnersYour AI-ML project requires quantum computing expertise, unavailable internally. A partner offers support but demands co-ownership of IP. How do you leverage their expertise?",
+                                               "category":  "Leveraging External Expertise",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B protects Wissen’s interests. Options A, C, D, and E risk delays or IP loss."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q052",
+                                               "prompt":  "Consulting External ExpertsA complex encryption issue delays your compliance system. An external expert offers a solution but charges a premium. How do you proceed?",
+                                               "category":  "Leveraging External Expertise",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B leverages expertise efficiently. Options A, C, D, and E risk delays or costs."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q053",
+                                               "prompt":  "Selecting VendorsYour service desk system needs a new ticketing tool. Three vendors offer similar features, but one has a history of delays. How do you select the vendor?",
+                                               "category":  "Leveraging External Expertise",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with project needs. Options A, C, D, and E risk poor performance."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q054",
+                                               "prompt":  "Leveraging Cross-Organizational ExpertiseYour app development project needs AI expertise from Wissen’s data science team, but they’re focused on another client. How do you secure their support?",
+                                               "category":  "Leveraging External Expertise",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B fosters mutual benefits. Options A, C, D, and E risk conflict or delays."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q055",
+                                               "prompt":  "Incorporating External InnovationYour compliance system could benefit from blockchain-based auditing, but your team lacks expertise. An industry leader offers a solution. How do you incorporate it?",
+                                               "category":  "Leveraging External Expertise",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B leverages cutting-edge solutions. Options A, C, D, and E risk delays or missed opportunities."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "People Management",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q001",
+                                               "prompt":  "Managing High Achievers in a High-Stakes ProjectYour team is developing a critical client dashboard, and Priya, a high-performing data scientist, consistently delivers exceptional code but expresses frustration at repetitive tasks. She’s requested a leadership role in the next AI-driven feature, but her current tasks are vital to the project’s timeline. How do you balance her growth with project needs?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B ensures Priya’s motivation through tailored challenges while maintaining project stability. Options A and C risk disruptions or delayed growth, while D and E fail to address her aspirations, potentially lowering morale."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q002",
+                                               "prompt":  "Managing Low Achievers Under PressureDuring a compliance audit project, Raj, a team member, consistently misses deadlines for data validation tasks, delaying the team’s progress. The client has escalated concerns, and your team is under pressure to deliver. What is the first step to address Raj’s performance?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B addresses root causes (e.g., skill gaps, personal issues) systematically, aligning with PMI’s stakeholder management. Options A, C, D, and E risk disengagement or escalation without resolution."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q003",
+                                               "prompt":  "Induction of New Team Members Mid-ProjectA new developer, Anika, joins your app development team mid-sprint on a mobile banking app project with a tight deadline. The team is stretched, and Anika lacks domain knowledge. How do you ensure her effective integration without derailing the sprint?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B balances team workload with Anika’s learning curve. Options A, C, D, and E risk inefficiency or disengagement, failing to leverage her potential."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q004",
+                                               "prompt":  "Induction of New College GradsThree new college graduates join your service desk team, which manages 24/7 client support. They lack practical experience but show enthusiasm. The team is handling a high volume of tickets. How do you prepare them for success?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B accelerates learning through practical training. Options A, C, D, and E either delay contribution or risk errors, undermining team performance."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q005",
+                                               "prompt":  "Boosting Team Morale in a CrisisYour team is upgrading a client’s risk management system under a tight deadline. Recent overtime has led to burnout, and morale is low, with two members expressing disengagement. How do you address this while maintaining delivery?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B fosters engagement without compromising quality. Options A, C, D, and E risk disengagement or client issues, failing to address root causes."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q006",
+                                               "prompt":  "Ensuring Transparency During DelaysYour AI-ML model deployment project faces a two-week delay due to data quality issues. The team is unaware of the reasons, and rumors are causing anxiety. How do you ensure transparency?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B ensures clarity and alignment. Options A, C, D, and E risk mistrust or disengagement.[Diagram: Kanban Board] A board showing tasks (Data Cleaning, Model Tuning) with blockers in red."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q007",
+                                               "prompt":  "Fostering Team Member GrowthYour compliance team seeks advanced cybersecurity skills to handle new regulations. The current project is demanding, but team members are eager to grow. How do you facilitate their development?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B fosters proactive development and confidence. Options A, C, D, and E delay growth or disrupt priorities."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q008",
+                                               "prompt":  "Resolving Team ConflictTwo developers, Sanjay and Meera, disagree on prioritizing a UI feature vs. backend optimization for a client app, causing sprint delays. The client is pressing for delivery. How do you resolve this?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns the team with client goals. Options A, C, D, and E risk misalignment or disengagement."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q009",
+                                               "prompt":  "Leveraging Team DiversityYour global service desk team includes members from India, the US, and Europe, bringing diverse perspectives. A new ticketing system design is under debate. How do you leverage this diversity?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B leverages diversity for better outcomes. Options A, C, D, and E limit creativity or risk conflict."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q010",
+                                               "prompt":  "Retaining Key TalentVikram, a key AI-ML engineer, receives a competitor’s offer with a higher salary and a leadership role. Your project relies on his expertise, but budget constraints limit raises. How do you retain him?",
+                                               "category":  "People Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B addresses Vikram’s aspirations strategically. Options A, C, D, and E risk financial strain or disengagement."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Design Practices",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q031",
+                                               "prompt":  "User-Centric Design for a Complex SystemA client requests a real-time analytics dashboard for their supply chain. Users range from executives to warehouse staff, with varying technical skills. Your team’s initial design is too complex. How do you ensure an effective design?",
+                                               "category":  "Design Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B tailors the design to diverse needs. Options A, C, D, and E risk poor adoption or inefficiency."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q032",
+                                               "prompt":  "Designing a Scalable ArchitectureYour team is designing a cloud-based AI platform to handle 10x user growth in two years. The client demands low latency. What is the primary design consideration?",
+                                               "category":  "Design Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B supports future growth and latency needs. Options A, C, D, and E risk performance or scalability issues.[Diagram: Scalability Architecture] A diagram showing cloud, on-premise, and hybrid components."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q033",
+                                               "prompt":  "Conducting Design ReviewsYour team’s compliance system prototype receives mixed feedback from stakeholders, with some citing usability issues. The deadline is approaching. How do you proceed?",
+                                               "category":  "Design Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets usability systematically. Options A, C, D, and E risk poor quality or delays."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q034",
+                                               "prompt":  "Ensuring Accessibility in DesignYour service desk app must be accessible to visually impaired users. The client emphasizes inclusivity. How do you ensure compliance?",
+                                               "category":  "Design Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with modern standards. Options A, C, D, and E risk non-compliance or poor usability."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q035",
+                                               "prompt":  "Designing for System ResilienceA banking app must handle server failures without downtime. Your team is debating redundancy costs. How do you design for resilience?",
+                                               "category":  "Design Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B minimizes downtime proactively. Options A, C, D, and E risk outages or inefficiency."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Internal Stakeholder Management",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q023",
+                                               "prompt":  "Securing Organizational SupportYour risk management project needs additional budget for advanced analytics tools, but leadership is skeptical. How do you secure their support?",
+                                               "category":  "Internal Stakeholder Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with organizational goals. Options A, C, D, and E risk rejection or inefficiency."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q024",
+                                               "prompt":  "Providing Cross-Functional OpportunitiesA service desk team member, Arjun, seeks experience in data analytics to grow his career. Your project is on a tight schedule. How do you facilitate his growth?",
+                                               "category":  "Internal Stakeholder Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B balances project needs with development. Options A, C, D, and E limit growth or disrupt priorities."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q025",
+                                               "prompt":  "Aligning with Organizational GoalsYour app development project’s focus on user experience conflicts with Wissen’s cost-saving initiative. The client values UX. How do you align with organizational goals?",
+                                               "category":  "Internal Stakeholder Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B fosters synergy. Options A, C, D, and E risk misalignment or escalation."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q026",
+                                               "prompt":  "Fostering Cross-Department CollaborationYour compliance project needs cybersecurity expertise from another department, but they’re focused on their own priorities. How do you ensure collaboration?",
+                                               "category":  "Internal Stakeholder Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B ensures synergy. Options A, C, D, and E risk conflict or inefficiency."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Ethics",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q027",
+                                               "prompt":  "Handling Vendor IncentivesA vendor offers you a personal trip to secure their contract for a service desk system. The vendor’s solution is competitive but not the cheapest. What do you do?",
+                                               "category":  "Ethics",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with Wissen’s values. Options A, C, D, and E risk bias or ethical lapses."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q028",
+                                               "prompt":  "Ensuring Data PrivacyYour AI-ML project uses sensitive client data for predictive analytics. A team member suggests sharing anonymized data with a research partner. How do you ensure ethical handling?",
+                                               "category":  "Ethics",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B protects client trust. Options A, C, D, and E risk violations or mistrust."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q029",
+                                               "prompt":  "Managing Conflict of InterestA compliance team member, Neha, has a financial stake in a vendor bidding for your project. She’s part of the evaluation team. How do you handle this?",
+                                               "category":  "Ethics",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B prevents bias. Options A, C, D, and E risk ethical conflicts."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q030",
+                                               "prompt":  "Promoting Ethical LeadershipUnder pressure to meet a client deadline, a developer suggests bypassing security tests for a banking app. The client is unaware. How do you respond?",
+                                               "category":  "Ethics",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B upholds quality and trust. Options A, C, D, and E risk security or client dissatisfaction."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Development Practices",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q036",
+                                               "prompt":  "Improving Code QualityYour AI-ML team’s code for a predictive model has inconsistent standards, causing frequent bugs. The client expects high reliability. What is the first step?",
+                                               "category":  "Development Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B systematizes quality control. Options A, C, D, and E risk inconsistency or delays."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q037",
+                                               "prompt":  "Implementing CI/CDYour app development team faces delays due to manual deployments, risking client deadlines. How do you improve efficiency?",
+                                               "category":  "Development Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with DevOps practices. Options A, C, D, and E risk errors or delays."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q038",
+                                               "prompt":  "Handling System ErrorsYour service desk system crashes due to unhandled user inputs, impacting client operations. The team is under pressure to fix it. What is the best approach?",
+                                               "category":  "Development Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets root causes. Options A, C, D, and E risk inefficiency or client distrust."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q039",
+                                               "prompt":  "Ensuring Code ScalabilityYour AI platform struggles with high user loads, causing delays. The client expects seamless performance. What is the first step?",
+                                               "category":  "Development Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets specific issues. Options A, C, D, and E risk inefficiency or quality loss."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q040",
+                                               "prompt":  "Managing Version Control ConflictsYour compliance team’s code updates in Git cause frequent merge conflicts, delaying audits. How do you address this?",
+                                               "category":  "Development Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B streamlines workflows. Options A, C, D, and E risk delays or inefficiency."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Customer Management",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q011",
+                                               "prompt":  "Handling Unrealistic Client DeadlinesA client demands a new compliance dashboard in six weeks, but your team’s Gantt chart estimates ten weeks due to regulatory checks. The client threatens to escalate. How do you handle this pushback?",
+                                               "category":  "Customer Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B uses evidence to align expectations. Options A, C, D, and E risk quality or client trust.[Diagram: Gantt Chart] A timeline showing regulatory tasks vs. client’s requested schedule."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q012",
+                                               "prompt":  "Proactive Client CommunicationA banking app project is on track, but the client is anxious due to past vendor delays. They request weekly updates, but your team is focused on coding. How do you ensure effective communication?",
+                                               "category":  "Customer Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B builds trust without overburdening the team. Options A, C, D, and E risk miscommunication or disengagement."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q013",
+                                               "prompt":  "Acting as the Customer’s CustodianA client insists on a feature that increases app latency by 20%, risking user adoption. Your team suggests alternatives, but the client is adamant. How do you advocate for their interests?",
+                                               "category":  "Customer Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B balances client needs with technical feasibility. Options A, C, D, and E risk misalignment or quality issues."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q014",
+                                               "prompt":  "Meeting Client CommitmentsYour service desk upgrade project risks missing a client deadline due to a server failure. The client expects 99.9% uptime. How do you address this while maintaining commitments?",
+                                               "category":  "Customer Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B addresses the issue systematically. Options A, C, D, and E risk client dissatisfaction or inefficiency."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q015",
+                                               "prompt":  "Maximizing Client Wallet ShareA client using your AI analytics platform requests predictive maintenance features. Your team can deliver this, but resources are limited. How do you maximize wallet share?",
+                                               "category":  "Customer Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with client needs and revenue goals. Options A, C, D, and E risk lost opportunities or misalignment."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q016",
+                                               "prompt":  "Addressing Negative Client FeedbackA client reports that your risk management system’s UI is unintuitive, impacting adoption. Your team is focused on backend fixes. How do you address this feedback?",
+                                               "category":  "Customer Management",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets root causes. Options A, C, D, and E risk ineffective solutions or client distrust."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Automation Practices",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q046",
+                                               "prompt":  "Implementing Test AutomationManual testing for your banking app delays releases, risking client deadlines. The team is unfamiliar with automation tools. How do you address this?",
+                                               "category":  "Automation Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with modern practices. Options A, C, D, and E risk delays or quality issues."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q047",
+                                               "prompt":  "Automating Repetitive ProcessesYour compliance team spends hours on manual data entry for audits, impacting productivity. The client expects faster audits. How do you improve efficiency?",
+                                               "category":  "Automation Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B streamlines workflows. Options A, C, D, and E risk inefficiency or quality loss.[Diagram: Kanban Board] A board showing automated data entry tasks."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q048",
+                                               "prompt":  "Automating DeploymentsYour app team’s manual deployments cause errors, delaying a client release. The client expects zero-downtime updates. How do you improve deployments?",
+                                               "category":  "Automation Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B minimizes errors. Options A, C, D, and E risk delays or client dissatisfaction."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q049",
+                                               "prompt":  "Automating System MonitoringYour AI platform experiences intermittent outages, unnoticed until clients complain. The client demands proactive monitoring. How do you address this?",
+                                               "category":  "Automation Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B proactively prevents outages. Options A, C, D, and E risk client dissatisfaction."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q050",
+                                               "prompt":  "Scaling Automation ProcessesYour automated compliance audit scripts fail under high data volumes, delaying reports. The client expects scalability. What is the first step?",
+                                               "category":  "Automation Practices",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B targets bottlenecks. Options A, C, D, and E risk inefficiency or delays."
+                                                            }
+                                           }
+                                       ]
+                     },
+                     {
+                         "title":  "Continuous Learning Culture",
+                         "kind":  "SCENARIO",
+                         "questions":  [
+                                           {
+                                               "code":  "q056",
+                                               "prompt":  "Building Team SkillsYour app team lacks skills in serverless computing, needed for a client’s cloud migration. The project is time-sensitive. How do you address this?",
+                                               "category":  "Continuous Learning Culture",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with Wissen’s learning culture. Options A, C, D, and E risk delays or dependency."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q057",
+                                               "prompt":  "Promoting Knowledge SharingYour data science team develops a new ML algorithm, but only a few members understand it, risking silos. How do you ensure knowledge sharing?",
+                                               "category":  "Continuous Learning Culture",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B fosters collaboration. Options A, C, D, and E risk inefficiency or silos."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q058",
+                                               "prompt":  "Learning from Project FailuresYour service desk system upgrade fails due to integration issues, delaying client rollout. How do you foster learning from this?",
+                                               "category":  "Continuous Learning Culture",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B drives systemic learning. Options A, C, D, and E risk recurrence or disengagement."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q059",
+                                               "prompt":  "Staying Updated on TrendsYour compliance team must adopt new GDPR regulations, but they’re focused on current audits. How do you keep them updated?",
+                                               "category":  "Continuous Learning Culture",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B proactively builds expertise. Options A, C, D, and E risk non-compliance or delays."
+                                                            }
+                                           },
+                                           {
+                                               "code":  "q060",
+                                               "prompt":  "Fostering MentorshipYour app development team lacks senior mentors, impacting junior developers’ growth. The client expects rapid skill development. How do you foster mentorship?",
+                                               "category":  "Continuous Learning Culture",
+                                               "questionType":  "SJT_SINGLE",
+                                               "reverse":  false,
+                                               "scaleMin":  1,
+                                               "scaleMax":  5,
+                                               "options":  [
+
+                                                           ],
+                                               "metadata":  {
+                                                                "correctOption":  null,
+                                                                "correctScore":  0,
+                                                                "explanation":  "Option B aligns with Wissen’s learning culture. Options A, C, D, and E risk inconsistent development."
+                                                            }
+                                           }
+                                       ]
+                     }
+                 ],
+    "policy":  {
+                   "showResultsToEmployee":  true,
+                   "resultReleaseDelayHours":  0,
+                   "postSubmitMessage":  "Thanks for completing your assessment.",
+                   "leaderCanViewFullReport":  true
+               }
+}
