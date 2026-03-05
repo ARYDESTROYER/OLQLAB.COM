@@ -49,6 +49,7 @@ export default function UsersClient() {
     "createdAt",
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [busyUserId, setBusyUserId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [showOptionalFields, setShowOptionalFields] = useState(false);
@@ -662,109 +663,124 @@ export default function UsersClient() {
 
       {/* ── User Directory ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
-            placeholder="Search users…"
-          />
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={selectedTenantId}
-            onChange={(e) => setSelectedTenantId(e.target.value)}
-          >
-            <option value="">All organizations</option>
-            {orgTenants.map((tenant) => (
-              <option key={tenant.id} value={tenant.id}>
-                {tenant.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={selectedRole}
-            onChange={(e) =>
-              setSelectedRole(e.target.value as "" | "ADMIN" | "EMPLOYEE" | "LEADER")
-            }
-          >
-            <option value="">All roles</option>
-            <option value="EMPLOYEE">EMPLOYEE</option>
-            <option value="LEADER">LEADER</option>
-            <option value="ADMIN">ADMIN</option>
-          </select>
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={selectedTenantType}
-            onChange={(e) =>
-              setSelectedTenantType(e.target.value as "" | "ORGANIZATION" | "SOLO")
-            }
-          >
-            <option value="">All tenant types</option>
-            <option value="ORGANIZATION">Organization</option>
-            <option value="SOLO">Solo</option>
-          </select>
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={selectedManagerFilter}
-            onChange={(e) =>
-              setSelectedManagerFilter(e.target.value as "" | "WITH" | "WITHOUT")
-            }
-          >
-            <option value="">Manager: Any</option>
-            <option value="WITH">With manager</option>
-            <option value="WITHOUT">Without manager</option>
-          </select>
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={selectedTenantArchived}
-            onChange={(e) =>
-              setSelectedTenantArchived(e.target.value as "" | "ACTIVE" | "ARCHIVED")
-            }
-          >
-            <option value="">Tenant status: Any</option>
-            <option value="ACTIVE">Active tenants</option>
-            <option value="ARCHIVED">Archived tenants</option>
-          </select>
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={sortBy}
-            onChange={(e) =>
-              setSortBy(e.target.value as "createdAt" | "updatedAt" | "name" | "email")
-            }
-          >
-            <option value="createdAt">Sort: Created</option>
-            <option value="updatedAt">Sort: Updated</option>
-            <option value="name">Sort: Name</option>
-            <option value="email">Sort: Email</option>
-          </select>
-          <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
-          >
-            <option value="desc">Newest first</option>
-            <option value="asc">Oldest first</option>
-          </select>
-          <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
-            onClick={loadUsers}
-          >
-            Refresh
-          </button>
-          <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
-            onClick={clearAdvancedFilters}
-          >
-            Clear Filters
-          </button>
-          <button
-            className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
-            onClick={exportUsersCsv}
-          >
-            Export CSV
-          </button>
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              className="w-full min-w-[240px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
+              placeholder="Search users..."
+            />
+            <select
+              className="min-w-[190px] rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              value={selectedTenantId}
+              onChange={(e) => setSelectedTenantId(e.target.value)}
+            >
+              <option value="">All organizations</option>
+              {orgTenants.map((tenant) => (
+                <option key={tenant.id} value={tenant.id}>
+                  {tenant.name}
+                </option>
+              ))}
+            </select>
+            <select
+              className="min-w-[150px] rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              value={selectedRole}
+              onChange={(e) =>
+                setSelectedRole(e.target.value as "" | "ADMIN" | "EMPLOYEE" | "LEADER")
+              }
+            >
+              <option value="">All roles</option>
+              <option value="EMPLOYEE">EMPLOYEE</option>
+              <option value="LEADER">LEADER</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+            <button
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              onClick={() => setShowAdvancedFilters((prev) => !prev)}
+            >
+              {showAdvancedFilters ? "Hide Filters" : "More Filters"}
+            </button>
+            <button
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              onClick={loadUsers}
+            >
+              Refresh
+            </button>
+            <button
+              className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+              onClick={exportUsersCsv}
+            >
+              Export CSV
+            </button>
+          </div>
+
+          {showAdvancedFilters && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={selectedTenantType}
+                  onChange={(e) =>
+                    setSelectedTenantType(e.target.value as "" | "ORGANIZATION" | "SOLO")
+                  }
+                >
+                  <option value="">All tenant types</option>
+                  <option value="ORGANIZATION">Organization</option>
+                  <option value="SOLO">Solo</option>
+                </select>
+                <select
+                  className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={selectedManagerFilter}
+                  onChange={(e) =>
+                    setSelectedManagerFilter(e.target.value as "" | "WITH" | "WITHOUT")
+                  }
+                >
+                  <option value="">Manager: Any</option>
+                  <option value="WITH">With manager</option>
+                  <option value="WITHOUT">Without manager</option>
+                </select>
+                <select
+                  className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={selectedTenantArchived}
+                  onChange={(e) =>
+                    setSelectedTenantArchived(e.target.value as "" | "ACTIVE" | "ARCHIVED")
+                  }
+                >
+                  <option value="">Tenant status: Any</option>
+                  <option value="ACTIVE">Active tenants</option>
+                  <option value="ARCHIVED">Archived tenants</option>
+                </select>
+                <select
+                  className="min-w-[150px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={sortBy}
+                  onChange={(e) =>
+                    setSortBy(e.target.value as "createdAt" | "updatedAt" | "name" | "email")
+                  }
+                >
+                  <option value="createdAt">Sort: Created</option>
+                  <option value="updatedAt">Sort: Updated</option>
+                  <option value="name">Sort: Name</option>
+                  <option value="email">Sort: Email</option>
+                </select>
+                <select
+                  className="min-w-[140px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+                >
+                  <option value="desc">Newest first</option>
+                  <option value="asc">Oldest first</option>
+                </select>
+                <button
+                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                  onClick={clearAdvancedFilters}
+                >
+                  Clear Filters
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {selectedUserIds.length > 0 && (
@@ -818,7 +834,7 @@ export default function UsersClient() {
           </div>
         )}
 
-        <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
+        <div className="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-slate-200">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>

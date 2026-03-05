@@ -24,7 +24,9 @@ const variantClasses: Record<string, string> = {
 
 export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
     const [open, setOpen] = useState(false);
+    const [openUpward, setOpenUpward] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    const triggerRef = useRef<HTMLButtonElement>(null);
 
     // Close on outside click
     useEffect(() => {
@@ -48,13 +50,26 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
         return () => document.removeEventListener("keydown", handleKey);
     }, [open]);
 
+    function handleToggleMenu() {
+        const nextOpen = !open;
+        if (nextOpen && triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            const estimatedMenuHeight = 180;
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            setOpenUpward(spaceBelow < estimatedMenuHeight && spaceAbove > estimatedMenuHeight);
+        }
+        setOpen(nextOpen);
+    }
+
     const visibleActions = actions.filter((a) => !a.hidden);
     if (visibleActions.length === 0) return null;
 
     return (
         <div className="relative inline-block" ref={menuRef}>
             <button
-                onClick={() => setOpen((prev) => !prev)}
+                ref={triggerRef}
+                onClick={handleToggleMenu}
                 className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-medium hover:bg-slate-50 transition-colors"
                 aria-haspopup="true"
                 aria-expanded={open}
@@ -63,7 +78,11 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
             </button>
 
             {open && (
-                <div className="absolute right-0 top-full z-50 mt-1.5 min-w-[160px] rounded-xl border border-slate-200 bg-white py-1 shadow-xl animate-slide-in-menu">
+                <div
+                    className={`absolute right-0 z-50 min-w-[160px] rounded-xl border border-slate-200 bg-white py-1 shadow-xl animate-slide-in-menu ${
+                        openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"
+                    }`}
+                >
                     {visibleActions.map((action, idx) => (
                         <button
                             key={idx}
