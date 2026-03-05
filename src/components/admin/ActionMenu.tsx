@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export type ActionItem = {
     label: string;
@@ -24,9 +25,13 @@ const variantClasses: Record<string, string> = {
 
 export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
     const [open, setOpen] = useState(false);
-    const [openUpward, setOpenUpward] = useState(false);
+    const [menuTop, setMenuTop] = useState(0);
+    const [menuLeft, setMenuLeft] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
+    const estimatedMenuHeight = 180;
+    const menuWidth = 180;
+    const viewportPadding = 8;
 
     // Close on outside click
     useEffect(() => {
@@ -50,17 +55,49 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
         return () => document.removeEventListener("keydown", handleKey);
     }, [open]);
 
-    function handleToggleMenu() {
-        const nextOpen = !open;
-        if (nextOpen && triggerRef.current) {
-            const rect = triggerRef.current.getBoundingClientRect();
-            const estimatedMenuHeight = 180;
-            const spaceBelow = window.innerHeight - rect.bottom;
-            const spaceAbove = rect.top;
-            setOpenUpward(spaceBelow < estimatedMenuHeight && spaceAbove > estimatedMenuHeight);
+    function updateMenuPosition() {
+        if (!triggerRef.current) return;
+
+        const rect = triggerRef.current.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        let top = rect.bottom + 6;
+        if (spaceBelow < estimatedMenuHeight && spaceAbove > estimatedMenuHeight) {
+            top = Math.max(viewportPadding, rect.top - estimatedMenuHeight - 6);
         }
-        setOpen(nextOpen);
+
+        let left = rect.right - menuWidth;
+        left = Math.max(
+            viewportPadding,
+            Math.min(left, window.innerWidth - menuWidth - viewportPadding),
+        );
+
+        setMenuTop(top);
+        setMenuLeft(left);
     }
+
+    function handleToggleMenu() {
+        if (!open) {
+            updateMenuPosition();
+            setOpen(true);
+            return;
+        }
+        setOpen(false);
+    }
+
+    useEffect(() => {
+        if (!open) return;
+        function handleViewportChange() {
+            updateMenuPosition();
+        }
+        window.addEventListener("resize", handleViewportChange);
+        window.addEventListener("scroll", handleViewportChange, true);
+        return () => {
+            window.removeEventListener("resize", handleViewportChange);
+            window.removeEventListener("scroll", handleViewportChange, true);
+        };
+    }, [open]);
 
     const visibleActions = actions.filter((a) => !a.hidden);
     if (visibleActions.length === 0) return null;
@@ -77,11 +114,10 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
                 {triggerLabel || "Actions ▾"}
             </button>
 
-            {open && (
+            {open && typeof document !== "undefined" && createPortal(
                 <div
-                    className={`absolute right-0 z-50 min-w-[160px] rounded-xl border border-slate-200 bg-white py-1 shadow-xl animate-slide-in-menu ${
-                        openUpward ? "bottom-full mb-1.5" : "top-full mt-1.5"
-                    }`}
+                    className="fixed z-[10000] min-w-[160px] rounded-xl border border-slate-200 bg-white py-1 shadow-xl animate-slide-in-menu"
+                    style={{ top: menuTop, left: menuLeft, width: menuWidth }}
                 >
                     {visibleActions.map((action, idx) => (
                         <button
@@ -97,7 +133,8 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
                             {action.label}
                         </button>
                     ))}
-                </div>
+                </div>,
+                document.body,
             )}
         </div>
     );
