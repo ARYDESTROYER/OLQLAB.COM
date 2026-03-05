@@ -14,12 +14,24 @@ type Tenant = {
   isArchived: boolean;
   createdAt: string;
   updatedAt: string;
+  seatsUsed?: number;
+  usersCount?: number;
+  seatUtilization?: number;
+  seatState?: "HAS_ROOM" | "AT_CAPACITY" | "OVER_CAPACITY";
 };
 
 export default function TenantsClient() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [query, setQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<"" | "ORGANIZATION" | "SOLO">("ORGANIZATION");
+  const [seatStateFilter, setSeatStateFilter] = useState<
+    "" | "HAS_ROOM" | "AT_CAPACITY" | "OVER_CAPACITY"
+  >("");
+  const [sortBy, setSortBy] = useState<
+    "updatedAt" | "createdAt" | "name" | "seatLimit" | "seatsUsed" | "seatUtilization"
+  >("updatedAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [busyTenantId, setBusyTenantId] = useState("");
 
   const [createForm, setCreateForm] = useState({
@@ -43,11 +55,14 @@ export default function TenantsClient() {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (includeArchived) params.set("includeArchived", "1");
+    if (typeFilter) params.set("type", typeFilter);
+    if (seatStateFilter) params.set("seatState", seatStateFilter);
+    params.set("sortBy", sortBy);
+    params.set("sortOrder", sortOrder);
 
     const res = await fetch(`/api/admin/tenants?${params.toString()}`);
     const data = await res.json();
-    // Filter: only show ORGANIZATION tenants in the UI
-    const rows = (data.tenants || []).filter((t: Tenant) => t.type === "ORGANIZATION");
+    const rows = data.tenants || [];
     setTenants(rows);
 
     setEditByTenant((prev) => {
@@ -63,7 +78,7 @@ export default function TenantsClient() {
       }
       return next;
     });
-  }, [includeArchived, query]);
+  }, [includeArchived, query, seatStateFilter, sortBy, sortOrder, typeFilter]);
 
   useEffect(() => {
     loadTenants();
@@ -71,6 +86,15 @@ export default function TenantsClient() {
 
   function handleSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") loadTenants();
+  }
+
+  function resetFilters() {
+    setQuery("");
+    setIncludeArchived(false);
+    setTypeFilter("ORGANIZATION");
+    setSeatStateFilter("");
+    setSortBy("updatedAt");
+    setSortOrder("desc");
   }
 
   async function createTenant() {
@@ -151,6 +175,40 @@ export default function TenantsClient() {
     ];
   }
 
+  async function exportTenantsCsv() {
+    try {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("q", query.trim());
+      if (includeArchived) params.set("includeArchived", "1");
+      if (typeFilter) params.set("type", typeFilter);
+      if (seatStateFilter) params.set("seatState", seatStateFilter);
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      params.set("format", "csv");
+      params.set("limit", "5000");
+
+      const res = await fetch(`/api/admin/tenants?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast((data as { error?: string }).error || "Failed to export CSV.", "error");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `admin-tenants-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast("CSV export started.", "success");
+    } catch {
+      toast("Failed to export CSV.", "error");
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* ── Create Organization ── */}
@@ -201,6 +259,61 @@ export default function TenantsClient() {
             onKeyDown={handleSearchKeyDown}
             placeholder="Search organizations…"
           />
+          <select
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            value={typeFilter}
+            onChange={(e) =>
+              setTypeFilter(e.target.value as "" | "ORGANIZATION" | "SOLO")
+            }
+          >
+            <option value="">All tenant types</option>
+            <option value="ORGANIZATION">Organizations</option>
+            <option value="SOLO">Solo tenants</option>
+          </select>
+          <select
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            value={seatStateFilter}
+            onChange={(e) =>
+              setSeatStateFilter(
+                e.target.value as "" | "HAS_ROOM" | "AT_CAPACITY" | "OVER_CAPACITY",
+              )
+            }
+          >
+            <option value="">Capacity: Any</option>
+            <option value="HAS_ROOM">Has room</option>
+            <option value="AT_CAPACITY">At capacity</option>
+            <option value="OVER_CAPACITY">Over capacity</option>
+          </select>
+          <select
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            value={sortBy}
+            onChange={(e) =>
+              setSortBy(
+                e.target.value as
+                  | "updatedAt"
+                  | "createdAt"
+                  | "name"
+                  | "seatLimit"
+                  | "seatsUsed"
+                  | "seatUtilization",
+              )
+            }
+          >
+            <option value="updatedAt">Sort: Updated</option>
+            <option value="createdAt">Sort: Created</option>
+            <option value="name">Sort: Name</option>
+            <option value="seatLimit">Sort: Seat limit</option>
+            <option value="seatsUsed">Sort: Seats used</option>
+            <option value="seatUtilization">Sort: Utilization</option>
+          </select>
+          <select
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
           <label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
             <input
               type="checkbox"
@@ -215,6 +328,18 @@ export default function TenantsClient() {
           >
             Refresh
           </button>
+          <button
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+            onClick={resetFilters}
+          >
+            Clear Filters
+          </button>
+          <button
+            className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+            onClick={exportTenantsCsv}
+          >
+            Export CSV
+          </button>
         </div>
 
         <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
@@ -222,7 +347,9 @@ export default function TenantsClient() {
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">Organization</th>
+                <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2">Seat Limit</th>
+                <th className="px-3 py-2">Usage</th>
                 <th className="px-3 py-2">Archived</th>
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
@@ -233,7 +360,7 @@ export default function TenantsClient() {
                   icon="🏢"
                   title="No organizations found"
                   description="Create a new organization or adjust your search."
-                  colSpan={4}
+                  colSpan={6}
                 />
               ) : (
                 tenants.map((tenant) => (
@@ -255,6 +382,11 @@ export default function TenantsClient() {
                       <p className="mt-1 text-[11px] text-slate-400">{tenant.id}</p>
                     </td>
                     <td className="px-3 py-2">
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                        {tenant.type}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2">
                       <input
                         type="number"
                         min={1}
@@ -270,6 +402,17 @@ export default function TenantsClient() {
                           }))
                         }
                       />
+                    </td>
+                    <td className="px-3 py-2 text-xs text-slate-600">
+                      <div className="font-medium">
+                        {tenant.seatsUsed ?? 0}/{tenant.seatLimit}
+                      </div>
+                      <div>
+                        {tenant.seatUtilization ?? 0}% ·{" "}
+                        {tenant.seatState
+                          ? tenant.seatState.replaceAll("_", " ")
+                          : "HAS ROOM"}
+                      </div>
                     </td>
                     <td className="px-3 py-2">
                       <label className="flex items-center gap-2 text-xs">

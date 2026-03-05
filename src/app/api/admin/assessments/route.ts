@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
+import { buildCsv } from "@/lib/csv";
 
 type CompetencyInput = {
   code: string;
@@ -61,6 +62,20 @@ function pickQuestionType(input?: string) {
 
 function pickSectionKind(input?: string) {
   return input === "SCENARIO" ? "SCENARIO" : "PERSONALITY";
+}
+
+function parseLimit(raw: string | null, fallback: number, max: number) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  const rounded = Math.floor(parsed);
+  if (rounded < 1) return 1;
+  return Math.min(rounded, max);
+}
+
+function parsePercent(raw: string | null) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return undefined;
+  return Math.max(0, Math.min(100, parsed));
 }
 
 async function countEligibleUsersForAssessment(assessmentId: string) {
@@ -329,12 +344,58 @@ export async function GET(req: NextRequest) {
   const check = await requireAdmin();
   if ("error" in check) return check.error;
 
+  const params = req.nextUrl.searchParams;
   const ownerTenantId =
-    req.nextUrl.searchParams.get("ownerTenantId")?.trim() ||
-    req.nextUrl.searchParams.get("tenantId")?.trim();
-  const q = req.nextUrl.searchParams.get("q")?.trim();
+    params.get("ownerTenantId")?.trim() || params.get("tenantId")?.trim();
+  const q = params.get("q")?.trim();
+  const statusParam = params.get("status")?.trim().toUpperCase();
+  const minCompletionRate = parsePercent(params.get("minCompletionRate"));
+  const maxCompletionRate = parsePercent(params.get("maxCompletionRate"));
+  const sortBy = params.get("sortBy")?.trim() || "createdAt";
+  const sortOrder = params.get("sortOrder")?.trim().toLowerCase() === "asc" ? "asc" : "desc";
+  const format = params.get("format")?.trim().toLowerCase();
+  const isCsv = format === "csv";
+  const take = parseLimit(params.get("limit"), isCsv ? 2000 : 100, isCsv ? 5000 : 500);
+  const fetchLimit = Math.max(take, isCsv ? take : 300);
+  const isPublishedFilter =
+    statusParam === "PUBLISHED"
+      ? true
+      : statusParam === "DRAFT"
+        ? false
+        : undefined;
 
-  let withStats: Array<Record<string, unknown>> = [];
+  type AssessmentListRow = {
+    id: string;
+    title: string;
+    isPublished: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    ownerTenant: {
+      id: string;
+      name: string;
+    } | null;
+    _count: {
+      questions: number;
+      sessions: number;
+      userEnrollments: number;
+      tenantEnrollments: number;
+    };
+    participantCounts: {
+      total: number;
+      completed: number;
+      inProgress: number;
+      notStarted: number;
+    };
+    completionRate: number;
+    policy: {
+      showResultsToEmployee: boolean;
+      resultReleaseDelayHours: number;
+      postSubmitMessage: string;
+      leaderCanViewFullReport: boolean;
+    } | null;
+  };
+
+  let withStats: AssessmentListRow[] = [];
   try {
     const assessments = await db.assessment.findMany({
       where: {
@@ -349,6 +410,11 @@ export async function GET(req: NextRequest) {
                 contains: q,
                 mode: "insensitive",
               },
+            }
+          : {}),
+        ...(typeof isPublishedFilter === "boolean"
+          ? {
+              isPublished: isPublishedFilter,
             }
           : {}),
       },
@@ -370,7 +436,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 30,
+      take: fetchLimit,
     });
 
     withStats = await Promise.all(
@@ -419,6 +485,11 @@ export async function GET(req: NextRequest) {
               },
             }
           : {}),
+        ...(typeof isPublishedFilter === "boolean"
+          ? {
+              isPublished: isPublishedFilter,
+            }
+          : {}),
       },
       include: {
         policy: true,
@@ -436,7 +507,7 @@ export async function GET(req: NextRequest) {
         },
       },
       orderBy: { createdAt: "desc" },
-      take: 30,
+      take: fetchLimit,
     });
 
     withStats = await Promise.all(
@@ -475,7 +546,87 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ assessments: withStats });
+  let filtered = withStats;
+  if (typeof minCompletionRate === "number") {
+    filtered = filtered.filter(
+      (assessment) => assessment.completionRate >= minCompletionRate,
+    );
+  }
+  if (typeof maxCompletionRate === "number") {
+    filtered = filtered.filter(
+      (assessment) => assessment.completionRate <= maxCompletionRate,
+    );
+  }
+
+  filtered.sort((a, b) => {
+    const direction = sortOrder === "asc" ? 1 : -1;
+    if (sortBy === "title") return a.title.localeCompare(b.title) * direction;
+    if (sortBy === "completionRate") {
+      return (a.completionRate - b.completionRate) * direction;
+    }
+    if (sortBy === "participants") {
+      return (a.participantCounts.total - b.participantCounts.total) * direction;
+    }
+    if (sortBy === "updatedAt") {
+      return (a.updatedAt.getTime() - b.updatedAt.getTime()) * direction;
+    }
+    return (a.createdAt.getTime() - b.createdAt.getTime()) * direction;
+  });
+
+  const sliced = filtered.slice(0, take);
+
+  if (isCsv) {
+    const csv = buildCsv(
+      [
+        "id",
+        "title",
+        "status",
+        "ownerTenantId",
+        "ownerTenantName",
+        "questions",
+        "sessions",
+        "userEnrollments",
+        "tenantEnrollments",
+        "participantsTotal",
+        "participantsCompleted",
+        "participantsInProgress",
+        "participantsNotStarted",
+        "completionRate",
+        "createdAt",
+        "updatedAt",
+      ],
+      sliced.map((assessment) => [
+        assessment.id,
+        assessment.title,
+        assessment.isPublished ? "PUBLISHED" : "DRAFT",
+        assessment.ownerTenant?.id ?? "",
+        assessment.ownerTenant?.name ?? "",
+        assessment._count.questions,
+        assessment._count.sessions,
+        assessment._count.userEnrollments,
+        assessment._count.tenantEnrollments,
+        assessment.participantCounts.total,
+        assessment.participantCounts.completed,
+        assessment.participantCounts.inProgress,
+        assessment.participantCounts.notStarted,
+        assessment.completionRate,
+        assessment.createdAt,
+        assessment.updatedAt,
+      ]),
+    );
+
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="admin-assessments-${new Date()
+          .toISOString()
+          .slice(0, 10)}.csv"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  return NextResponse.json({ assessments: sliced });
 }
 
 export async function POST(req: NextRequest) {

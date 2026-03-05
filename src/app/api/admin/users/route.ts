@@ -1,43 +1,191 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma, Role, TenantType } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
+import { buildCsv } from "@/lib/csv";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+function parseLimit(raw: string | null, fallback: number, max: number) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  const rounded = Math.floor(parsed);
+  if (rounded < 1) return 1;
+  return Math.min(rounded, max);
 }
 
 export async function GET(req: NextRequest) {
   const check = await requireAdmin();
   if ("error" in check) return check.error;
 
-  const tenantId = req.nextUrl.searchParams.get("tenantId")?.trim();
-  const q = req.nextUrl.searchParams.get("q")?.trim();
+  const params = req.nextUrl.searchParams;
+  const tenantId = params.get("tenantId")?.trim();
+  const q = params.get("q")?.trim();
+  const roleParam = params.get("role")?.trim().toUpperCase();
+  const tenantTypeParam = params.get("tenantType")?.trim().toUpperCase();
+  const hasManagerParam = params.get("hasManager")?.trim();
+  const tenantArchivedParam = params.get("tenantArchived")?.trim();
+  const sortBy = params.get("sortBy")?.trim() || "createdAt";
+  const sortOrder = params.get("sortOrder")?.trim().toLowerCase() === "asc" ? "asc" : "desc";
+  const format = params.get("format")?.trim().toLowerCase();
+  const isCsv = format === "csv";
+  const take = parseLimit(
+    params.get("limit"),
+    isCsv ? 2000 : 100,
+    isCsv ? 5000 : 500,
+  );
 
-  const users = await db.user.findMany({
-    where: {
-      ...(tenantId ? { tenantId } : {}),
-      ...(q
-        ? {
-            OR: [
-              { email: { contains: q, mode: "insensitive" } },
-              { firstName: { contains: q, mode: "insensitive" } },
-              { lastName: { contains: q, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    },
-    include: {
+  const role: Role | undefined =
+    roleParam === "ADMIN" || roleParam === "EMPLOYEE" || roleParam === "LEADER"
+      ? roleParam
+      : undefined;
+  const tenantType: TenantType | undefined =
+    tenantTypeParam === "ORGANIZATION" || tenantTypeParam === "SOLO"
+      ? tenantTypeParam
+      : undefined;
+
+  const where: Prisma.UserWhereInput = {};
+  if (tenantId) where.tenantId = tenantId;
+  if (role) where.role = role;
+  if (q) {
+    where.OR = [
+      { email: { contains: q, mode: "insensitive" } },
+      { firstName: { contains: q, mode: "insensitive" } },
+      { lastName: { contains: q, mode: "insensitive" } },
+    ];
+  }
+  if (hasManagerParam === "1") where.managerId = { not: null };
+  if (hasManagerParam === "0") where.managerId = null;
+
+  const tenantWhere: Prisma.TenantWhereInput = {};
+  if (tenantType) tenantWhere.type = tenantType;
+  if (tenantArchivedParam === "1") tenantWhere.isArchived = true;
+  if (tenantArchivedParam === "0") tenantWhere.isArchived = false;
+  if (Object.keys(tenantWhere).length > 0) where.tenant = tenantWhere;
+
+  let orderBy:
+    | Prisma.UserOrderByWithRelationInput
+    | Prisma.UserOrderByWithRelationInput[] = { createdAt: sortOrder };
+  if (sortBy === "email") {
+    orderBy = { email: sortOrder };
+  } else if (sortBy === "name") {
+    orderBy = [{ firstName: sortOrder }, { lastName: sortOrder }];
+  } else if (sortBy === "updatedAt") {
+    orderBy = { updatedAt: sortOrder };
+  }
+
+  type UserListRow = {
+    id: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: Role;
+    createdAt: Date;
+    updatedAt: Date;
+    tenant: {
+      id: string;
+      name: string;
+      type: TenantType;
+      isArchived: boolean;
+    };
+    manager: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      email: string;
+    } | null;
+  };
+
+  let users: UserListRow[] = [];
+  try {
+    users = await db.user.findMany({
+      where,
+      include: {
+        tenant: {
+          select: { id: true, name: true, type: true, isArchived: true },
+        },
+        manager: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+      orderBy,
+      take,
+    });
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+
+    const legacyWhere: Prisma.UserWhereInput = { ...where };
+    delete (legacyWhere as { tenant?: unknown }).tenant;
+
+    const legacyUsers = await db.user.findMany({
+      where: legacyWhere,
+      include: {
+        tenant: {
+          select: { id: true, name: true },
+        },
+        manager: {
+          select: { id: true, firstName: true, lastName: true, email: true },
+        },
+      },
+      orderBy,
+      take,
+    });
+
+    users = legacyUsers.map((user) => ({
+      ...user,
       tenant: {
-        select: { id: true, name: true },
+        ...user.tenant,
+        type: "ORGANIZATION",
+        isArchived: false,
       },
-      manager: {
-        select: { id: true, firstName: true, lastName: true, email: true },
+    }));
+  }
+
+  if (isCsv) {
+    const csv = buildCsv(
+      [
+        "id",
+        "email",
+        "firstName",
+        "lastName",
+        "role",
+        "tenantId",
+        "tenantName",
+        "tenantType",
+        "tenantArchived",
+        "managerEmail",
+        "createdAt",
+        "updatedAt",
+      ],
+      users.map((user) => [
+        user.id,
+        user.email,
+        user.firstName,
+        user.lastName,
+        user.role,
+        user.tenant?.id,
+        user.tenant?.name,
+        user.tenant?.type,
+        user.tenant?.isArchived ?? false,
+        user.manager?.email ?? "",
+        user.createdAt,
+        user.updatedAt,
+      ]),
+    );
+
+    return new NextResponse(csv, {
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="admin-users-${new Date()
+          .toISOString()
+          .slice(0, 10)}.csv"`,
+        "Cache-Control": "no-store",
       },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
+    });
+  }
 
   return NextResponse.json({ users });
 }

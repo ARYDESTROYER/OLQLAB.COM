@@ -129,6 +129,10 @@ Rollback behavior:
 
 ### 7.1 Assessments
 - `GET /api/admin/assessments`
+  - supports advanced filters/sort query params:
+    - `q`, `status`, `minCompletionRate`, `maxCompletionRate`
+    - `sortBy` (`createdAt|updatedAt|title|completionRate|participants`), `sortOrder`, `limit`
+  - supports CSV export via `format=csv`
 - `POST /api/admin/assessments` (tenant not required)
 - `GET /api/admin/assessments/:id`
 - `PATCH /api/admin/assessments/:id`
@@ -141,6 +145,10 @@ Rollback behavior:
 
 ### 7.2 Users
 - `GET /api/admin/users`
+  - supports advanced filters/sort query params:
+    - `q`, `tenantId`, `role`, `tenantType`, `hasManager`, `tenantArchived`
+    - `sortBy` (`createdAt|updatedAt|name|email`), `sortOrder`, `limit`
+  - supports CSV export via `format=csv`
 - `POST /api/admin/users`
 - `PATCH /api/admin/users/:id`
 - `DELETE /api/admin/users/:id`
@@ -150,6 +158,10 @@ Rollback behavior:
 
 ### 7.3 Tenants
 - `GET /api/admin/tenants`
+  - supports advanced filters/sort query params:
+    - `q`, `includeArchived`, `type`, `seatState`
+    - `sortBy` (`updatedAt|createdAt|name|seatLimit|seatsUsed|seatUtilization`), `sortOrder`, `limit`
+  - supports CSV export via `format=csv`
 - `POST /api/admin/tenants`
 - `PATCH /api/admin/tenants/:id`
 - `GET /api/admin/tenants/:id/users`
@@ -243,16 +255,25 @@ Validation rules:
 - solo participants can be grouped into an organization later via Move
 - delete user (non-admin, with confirmation dialog)
 - move user between organizations (seat checks)
+- bulk actions for selected users:
+  - move selected users
+  - make selected users solo
+  - delete selected users
 - inspect tests: slide-over panel showing sessions table, report archives
 - inspect access: slide-over panel showing enrolled assessments and access status
 - enrollment/unenrollment managed from Assessment > Access tab (not on users page)
 - SOLO tenants hidden from org dropdowns but users show "(Solo)" label
+- advanced filters and sorting available in-table
+- CSV export button available for filtered result set
 
 ### 12.2 Tenants section (Organization Directory)
 - create organization: name + seat limit (always ORGANIZATION type, SOLO tenants hidden from UI)
 - inline edit name, seat limit, archived status
 - inspect organization users/access via slide-over panel
-- SOLO tenants filtered out of table view
+- default filter shows ORGANIZATION rows; SOLO rows can be viewed by changing tenant-type filter
+- seat-capacity state view (`HAS_ROOM | AT_CAPACITY | OVER_CAPACITY`) and utilization shown per row
+- advanced filters and sorting available in-table
+- CSV export button available for filtered result set
 
 ### 12.3 Assessments section
 - create assessment: title only (no owner tenant — access managed from detail page)
@@ -263,6 +284,9 @@ Validation rules:
 - clicking "View Report" opens the Google Docs-lite Report Editor (`/admin/reports/[id]`) to review/edit AI drafts or publish them.
 - all actions display toast notifications instead of raw JSON output
 - run unenroll wizard with scheduling and report mode controls
+- advanced filters and sorting available in-table
+- completion-rate range filtering available
+- CSV export button available for filtered result set
 
 ## 13. Validation checklist
 

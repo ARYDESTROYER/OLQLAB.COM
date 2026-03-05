@@ -478,3 +478,30 @@ This file is the append-only engineering diary for implementation work in this r
   - If normalization is mixed with feature changes, diffs become noisy and code review quality drops.
 - Next step:
   - Keep LF-only normalization and separate formatting-only commits from functional changes.
+
+## Entry 2026-03-05-01
+- Timestamp (UTC): 2026-03-05T18:27:44Z
+- Timestamp (Local): 2026-03-05 23:57:44 IST (+0530)
+- Task: Sync handover documentation with latest admin QoL features and verify release readiness.
+- Why: Guide and journal needed to reflect newly implemented bulk actions, advanced filters, and CSV exports so operational handoff stays accurate.
+- What changed:
+  - Updated `guide.md` API section to document new query params/sorting and CSV export support for:
+    - `GET /api/admin/users`
+    - `GET /api/admin/tenants`
+    - `GET /api/admin/assessments`
+  - Updated `guide.md` admin UX section to include:
+    - Users bulk selection actions (move/make solo/delete)
+    - Advanced filters + sorting in all three admin tables
+    - CSV export for filtered result sets
+    - Tenants capacity/utilization state indicators
+  - Performed full line-by-line review of `guide.md` and `journal.md`.
+- How:
+  - Reconciled documentation against current implementation in admin clients and list APIs.
+  - Appended this entry to keep `journal.md` append-only and current.
+- Validation/output:
+  - Verified docs include current features and match latest admin behavior.
+  - Confirmed both files are readable, structurally consistent, and updated for handoff.
+- Risks/unknowns:
+  - Earlier historical entries include environment-specific validation notes that remain accurate for their time but should not be treated as current runtime status.
+- Next step:
+  - Continue appending one journal entry per meaningful implementation/doc update and keep guide API/UX sections in sync with shipped behavior.

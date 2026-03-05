@@ -35,6 +35,13 @@ type Assessment = {
 export default function AssessmentsClient() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"" | "PUBLISHED" | "DRAFT">("");
+  const [minCompletionRate, setMinCompletionRate] = useState("");
+  const [maxCompletionRate, setMaxCompletionRate] = useState("");
+  const [sortBy, setSortBy] = useState<
+    "createdAt" | "updatedAt" | "title" | "completionRate" | "participants"
+  >("createdAt");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [busyAssessmentId, setBusyAssessmentId] = useState("");
 
   const [createTitle, setCreateTitle] = useState("");
@@ -52,11 +59,16 @@ export default function AssessmentsClient() {
   const loadAssessments = useCallback(async () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
+    if (statusFilter) params.set("status", statusFilter);
+    if (minCompletionRate.trim()) params.set("minCompletionRate", minCompletionRate.trim());
+    if (maxCompletionRate.trim()) params.set("maxCompletionRate", maxCompletionRate.trim());
+    params.set("sortBy", sortBy);
+    params.set("sortOrder", sortOrder);
 
     const res = await fetch(`/api/admin/assessments?${params.toString()}`);
     const data = await res.json();
     setAssessments(data.assessments || []);
-  }, [query]);
+  }, [maxCompletionRate, minCompletionRate, query, sortBy, sortOrder, statusFilter]);
 
   useEffect(() => {
     loadAssessments();
@@ -64,6 +76,49 @@ export default function AssessmentsClient() {
 
   function handleSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") loadAssessments();
+  }
+
+  function clearAdvancedFilters() {
+    setQuery("");
+    setStatusFilter("");
+    setMinCompletionRate("");
+    setMaxCompletionRate("");
+    setSortBy("createdAt");
+    setSortOrder("desc");
+  }
+
+  async function exportAssessmentsCsv() {
+    try {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("q", query.trim());
+      if (statusFilter) params.set("status", statusFilter);
+      if (minCompletionRate.trim()) params.set("minCompletionRate", minCompletionRate.trim());
+      if (maxCompletionRate.trim()) params.set("maxCompletionRate", maxCompletionRate.trim());
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      params.set("format", "csv");
+      params.set("limit", "5000");
+
+      const res = await fetch(`/api/admin/assessments?${params.toString()}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast((data as { error?: string }).error || "Failed to export CSV.", "error");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `admin-assessments-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast("CSV export started.", "success");
+    } catch {
+      toast("Failed to export CSV.", "error");
+    }
   }
 
   async function createAssessment() {
@@ -203,11 +258,78 @@ export default function AssessmentsClient() {
             onKeyDown={handleSearchKeyDown}
             placeholder="Search assessments…"
           />
+          <select
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "" | "PUBLISHED" | "DRAFT")}
+          >
+            <option value="">All statuses</option>
+            <option value="PUBLISHED">Published</option>
+            <option value="DRAFT">Draft</option>
+          </select>
+          <input
+            className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            type="number"
+            min={0}
+            max={100}
+            placeholder="Min %"
+            value={minCompletionRate}
+            onChange={(e) => setMinCompletionRate(e.target.value)}
+          />
+          <input
+            className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            type="number"
+            min={0}
+            max={100}
+            placeholder="Max %"
+            value={maxCompletionRate}
+            onChange={(e) => setMaxCompletionRate(e.target.value)}
+          />
+          <select
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            value={sortBy}
+            onChange={(e) =>
+              setSortBy(
+                e.target.value as
+                  | "createdAt"
+                  | "updatedAt"
+                  | "title"
+                  | "completionRate"
+                  | "participants",
+              )
+            }
+          >
+            <option value="createdAt">Sort: Created</option>
+            <option value="updatedAt">Sort: Updated</option>
+            <option value="title">Sort: Title</option>
+            <option value="completionRate">Sort: Completion %</option>
+            <option value="participants">Sort: Participants</option>
+          </select>
+          <select
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
           <button
             className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
             onClick={loadAssessments}
           >
             Refresh
+          </button>
+          <button
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+            onClick={clearAdvancedFilters}
+          >
+            Clear Filters
+          </button>
+          <button
+            className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+            onClick={exportAssessmentsCsv}
+          >
+            Export CSV
           </button>
         </div>
 
@@ -244,6 +366,9 @@ export default function AssessmentsClient() {
                           <div className="font-medium">{assessment.participantCounts.total}</div>
                           <div className="text-[11px] text-slate-400">
                             {assessment.participantCounts.completed} done · {assessment.participantCounts.inProgress} active
+                          </div>
+                          <div className="text-[11px] text-slate-400">
+                            Completion {assessment.completionRate ?? 0}%
                           </div>
                         </>
                       ) : (
