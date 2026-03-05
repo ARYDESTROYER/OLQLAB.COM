@@ -269,6 +269,9 @@ Validation rules:
 ### 12.2 Tenants section (Organization Directory)
 - create organization: name + seat limit (always ORGANIZATION type, SOLO tenants hidden from UI)
 - inline edit name, seat limit, archived status
+- bulk actions for selected tenants:
+  - archive selected
+  - unarchive selected
 - inspect organization users/access via slide-over panel
 - default filter shows ORGANIZATION rows; SOLO rows can be viewed by changing tenant-type filter
 - seat-capacity state view (`HAS_ROOM | AT_CAPACITY | OVER_CAPACITY`) and utilization shown per row
@@ -278,6 +281,10 @@ Validation rules:
 ### 12.3 Assessments section
 - create assessment: title only (no owner tenant — access managed from detail page)
 - publish/unpublish
+- bulk actions for selected assessments:
+  - publish selected
+  - unpublish selected
+  - delete selected (guarded by confirmation)
 - "Manage" button opens detail view for enrollment, policy, content editing
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
 - view submitted participant reports from detail page Participants tab

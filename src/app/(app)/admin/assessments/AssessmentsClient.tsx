@@ -43,6 +43,8 @@ export default function AssessmentsClient() {
   >("createdAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [busyAssessmentId, setBusyAssessmentId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>([]);
 
   const [createTitle, setCreateTitle] = useState("");
 
@@ -67,7 +69,11 @@ export default function AssessmentsClient() {
 
     const res = await fetch(`/api/admin/assessments?${params.toString()}`);
     const data = await res.json();
-    setAssessments(data.assessments || []);
+    const rows = data.assessments || [];
+    setAssessments(rows);
+    setSelectedAssessmentIds((prev) =>
+      prev.filter((id) => rows.some((row: Assessment) => row.id === id)),
+    );
   }, [maxCompletionRate, minCompletionRate, query, sortBy, sortOrder, statusFilter]);
 
   useEffect(() => {
@@ -201,8 +207,91 @@ export default function AssessmentsClient() {
     }
   }
 
+  const allSelected = assessments.length > 0 && selectedAssessmentIds.length === assessments.length;
+
+  function toggleAllAssessments(checked: boolean) {
+    if (!checked) {
+      setSelectedAssessmentIds([]);
+      return;
+    }
+    setSelectedAssessmentIds(assessments.map((assessment) => assessment.id));
+  }
+
+  function toggleAssessmentSelection(assessmentId: string, checked: boolean) {
+    setSelectedAssessmentIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, assessmentId]));
+      return prev.filter((id) => id !== assessmentId);
+    });
+  }
+
+  async function runBulkAssessmentAction(
+    actionLabel: string,
+    worker: (assessment: Assessment) => Promise<boolean>,
+  ) {
+    if (selectedAssessmentIds.length === 0) {
+      toast("Select at least one assessment.", "error");
+      return;
+    }
+
+    setBulkBusy(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const assessmentId of selectedAssessmentIds) {
+      const assessment = assessments.find((item) => item.id === assessmentId);
+      if (!assessment) continue;
+      const ok = await worker(assessment);
+      if (ok) successCount += 1;
+      else failCount += 1;
+    }
+
+    setBulkBusy(false);
+    setSelectedAssessmentIds([]);
+    await loadAssessments();
+
+    if (failCount === 0) {
+      toast(`${actionLabel} complete: ${successCount} updated.`, "success");
+      return;
+    }
+
+    toast(`${actionLabel} complete: ${successCount} updated, ${failCount} failed.`, "error");
+  }
+
+  async function bulkSetPublishState(nextPublished: boolean) {
+    await runBulkAssessmentAction(
+      nextPublished ? "Bulk publish" : "Bulk unpublish",
+      async (assessment) => {
+        const res = await fetch(`/api/admin/assessments/${assessment.id}/publish`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            isPublished: nextPublished,
+            showResultsToEmployee: assessment.policy?.showResultsToEmployee ?? true,
+            resultReleaseDelayHours: assessment.policy?.resultReleaseDelayHours ?? 0,
+            postSubmitMessage:
+              assessment.policy?.postSubmitMessage || "Thanks for completing your assessment.",
+            leaderCanViewFullReport: assessment.policy?.leaderCanViewFullReport ?? true,
+          }),
+        });
+        return res.ok;
+      },
+    );
+  }
+
+  async function bulkDeleteAssessments() {
+    const confirmed = window.confirm(
+      `Delete ${selectedAssessmentIds.length} selected assessments? This cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    await runBulkAssessmentAction("Bulk delete", async (assessment) => {
+      const res = await fetch(`/api/admin/assessments/${assessment.id}`, { method: "DELETE" });
+      return res.ok;
+    });
+  }
+
   function getRowActions(assessment: Assessment): ActionItem[] {
-    const isBusy = busyAssessmentId === assessment.id;
+    const isBusy = busyAssessmentId === assessment.id || bulkBusy;
 
     return [
       {
@@ -334,9 +423,54 @@ export default function AssessmentsClient() {
         </div>
 
         <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
+          {selectedAssessmentIds.length > 0 && (
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">
+                  {selectedAssessmentIds.length} selected
+                </span>
+                <button
+                  className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px] text-cyan-800 hover:bg-cyan-100 transition-colors disabled:opacity-50"
+                  onClick={() => bulkSetPublishState(true)}
+                  disabled={bulkBusy}
+                >
+                  Publish Selected
+                </button>
+                <button
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  onClick={() => bulkSetPublishState(false)}
+                  disabled={bulkBusy}
+                >
+                  Unpublish Selected
+                </button>
+                <button
+                  className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors disabled:opacity-50"
+                  onClick={bulkDeleteAssessments}
+                  disabled={bulkBusy}
+                >
+                  Delete Selected
+                </button>
+                <button
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
+                  onClick={() => setSelectedAssessmentIds([])}
+                  disabled={bulkBusy}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
+                <th className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={(e) => toggleAllAssessments(e.target.checked)}
+                    aria-label="Select all assessments"
+                  />
+                </th>
                 <th className="px-3 py-2">Assessment</th>
                 <th className="px-3 py-2">Participants</th>
                 <th className="px-3 py-2">Status</th>
@@ -349,11 +483,20 @@ export default function AssessmentsClient() {
                   icon="📋"
                   title="No assessments found"
                   description="Create a new assessment above."
-                  colSpan={4}
+                  colSpan={5}
                 />
               ) : (
                 assessments.map((assessment) => (
                   <tr key={assessment.id} className="border-t border-slate-100 align-top">
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedAssessmentIds.includes(assessment.id)}
+                        onChange={(e) => toggleAssessmentSelection(assessment.id, e.target.checked)}
+                        disabled={bulkBusy}
+                        aria-label={`Select ${assessment.title}`}
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       <div className="font-medium">{assessment.title}</div>
                       <div className="mt-1 text-[11px] text-slate-400">

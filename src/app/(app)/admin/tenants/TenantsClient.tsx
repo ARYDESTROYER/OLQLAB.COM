@@ -33,6 +33,8 @@ export default function TenantsClient() {
   >("updatedAt");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [busyTenantId, setBusyTenantId] = useState("");
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -64,6 +66,7 @@ export default function TenantsClient() {
     const data = await res.json();
     const rows = data.tenants || [];
     setTenants(rows);
+    setSelectedTenantIds((prev) => prev.filter((id) => rows.some((row: Tenant) => row.id === id)));
 
     setEditByTenant((prev) => {
       const next = { ...prev };
@@ -170,8 +173,8 @@ export default function TenantsClient() {
 
   function getRowActions(tenant: Tenant): ActionItem[] {
     return [
-      { label: "Users", onClick: () => inspect(tenant, "users") },
-      { label: "Access", onClick: () => inspect(tenant, "access") },
+      { label: "Users", onClick: () => inspect(tenant, "users"), disabled: bulkBusy },
+      { label: "Access", onClick: () => inspect(tenant, "access"), disabled: bulkBusy },
     ];
   }
 
@@ -207,6 +210,82 @@ export default function TenantsClient() {
     } catch {
       toast("Failed to export CSV.", "error");
     }
+  }
+
+  const allSelected = tenants.length > 0 && selectedTenantIds.length === tenants.length;
+
+  function toggleAllTenants(checked: boolean) {
+    if (!checked) {
+      setSelectedTenantIds([]);
+      return;
+    }
+    setSelectedTenantIds(tenants.map((tenant) => tenant.id));
+  }
+
+  function toggleTenantSelection(tenantId: string, checked: boolean) {
+    setSelectedTenantIds((prev) => {
+      if (checked) return Array.from(new Set([...prev, tenantId]));
+      return prev.filter((id) => id !== tenantId);
+    });
+  }
+
+  async function runBulkArchive(targetArchived: boolean) {
+    if (selectedTenantIds.length === 0) {
+      toast("Select at least one tenant.", "error");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `${targetArchived ? "Archive" : "Unarchive"} ${selectedTenantIds.length} selected tenants?`,
+    );
+    if (!confirmed) return;
+
+    setBulkBusy(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const tenantId of selectedTenantIds) {
+      const tenant = tenants.find((item) => item.id === tenantId);
+      if (!tenant) continue;
+
+      const payload = editByTenant[tenantId] || {
+        name: tenant.name,
+        seatLimit: tenant.seatLimit,
+        isArchived: tenant.isArchived,
+      };
+
+      const res = await fetch(`/api/admin/tenants/${tenantId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          isArchived: targetArchived,
+        }),
+      });
+
+      if (res.ok) {
+        successCount += 1;
+      } else {
+        failCount += 1;
+      }
+    }
+
+    setBulkBusy(false);
+    setSelectedTenantIds([]);
+    await loadTenants();
+
+    if (failCount === 0) {
+      toast(
+        `${targetArchived ? "Archive" : "Unarchive"} complete: ${successCount} updated.`,
+        "success",
+      );
+      return;
+    }
+
+    toast(
+      `${targetArchived ? "Archive" : "Unarchive"} complete: ${successCount} updated, ${failCount} failed.`,
+      "error",
+    );
   }
 
   return (
@@ -343,9 +422,47 @@ export default function TenantsClient() {
         </div>
 
         <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
+          {selectedTenantIds.length > 0 && (
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-slate-700">
+                  {selectedTenantIds.length} selected
+                </span>
+                <button
+                  className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                  onClick={() => runBulkArchive(true)}
+                  disabled={bulkBusy}
+                >
+                  Archive Selected
+                </button>
+                <button
+                  className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-800 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                  onClick={() => runBulkArchive(false)}
+                  disabled={bulkBusy}
+                >
+                  Unarchive Selected
+                </button>
+                <button
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
+                  onClick={() => setSelectedTenantIds([])}
+                  disabled={bulkBusy}
+                >
+                  Clear Selection
+                </button>
+              </div>
+            </div>
+          )}
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
+                <th className="px-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={(e) => toggleAllTenants(e.target.checked)}
+                    aria-label="Select all tenants"
+                  />
+                </th>
                 <th className="px-3 py-2">Organization</th>
                 <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2">Seat Limit</th>
@@ -360,11 +477,20 @@ export default function TenantsClient() {
                   icon="🏢"
                   title="No organizations found"
                   description="Create a new organization or adjust your search."
-                  colSpan={6}
+                  colSpan={7}
                 />
               ) : (
                 tenants.map((tenant) => (
                   <tr key={tenant.id} className="border-t border-slate-100 align-top">
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        checked={selectedTenantIds.includes(tenant.id)}
+                        onChange={(e) => toggleTenantSelection(tenant.id, e.target.checked)}
+                        disabled={bulkBusy}
+                        aria-label={`Select ${tenant.name}`}
+                      />
+                    </td>
                     <td className="px-3 py-2">
                       <input
                         className="w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"
@@ -438,7 +564,7 @@ export default function TenantsClient() {
                         <button
                           className="rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] text-white hover:bg-slate-800 transition-colors"
                           onClick={() => saveTenant(tenant.id)}
-                          disabled={busyTenantId === tenant.id}
+                          disabled={busyTenantId === tenant.id || bulkBusy}
                         >
                           {busyTenantId === tenant.id ? "Saving…" : "Save"}
                         </button>
