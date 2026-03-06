@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { buildCsv } from "@/lib/csv";
+import { getAdminUserStats } from "@/lib/admin-user-stats";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -22,6 +23,7 @@ export async function GET(req: NextRequest) {
   if ("error" in check) return check.error;
 
   const params = req.nextUrl.searchParams;
+  const scopeParam = params.get("scope")?.trim().toUpperCase();
   const tenantId = params.get("tenantId")?.trim();
   const q = params.get("q")?.trim();
   const roleParam = params.get("role")?.trim().toUpperCase();
@@ -37,6 +39,7 @@ export async function GET(req: NextRequest) {
     isCsv ? 2000 : 100,
     isCsv ? 5000 : 500,
   );
+  const scope: "ALL" | "PARTICIPANTS" = scopeParam === "PARTICIPANTS" ? "PARTICIPANTS" : "ALL";
 
   const role: Role | undefined =
     roleParam === "ADMIN" || roleParam === "EMPLOYEE" || roleParam === "LEADER"
@@ -49,7 +52,18 @@ export async function GET(req: NextRequest) {
 
   const where: Prisma.UserWhereInput = {};
   if (tenantId) where.tenantId = tenantId;
-  if (role) where.role = role;
+  if (scope === "PARTICIPANTS") {
+    if (role === "ADMIN") {
+      where.id = "__none__";
+    } else if (role) {
+      where.role = role;
+    } else {
+      where.role = { in: ["EMPLOYEE", "LEADER"] };
+    }
+  } else if (role) {
+    where.role = role;
+  }
+
   if (q) {
     where.OR = [
       { email: { contains: q, mode: "insensitive" } },
@@ -99,40 +113,168 @@ export async function GET(req: NextRequest) {
     } | null;
   };
 
+  type OrganizationSummary = {
+    organizationId: string;
+    name: string;
+    isArchived: boolean;
+    totalUsers: number;
+    participantUsers: number;
+    adminUsers: number;
+  };
+
+  const [userStats, organizations] = await Promise.all([
+    getAdminUserStats(),
+    (async (): Promise<OrganizationSummary[]> => {
+      try {
+        const organizationTenants = await db.tenant.findMany({
+          where: { type: "ORGANIZATION" },
+          select: { id: true, name: true, isArchived: true },
+          orderBy: { name: "asc" },
+        });
+
+        if (organizationTenants.length === 0) return [];
+
+        const grouped = await db.user.groupBy({
+          by: ["tenantId", "role"],
+          where: {
+            tenantId: { in: organizationTenants.map((tenant) => tenant.id) },
+          },
+          _count: {
+            _all: true,
+          },
+        });
+
+        const countsByTenant = new Map<
+          string,
+          { totalUsers: number; participantUsers: number; adminUsers: number }
+        >();
+        for (const row of grouped) {
+          const existing = countsByTenant.get(row.tenantId) || {
+            totalUsers: 0,
+            participantUsers: 0,
+            adminUsers: 0,
+          };
+          existing.totalUsers += row._count._all;
+          if (row.role === "ADMIN") existing.adminUsers += row._count._all;
+          if (row.role === "EMPLOYEE" || row.role === "LEADER") {
+            existing.participantUsers += row._count._all;
+          }
+          countsByTenant.set(row.tenantId, existing);
+        }
+
+        return organizationTenants.map((tenant) => {
+          const counts = countsByTenant.get(tenant.id) || {
+            totalUsers: 0,
+            participantUsers: 0,
+            adminUsers: 0,
+          };
+          return {
+            organizationId: tenant.id,
+            name: tenant.name,
+            isArchived: tenant.isArchived,
+            totalUsers: counts.totalUsers,
+            participantUsers: counts.participantUsers,
+            adminUsers: counts.adminUsers,
+          };
+        });
+      } catch (error) {
+        if (!isSchemaCompatibilityError(error)) throw error;
+
+        const legacyTenants = await db.tenant.findMany({
+          select: { id: true, name: true },
+          orderBy: { name: "asc" },
+        });
+        if (legacyTenants.length === 0) return [];
+
+        const grouped = await db.user.groupBy({
+          by: ["tenantId", "role"],
+          where: {
+            tenantId: { in: legacyTenants.map((tenant) => tenant.id) },
+          },
+          _count: {
+            _all: true,
+          },
+        });
+
+        const countsByTenant = new Map<
+          string,
+          { totalUsers: number; participantUsers: number; adminUsers: number }
+        >();
+        for (const row of grouped) {
+          const existing = countsByTenant.get(row.tenantId) || {
+            totalUsers: 0,
+            participantUsers: 0,
+            adminUsers: 0,
+          };
+          existing.totalUsers += row._count._all;
+          if (row.role === "ADMIN") existing.adminUsers += row._count._all;
+          if (row.role === "EMPLOYEE" || row.role === "LEADER") {
+            existing.participantUsers += row._count._all;
+          }
+          countsByTenant.set(row.tenantId, existing);
+        }
+
+        return legacyTenants.map((tenant) => {
+          const counts = countsByTenant.get(tenant.id) || {
+            totalUsers: 0,
+            participantUsers: 0,
+            adminUsers: 0,
+          };
+          return {
+            organizationId: tenant.id,
+            name: tenant.name,
+            isArchived: false,
+            totalUsers: counts.totalUsers,
+            participantUsers: counts.participantUsers,
+            adminUsers: counts.adminUsers,
+          };
+        });
+      }
+    })(),
+  ]);
+
   let users: UserListRow[] = [];
+  let totalMatchingFilters = 0;
   try {
-    users = await db.user.findMany({
-      where,
-      include: {
-        tenant: {
-          select: { id: true, name: true, type: true, isArchived: true },
+    [users, totalMatchingFilters] = await Promise.all([
+      db.user.findMany({
+        where,
+        include: {
+          tenant: {
+            select: { id: true, name: true, type: true, isArchived: true },
+          },
+          manager: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
         },
-        manager: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
-      orderBy,
-      take,
-    });
+        orderBy,
+        take,
+      }),
+      db.user.count({ where }),
+    ]);
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;
 
     const legacyWhere: Prisma.UserWhereInput = { ...where };
     delete (legacyWhere as { tenant?: unknown }).tenant;
 
-    const legacyUsers = await db.user.findMany({
-      where: legacyWhere,
-      include: {
-        tenant: {
-          select: { id: true, name: true },
+    const [legacyUsers, legacyCount] = await Promise.all([
+      db.user.findMany({
+        where: legacyWhere,
+        include: {
+          tenant: {
+            select: { id: true, name: true },
+          },
+          manager: {
+            select: { id: true, firstName: true, lastName: true, email: true },
+          },
         },
-        manager: {
-          select: { id: true, firstName: true, lastName: true, email: true },
-        },
-      },
-      orderBy,
-      take,
-    });
+        orderBy,
+        take,
+      }),
+      db.user.count({ where: legacyWhere }),
+    ]);
+    totalMatchingFilters = legacyCount;
 
     users = legacyUsers.map((user) => ({
       ...user,
@@ -187,7 +329,17 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  return NextResponse.json({ users });
+  return NextResponse.json({
+    users,
+    organizations,
+    meta: {
+      scope,
+      totalMatchingFilters,
+      totalAllAccounts: userStats.usersTotal,
+      totalParticipants: userStats.usersParticipants,
+      totalAdmins: userStats.usersAdmins,
+    },
+  });
 }
 
 export async function POST(req: NextRequest) {

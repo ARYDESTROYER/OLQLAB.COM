@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/admin/Toast";
+import { buildAssessmentCsvTemplate } from "@/lib/assessment-question-csv";
 
 type TabKey = "CONTENT" | "ACCESS" | "PARTICIPANTS" | "POLICY" | "JOBS";
 
@@ -142,6 +143,31 @@ type JobRow = {
   errorMessage: string | null;
 };
 
+type CsvIssue = {
+  row: number;
+  column?: string;
+  message: string;
+};
+
+type CsvPreviewSummary = {
+  sections: number;
+  questions: number;
+  questionTypes: {
+    likert: number;
+    sjt: number;
+    freeText: number;
+  };
+  competencies: number;
+  sectionTitles: string[];
+};
+
+type CsvPreviewQuestion = {
+  code: string;
+  prompt: string;
+  type: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
+  section: string;
+};
+
 const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "CONTENT", label: "Content" },
   { key: "ACCESS", label: "Access" },
@@ -174,6 +200,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   });
 
   const [contentForm, setContentForm] = useState({ title: "" });
+  const [csvImportMode, setCsvImportMode] = useState<"REPLACE_ALL" | "APPEND">("REPLACE_ALL");
+  const [csvImportFile, setCsvImportFile] = useState<File | null>(null);
+  const [csvImportBusy, setCsvImportBusy] = useState(false);
+  const [csvImportSummary, setCsvImportSummary] = useState<CsvPreviewSummary | null>(null);
+  const [csvImportPreview, setCsvImportPreview] = useState<CsvPreviewQuestion[]>([]);
+  const [csvImportIssues, setCsvImportIssues] = useState<CsvIssue[]>([]);
   const [policyForm, setPolicyForm] = useState({
     isPublished: false,
     showResultsToEmployee: true,
@@ -442,6 +474,95 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     }
   }
 
+  function downloadCsvTemplate() {
+    const blob = new Blob([buildAssessmentCsvTemplate()], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "assessment-question-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function validateCsvImport() {
+    if (!csvImportFile) {
+      toast("Select a CSV file before validation.", "error");
+      return;
+    }
+
+    setCsvImportBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append("mode", csvImportMode);
+      formData.append("file", csvImportFile);
+      formData.append("dryRun", "true");
+
+      const res = await fetch(
+        `/api/admin/assessments/${assessmentId}/questions/import-csv?dryRun=1`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCsvImportSummary((data as { summary?: CsvPreviewSummary }).summary || null);
+        setCsvImportPreview([]);
+        setCsvImportIssues(((data as { issues?: CsvIssue[] }).issues || []).slice(0, 30));
+        toast((data as { error?: string }).error || "CSV validation failed.", "error");
+        return;
+      }
+
+      setCsvImportSummary((data as { summary?: CsvPreviewSummary }).summary || null);
+      setCsvImportPreview(
+        ((data as { preview?: { firstQuestions?: CsvPreviewQuestion[] } }).preview
+          ?.firstQuestions || []) as CsvPreviewQuestion[],
+      );
+      setCsvImportIssues([]);
+      toast("CSV validation succeeded.", "success");
+    } finally {
+      setCsvImportBusy(false);
+    }
+  }
+
+  async function applyCsvImport() {
+    if (!csvImportFile) {
+      toast("Select a CSV file before import.", "error");
+      return;
+    }
+
+    setCsvImportBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append("mode", csvImportMode);
+      formData.append("file", csvImportFile);
+
+      const res = await fetch(`/api/admin/assessments/${assessmentId}/questions/import-csv`, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCsvImportIssues(((data as { issues?: CsvIssue[] }).issues || []).slice(0, 30));
+        toast((data as { error?: string }).error || "CSV import failed.", "error");
+        return;
+      }
+
+      toast("CSV questions imported.", "success");
+      setCsvImportFile(null);
+      setCsvImportSummary(null);
+      setCsvImportPreview([]);
+      setCsvImportIssues([]);
+      await loadAll();
+    } finally {
+      setCsvImportBusy(false);
+    }
+  }
+
   function toEffectiveAt() {
     if (wizardForm.timingMode === "IMMEDIATE") return new Date().toISOString();
     if (wizardForm.timingMode === "AFTER_HOURS") {
@@ -682,6 +803,98 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           <button className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={saveContent} disabled={busy}>
             Save Content Metadata
           </button>
+
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h4 className="text-sm font-semibold">Bulk CSV Import</h4>
+              <span className="text-xs text-slate-500">
+                Import full question sets in one file. Source question codes are preserved as-is.
+              </span>
+            </div>
+
+            <div className="mt-3 grid gap-2 md:grid-cols-4">
+              <select
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={csvImportMode}
+                onChange={(e) => setCsvImportMode(e.target.value as "REPLACE_ALL" | "APPEND")}
+                disabled={csvImportBusy}
+              >
+                <option value="REPLACE_ALL">REPLACE_ALL</option>
+                <option value="APPEND">APPEND</option>
+              </select>
+              <input
+                type="file"
+                accept=".csv,text/csv"
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+                onChange={(e) => setCsvImportFile(e.target.files?.[0] || null)}
+                disabled={csvImportBusy}
+              />
+              <button
+                className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-semibold hover:bg-slate-50"
+                onClick={downloadCsvTemplate}
+                disabled={csvImportBusy}
+              >
+                Download Template
+              </button>
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
+                onClick={validateCsvImport}
+                disabled={csvImportBusy || !csvImportFile}
+              >
+                {csvImportBusy ? "Validating..." : "Validate CSV"}
+              </button>
+              <button
+                className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                onClick={applyCsvImport}
+                disabled={csvImportBusy || !csvImportFile || !csvImportSummary || csvImportIssues.length > 0}
+              >
+                {csvImportBusy ? "Importing..." : "Confirm Import"}
+              </button>
+            </div>
+
+            {csvImportSummary && (
+              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <p className="font-semibold text-slate-700">
+                  {csvImportSummary.questions} questions across {csvImportSummary.sections} sections
+                </p>
+                <p className="mt-1">
+                  LIKERT: {csvImportSummary.questionTypes.likert} · SJT: {csvImportSummary.questionTypes.sjt} · FREE_TEXT: {csvImportSummary.questionTypes.freeText} · Competencies: {csvImportSummary.competencies}
+                </p>
+              </div>
+            )}
+
+            {csvImportPreview.length > 0 && (
+              <div className="mt-3 rounded-lg border border-slate-200">
+                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                  Preview (first {csvImportPreview.length})
+                </div>
+                <ul className="max-h-32 overflow-auto px-3 py-2 text-xs text-slate-600">
+                  {csvImportPreview.map((item) => (
+                    <li key={`${item.code}-${item.prompt}`} className="py-1">
+                      <span className="font-semibold text-slate-700">{item.code}</span> · {item.section} · {item.type}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {csvImportIssues.length > 0 && (
+              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+                <p className="font-semibold">Validation issues ({csvImportIssues.length})</p>
+                <ul className="mt-1 max-h-32 list-disc overflow-auto pl-5">
+                  {csvImportIssues.map((issue, index) => (
+                    <li key={`${issue.row}-${issue.column || "global"}-${index}`}>
+                      Row {issue.row}
+                      {issue.column ? ` (${issue.column})` : ""}: {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
 
           <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">

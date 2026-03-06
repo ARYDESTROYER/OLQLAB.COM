@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { getAdminUserStats } from "@/lib/admin-user-stats";
 import { isMissingTableError } from "@/lib/prisma-errors";
 
 export default async function AdminOverviewPage() {
-  const [tenantCount, userCount, assessmentCount, sessionCount] = await Promise.all([
+  const [tenantCount, userStats, assessmentCount, sessionCount] = await Promise.all([
     db.tenant.count(),
-    db.user.count(),
+    getAdminUserStats(),
     db.assessment.count(),
     db.quizSession.count(),
   ]);
@@ -58,8 +59,16 @@ export default async function AdminOverviewPage() {
           <p className="mt-2 text-2xl font-semibold">{tenantCount}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Users</p>
-          <p className="mt-2 text-2xl font-semibold">{userCount}</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Accounts (Total)</p>
+          <p className="mt-2 text-2xl font-semibold">{userStats.usersTotal}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Participants</p>
+          <p className="mt-2 text-2xl font-semibold">{userStats.usersParticipants}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+          <p className="text-xs uppercase tracking-wide text-slate-500">Admins</p>
+          <p className="mt-2 text-2xl font-semibold">{userStats.usersAdmins}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-slate-500">Assessments</p>
@@ -72,6 +81,13 @@ export default async function AdminOverviewPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <p className="text-xs uppercase tracking-wide text-slate-500">Pending Unenroll Jobs</p>
           <p className="mt-2 text-2xl font-semibold">{pendingJobs}</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2 xl:col-span-5">
+          <p className="text-xs uppercase tracking-wide text-slate-500">User Mix Context</p>
+          <p className="mt-2 text-sm text-slate-700">
+            {userStats.usersInSoloTenants} user(s) in solo tenants,{" "}
+            {userStats.usersInArchivedTenants} user(s) in archived tenants.
+          </p>
         </div>
       </section>
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
@@ -7,12 +8,21 @@ import EmptyState from "@/components/admin/EmptyState";
 import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
 import InspectPanel, { TestsView, AccessView } from "@/components/admin/InspectPanel";
 
-type Tenant = {
-  id: string;
+type OrganizationSummary = {
+  organizationId: string;
   name: string;
-  type: "ORGANIZATION" | "SOLO";
-  seatLimit: number;
   isArchived: boolean;
+  totalUsers: number;
+  participantUsers: number;
+  adminUsers: number;
+};
+
+type UsersMeta = {
+  scope: "ALL" | "PARTICIPANTS";
+  totalMatchingFilters: number;
+  totalAllAccounts: number;
+  totalParticipants: number;
+  totalAdmins: number;
 };
 
 type UserRow = {
@@ -33,8 +43,16 @@ type UserRow = {
 };
 
 export default function UsersClient() {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [meta, setMeta] = useState<UsersMeta>({
+    scope: "ALL",
+    totalMatchingFilters: 0,
+    totalAllAccounts: 0,
+    totalParticipants: 0,
+    totalAdmins: 0,
+  });
+  const [scope, setScope] = useState<"ALL" | "PARTICIPANTS">("ALL");
   const [query, setQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedRole, setSelectedRole] = useState<"" | "ADMIN" | "EMPLOYEE" | "LEADER">("");
@@ -95,9 +113,13 @@ export default function UsersClient() {
     loading: boolean;
   }>({ open: false, title: "", type: "tests", data: null, loading: false });
 
-  const orgTenants = useMemo(
-    () => tenants.filter((t) => t.type === "ORGANIZATION" && !t.isArchived),
-    [tenants],
+  const activeOrganizations = useMemo(
+    () => organizations.filter((org) => !org.isArchived),
+    [organizations],
+  );
+  const selectedOrganizationSummary = useMemo(
+    () => organizations.find((organization) => organization.organizationId === selectedTenantId) || null,
+    [organizations, selectedTenantId],
   );
   const selectedRows = useMemo(
     () => users.filter((user) => selectedUserIds.includes(user.id)),
@@ -111,25 +133,10 @@ export default function UsersClient() {
     selectableRows.length > 0 &&
     selectableRows.every((row) => selectedUserIds.includes(row.id));
 
-  // ----- Data loaders -----
-
-  const loadTenants = useCallback(async () => {
-    const res = await fetch("/api/admin/tenants?includeArchived=1");
-    const data = await res.json();
-    setTenants(data.tenants || []);
-    setCreateForm((prev) => {
-      if (prev.tenantId) return prev;
-      const firstOrg = (data.tenants || []).find(
-        (t: Tenant) => t.type === "ORGANIZATION" && !t.isArchived,
-      );
-      if (firstOrg) return { ...prev, tenantId: firstOrg.id };
-      return prev;
-    });
-  }, []);
-
   const buildUsersQueryParams = useCallback(
     (options?: { format?: "csv"; limit?: number }) => {
       const params = new URLSearchParams();
+      params.set("scope", scope);
       if (query.trim()) params.set("q", query.trim());
       if (selectedTenantId) params.set("tenantId", selectedTenantId);
       if (selectedRole) params.set("role", selectedRole);
@@ -145,6 +152,7 @@ export default function UsersClient() {
       return params;
     },
     [
+      scope,
       query,
       selectedTenantArchived,
       selectedTenantId,
@@ -161,17 +169,40 @@ export default function UsersClient() {
     const res = await fetch(`/api/admin/users?${params.toString()}`);
     const data = await res.json();
     const rows = (data.users || []) as UserRow[];
+    const nextOrganizations = (data.organizations || []) as OrganizationSummary[];
     setUsers(rows);
+    setOrganizations(nextOrganizations);
+    setMeta(
+      (data.meta as UsersMeta | undefined) || {
+        scope: "ALL",
+        totalMatchingFilters: rows.length,
+        totalAllAccounts: rows.length,
+        totalParticipants: rows.filter((row) => row.role !== "ADMIN").length,
+        totalAdmins: rows.filter((row) => row.role === "ADMIN").length,
+      },
+    );
+    setScope(((data.meta as UsersMeta | undefined)?.scope || "ALL") as "ALL" | "PARTICIPANTS");
     setSelectedUserIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
-  }, [buildUsersQueryParams]);
+    setCreateForm((prev) => {
+      const tenantStillValid = nextOrganizations.some(
+        (organization) => organization.organizationId === prev.tenantId && !organization.isArchived,
+      );
+      if (tenantStillValid) return prev;
 
-  useEffect(() => {
-    loadTenants();
-  }, [loadTenants]);
+      const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
+      return { ...prev, tenantId: firstActive?.organizationId || "" };
+    });
+  }, [buildUsersQueryParams]);
 
   useEffect(() => {
     loadUsers();
   }, [loadUsers]);
+
+  useEffect(() => {
+    if (scope === "PARTICIPANTS" && selectedRole === "ADMIN") {
+      setSelectedRole("");
+    }
+  }, [scope, selectedRole]);
 
   // ----- Actions -----
 
@@ -217,7 +248,7 @@ export default function UsersClient() {
         managerEmail: "",
       }));
       setShowOptionalFields(false);
-      await Promise.all([loadUsers(), loadTenants()]);
+      await loadUsers();
     } else {
       toast(data.error || "Failed to create user.", "error");
     }
@@ -301,7 +332,7 @@ export default function UsersClient() {
       const data = await res.json();
       if (res.ok) {
         toast("User converted to solo.", "success");
-        await Promise.all([loadUsers(), loadTenants()]);
+        await loadUsers();
       } else {
         toast(data.error || "Failed to convert user to solo.", "error");
       }
@@ -381,6 +412,7 @@ export default function UsersClient() {
   }
 
   function clearAdvancedFilters() {
+    setScope("ALL");
     setSelectedRole("");
     setSelectedTenantType("");
     setSelectedManagerFilter("");
@@ -459,7 +491,7 @@ export default function UsersClient() {
     setBulkBusy(false);
     setSelectedUserIds([]);
     setBulkMoveTenantId("");
-    await Promise.all([loadUsers(), loadTenants()]);
+    await loadUsers();
 
     if (failCount === 0) {
       toast(`${label} complete: ${successCount} updated.`, "success");
@@ -601,12 +633,20 @@ export default function UsersClient() {
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, tenantId: e.target.value }))}
               >
                 <option value="">Select organization</option>
-                {orgTenants.map((tenant) => (
-                  <option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
+                {organizations.map((organization) => (
+                  <option
+                    key={organization.organizationId}
+                    value={organization.organizationId}
+                    disabled={organization.isArchived}
+                  >
+                    {organization.name}
+                    {organization.isArchived ? " (Archived)" : ""}
                   </option>
                 ))}
               </select>
+              <p className="mt-1 text-[11px] text-slate-500">
+                Archived organizations are shown but disabled. Unarchive them from Tenants first.
+              </p>
             </div>
           )}
 
@@ -665,6 +705,20 @@ export default function UsersClient() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
+            <div className="flex rounded-xl border border-slate-300 bg-white p-1 text-xs">
+              <button
+                className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${scope === "ALL" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"}`}
+                onClick={() => setScope("ALL")}
+              >
+                All Accounts
+              </button>
+              <button
+                className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${scope === "PARTICIPANTS" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"}`}
+                onClick={() => setScope("PARTICIPANTS")}
+              >
+                Participants
+              </button>
+            </div>
             <input
               className="w-full min-w-[240px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
               value={query}
@@ -678,9 +732,11 @@ export default function UsersClient() {
               onChange={(e) => setSelectedTenantId(e.target.value)}
             >
               <option value="">All organizations</option>
-              {orgTenants.map((tenant) => (
-                <option key={tenant.id} value={tenant.id}>
-                  {tenant.name}
+              {organizations.map((organization) => (
+                <option key={organization.organizationId} value={organization.organizationId}>
+                  {organization.name}
+                  {organization.isArchived ? " (Archived)" : ""}
+                  {` · P:${organization.participantUsers} A:${organization.adminUsers}`}
                 </option>
               ))}
             </select>
@@ -694,7 +750,9 @@ export default function UsersClient() {
               <option value="">All roles</option>
               <option value="EMPLOYEE">EMPLOYEE</option>
               <option value="LEADER">LEADER</option>
-              <option value="ADMIN">ADMIN</option>
+              <option value="ADMIN" disabled={scope === "PARTICIPANTS"}>
+                ADMIN
+              </option>
             </select>
             <button
               className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
@@ -715,6 +773,12 @@ export default function UsersClient() {
               Export CSV
             </button>
           </div>
+          <p className="text-xs text-slate-500">
+            Showing {users.length} of {meta.totalMatchingFilters} user(s) (scope:{" "}
+            {meta.scope === "PARTICIPANTS" ? "Participants only" : "All accounts"}). Platform totals:
+            {" "}
+            {meta.totalAllAccounts} accounts, {meta.totalParticipants} participants, {meta.totalAdmins} admins.
+          </p>
 
           {showAdvancedFilters && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
@@ -796,9 +860,9 @@ export default function UsersClient() {
                 disabled={bulkBusy}
               >
                 <option value="">Move selected to...</option>
-                {orgTenants.map((tenant) => (
-                  <option key={tenant.id} value={tenant.id}>
-                    {tenant.name}
+                {activeOrganizations.map((organization) => (
+                  <option key={organization.organizationId} value={organization.organizationId}>
+                    {organization.name}
                   </option>
                 ))}
               </select>
@@ -857,7 +921,11 @@ export default function UsersClient() {
                 <EmptyState
                   icon="👤"
                   title="No users found"
-                  description="Try adjusting your search or add a user above."
+                  description={
+                    selectedTenantId && selectedOrganizationSummary
+                      ? `Organization "${selectedOrganizationSummary.name}" exists, but no users match the current scope/filter.`
+                      : "Try adjusting your search or add a user above."
+                  }
                   colSpan={5}
                 />
               ) : (
@@ -887,6 +955,16 @@ export default function UsersClient() {
                       {user.tenant?.isArchived && (
                         <span className="ml-1.5 text-[10px] text-amber-600">(Archived)</span>
                       )}
+                      {user.tenant?.type === "ORGANIZATION" && (
+                        <div className="mt-1">
+                          <Link
+                            href={`/admin/tenants?q=${encodeURIComponent(user.tenant?.name || "")}`}
+                            className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+                          >
+                            Open Organization
+                          </Link>
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-2 text-slate-500 text-xs">{user.manager?.email || "—"}</td>
                     <td className="px-3 py-2">
@@ -901,9 +979,12 @@ export default function UsersClient() {
                           }
                         >
                           <option value="">Move to…</option>
-                          {orgTenants.map((tenant) => (
-                            <option key={tenant.id} value={tenant.id}>
-                              {tenant.name}
+                          {activeOrganizations.map((organization) => (
+                            <option
+                              key={organization.organizationId}
+                              value={organization.organizationId}
+                            >
+                              {organization.name}
                             </option>
                           ))}
                         </select>

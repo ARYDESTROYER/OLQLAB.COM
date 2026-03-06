@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "@/components/admin/Toast";
 import EmptyState from "@/components/admin/EmptyState";
 import InspectPanel from "@/components/admin/InspectPanel";
@@ -21,6 +22,7 @@ type Tenant = {
 };
 
 export default function TenantsClient() {
+  const searchParams = useSearchParams();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [query, setQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
@@ -86,6 +88,13 @@ export default function TenantsClient() {
   useEffect(() => {
     loadTenants();
   }, [loadTenants]);
+
+  useEffect(() => {
+    const q = searchParams.get("q")?.trim() || "";
+    if (q && q !== query) {
+      setQuery(q);
+    }
+  }, [query, searchParams]);
 
   function handleSearchKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") loadTenants();

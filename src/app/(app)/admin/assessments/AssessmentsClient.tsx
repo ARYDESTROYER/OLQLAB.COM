@@ -6,6 +6,7 @@ import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
 import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
+import { buildAssessmentCsvTemplate } from "@/lib/assessment-question-csv";
 
 type Assessment = {
   id: string;
@@ -32,6 +33,31 @@ type Assessment = {
   } | null;
 };
 
+type CsvIssue = {
+  row: number;
+  column?: string;
+  message: string;
+};
+
+type CsvPreviewSummary = {
+  sections: number;
+  questions: number;
+  questionTypes: {
+    likert: number;
+    sjt: number;
+    freeText: number;
+  };
+  competencies: number;
+  sectionTitles: string[];
+};
+
+type CsvPreviewQuestion = {
+  code: string;
+  prompt: string;
+  type: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
+  section: string;
+};
+
 export default function AssessmentsClient() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [query, setQuery] = useState("");
@@ -47,6 +73,13 @@ export default function AssessmentsClient() {
   const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>([]);
 
   const [createTitle, setCreateTitle] = useState("");
+  const [csvModalOpen, setCsvModalOpen] = useState(false);
+  const [csvCreateTitle, setCsvCreateTitle] = useState("");
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvBusy, setCsvBusy] = useState(false);
+  const [csvPreviewSummary, setCsvPreviewSummary] = useState<CsvPreviewSummary | null>(null);
+  const [csvPreviewQuestions, setCsvPreviewQuestions] = useState<CsvPreviewQuestion[]>([]);
+  const [csvIssues, setCsvIssues] = useState<CsvIssue[]>([]);
 
   // Confirm dialog state
   const [confirmState, setConfirmState] = useState<{
@@ -147,6 +180,108 @@ export default function AssessmentsClient() {
       await loadAssessments();
     } else {
       toast(data.error || "Failed to create assessment.", "error");
+    }
+  }
+
+  function resetCsvModalState() {
+    setCsvCreateTitle("");
+    setCsvFile(null);
+    setCsvIssues([]);
+    setCsvPreviewSummary(null);
+    setCsvPreviewQuestions([]);
+    setCsvBusy(false);
+  }
+
+  function downloadCsvTemplate() {
+    const blob = new Blob([buildAssessmentCsvTemplate()], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "assessment-question-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function validateCreateFromCsv() {
+    if (!csvCreateTitle.trim()) {
+      toast("Title is required for CSV assessment import.", "error");
+      return;
+    }
+    if (!csvFile) {
+      toast("Select a CSV file first.", "error");
+      return;
+    }
+
+    setCsvBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append("title", csvCreateTitle.trim());
+      formData.append("file", csvFile);
+      formData.append("dryRun", "true");
+
+      const res = await fetch("/api/admin/assessments/import-csv?dryRun=1", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        setCsvPreviewSummary((data as { summary?: CsvPreviewSummary }).summary || null);
+        setCsvPreviewQuestions([]);
+        setCsvIssues(((data as { issues?: CsvIssue[] }).issues || []).slice(0, 30));
+        toast((data as { error?: string }).error || "CSV validation failed.", "error");
+        return;
+      }
+
+      setCsvIssues([]);
+      setCsvPreviewSummary((data as { summary?: CsvPreviewSummary }).summary || null);
+      setCsvPreviewQuestions(
+        ((data as { preview?: { firstQuestions?: CsvPreviewQuestion[] } }).preview?.firstQuestions ||
+          []) as CsvPreviewQuestion[],
+      );
+      toast("CSV validated. You can now import.", "success");
+    } finally {
+      setCsvBusy(false);
+    }
+  }
+
+  async function createAssessmentFromCsv() {
+    if (!csvCreateTitle.trim()) {
+      toast("Title is required for CSV assessment import.", "error");
+      return;
+    }
+    if (!csvFile) {
+      toast("Select a CSV file first.", "error");
+      return;
+    }
+
+    setCsvBusy(true);
+    try {
+      const formData = new FormData();
+      formData.append("title", csvCreateTitle.trim());
+      formData.append("file", csvFile);
+
+      const res = await fetch("/api/admin/assessments/import-csv", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setCsvIssues(((data as { issues?: CsvIssue[] }).issues || []).slice(0, 30));
+        toast((data as { error?: string }).error || "Failed to import CSV assessment.", "error");
+        return;
+      }
+
+      toast(`Assessment "${csvCreateTitle}" created from CSV.`, "success");
+      setCsvModalOpen(false);
+      resetCsvModalState();
+      await loadAssessments();
+    } finally {
+      setCsvBusy(false);
     }
   }
 
@@ -315,7 +450,7 @@ export default function AssessmentsClient() {
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Create Assessment</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Create a new assessment. Then open Manage → Content to add/edit/remove questions.
+          Create a blank assessment or create one directly from a CSV import file.
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-2">
@@ -333,6 +468,12 @@ export default function AssessmentsClient() {
             onClick={createAssessment}
           >
             Create
+          </button>
+          <button
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+            onClick={() => setCsvModalOpen(true)}
+          >
+            Create from CSV
           </button>
         </div>
       </section>
@@ -546,6 +687,122 @@ export default function AssessmentsClient() {
           </table>
         </div>
       </section>
+
+      {csvModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <h3 className="text-lg font-semibold">Create Assessment from CSV</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Validate first, then import. Import is atomic and preserves source question codes.
+                </p>
+              </div>
+              <button
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                onClick={() => {
+                  setCsvModalOpen(false);
+                  resetCsvModalState();
+                }}
+                disabled={csvBusy}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  Assessment Title
+                </label>
+                <input
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  value={csvCreateTitle}
+                  onChange={(e) => setCsvCreateTitle(e.target.value)}
+                  placeholder="CPR Exam - March 2026"
+                  disabled={csvBusy}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  CSV File
+                </label>
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
+                  disabled={csvBusy}
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50"
+                onClick={downloadCsvTemplate}
+                disabled={csvBusy}
+              >
+                Download Template
+              </button>
+              <button
+                className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
+                onClick={validateCreateFromCsv}
+                disabled={csvBusy}
+              >
+                {csvBusy ? "Validating..." : "Validate CSV"}
+              </button>
+              <button
+                className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                onClick={createAssessmentFromCsv}
+                disabled={csvBusy || !csvPreviewSummary || csvIssues.length > 0}
+              >
+                {csvBusy ? "Importing..." : "Confirm Import"}
+              </button>
+            </div>
+
+            {csvPreviewSummary && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-700">
+                  Summary: {csvPreviewSummary.questions} questions across {csvPreviewSummary.sections} sections
+                </p>
+                <p className="mt-1">
+                  LIKERT: {csvPreviewSummary.questionTypes.likert} · SJT: {csvPreviewSummary.questionTypes.sjt} · FREE_TEXT: {csvPreviewSummary.questionTypes.freeText} · Competencies: {csvPreviewSummary.competencies}
+                </p>
+              </div>
+            )}
+
+            {csvPreviewQuestions.length > 0 && (
+              <div className="mt-3 rounded-xl border border-slate-200">
+                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+                  Preview (first {csvPreviewQuestions.length} questions)
+                </div>
+                <ul className="max-h-36 overflow-auto px-3 py-2 text-xs text-slate-600">
+                  {csvPreviewQuestions.map((item) => (
+                    <li key={`${item.code}-${item.prompt}`} className="py-1">
+                      <span className="font-semibold text-slate-700">{item.code}</span> · {item.section} · {item.type}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {csvIssues.length > 0 && (
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
+                <p className="font-semibold">Validation issues ({csvIssues.length})</p>
+                <ul className="mt-1 max-h-32 list-disc overflow-auto pl-5">
+                  {csvIssues.map((issue, index) => (
+                    <li key={`${issue.row}-${issue.column || "global"}-${index}`}>
+                      Row {issue.row}
+                      {issue.column ? ` (${issue.column})` : ""}: {issue.message}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Confirm Dialog ── */}
       <ConfirmDialog
