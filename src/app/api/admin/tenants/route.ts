@@ -8,6 +8,7 @@ import { buildCsv } from "@/lib/csv";
 type SeatState = "HAS_ROOM" | "AT_CAPACITY" | "OVER_CAPACITY";
 
 function parseLimit(raw: string | null, fallback: number, max: number) {
+  if (raw === null || raw.trim() === "") return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return fallback;
   const rounded = Math.floor(parsed);

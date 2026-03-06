@@ -66,6 +66,7 @@ function pickSectionKind(input?: string) {
 }
 
 function parseLimit(raw: string | null, fallback: number, max: number) {
+  if (raw === null || raw.trim() === "") return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return fallback;
   const rounded = Math.floor(parsed);
@@ -74,6 +75,7 @@ function parseLimit(raw: string | null, fallback: number, max: number) {
 }
 
 function parsePercent(raw: string | null) {
+  if (raw === null || raw.trim() === "") return undefined;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return undefined;
   return Math.max(0, Math.min(100, parsed));
