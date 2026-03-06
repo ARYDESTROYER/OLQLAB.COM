@@ -687,7 +687,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
   async function participantAction(
     participant: Participant,
-    action: "REGENERATE" | "RETEST_NOW" | "RESET" | "UNPUBLISH" | "NOTIFY_USER",
+    action:
+      | "REGENERATE"
+      | "RETEST_NOW"
+      | "RESET"
+      | "UNPUBLISH"
+      | "NOTIFY_USER"
+      | "REMOVE_PDF",
   ) {
     setBusy(true);
     try {
@@ -729,6 +735,24 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ deliveryMethod: "EMAIL_LINK" }),
         });
+      } else if (action === "REMOVE_PDF") {
+        if (!participant.reportId) {
+          toast("No report found.", "error");
+          return;
+        }
+        if (!participant.hasManualPdf) {
+          toast("No uploaded PDF to remove.", "error");
+          return;
+        }
+
+        const confirmed = window.confirm(
+          "Remove uploaded PDF and move this report back to draft?",
+        );
+        if (!confirmed) return;
+
+        res = await fetch(`/api/admin/reports/${participant.reportId}/manual-pdf`, {
+          method: "DELETE",
+        });
       } else {
         res = await fetch(
           `/api/admin/assessments/${assessmentId}/participants/${participant.userId}/reset`,
@@ -737,7 +761,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       }
 
       const data = await res.json();
-      if (res.ok) toast(`${action} completed.`, "success");
+      if (res.ok) {
+        if (action === "REMOVE_PDF") {
+          toast("Uploaded PDF removed. Report moved to draft.", "success");
+        } else {
+          toast(`${action} completed.`, "success");
+        }
+      }
       else toast(data.error || `Failed to ${action.toLowerCase()}.`, "error");
       await loadAll();
     } finally {
@@ -1526,6 +1556,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                               disabled={busy || !participant.hasManualPdf || !participant.reportId}
                             >
                               Notify User
+                            </button>
+                            <button
+                              className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px]"
+                              onClick={() => participantAction(participant, "REMOVE_PDF")}
+                              disabled={busy || !participant.hasManualPdf || !participant.reportId}
+                            >
+                              Remove PDF
                             </button>
                           </>
                         )}

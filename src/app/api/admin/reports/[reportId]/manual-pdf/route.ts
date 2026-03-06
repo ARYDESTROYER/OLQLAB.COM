@@ -141,3 +141,62 @@ export async function POST(
     },
   });
 }
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ reportId: string }> },
+) {
+  const check = await requireAdmin();
+  if ("error" in check) return check.error;
+
+  const { reportId } = await params;
+
+  const report = await db.report.findUnique({
+    where: { id: reportId },
+    include: {
+      assessment: {
+        select: {
+          id: true,
+          policy: {
+            select: {
+              reportWorkflow: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!report) {
+    return NextResponse.json({ error: "Report not found." }, { status: 404 });
+  }
+
+  if (report.assessment.policy?.reportWorkflow !== "MANUAL_PDF_UPLOAD") {
+    return NextResponse.json(
+      { error: "PDF removal is only available for manual report workflow assessments." },
+      { status: 400 },
+    );
+  }
+
+  const [deletedPdfAsset, updatedReport] = await db.$transaction([
+    db.reportPdfAsset.deleteMany({ where: { reportId: report.id } }),
+    db.report.update({
+      where: { id: report.id },
+      data: {
+        status: "DRAFT",
+        availableAt: null,
+      },
+    }),
+  ]);
+
+  return NextResponse.json({
+    ok: true,
+    deletedPdf: deletedPdfAsset.count > 0,
+    report: {
+      id: updatedReport.id,
+      status: updatedReport.status,
+      availableAt: updatedReport.availableAt,
+      deliveryMethod: updatedReport.deliveryMethod,
+    },
+  });
+}

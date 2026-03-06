@@ -75,6 +75,9 @@ export default function AssessmentsClient() {
   const [createTitle, setCreateTitle] = useState("");
   const [csvModalOpen, setCsvModalOpen] = useState(false);
   const [csvCreateTitle, setCsvCreateTitle] = useState("");
+  const [csvCreateReportWorkflow, setCsvCreateReportWorkflow] = useState<
+    "AI_STANDARD" | "MANUAL_PDF_UPLOAD"
+  >("AI_STANDARD");
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvBusy, setCsvBusy] = useState(false);
   const [csvPreviewSummary, setCsvPreviewSummary] = useState<CsvPreviewSummary | null>(null);
@@ -185,6 +188,7 @@ export default function AssessmentsClient() {
 
   function resetCsvModalState() {
     setCsvCreateTitle("");
+    setCsvCreateReportWorkflow("AI_STANDARD");
     setCsvFile(null);
     setCsvIssues([]);
     setCsvPreviewSummary(null);
@@ -220,6 +224,7 @@ export default function AssessmentsClient() {
     try {
       const formData = new FormData();
       formData.append("title", csvCreateTitle.trim());
+      formData.append("reportWorkflow", csvCreateReportWorkflow);
       formData.append("file", csvFile);
       formData.append("dryRun", "true");
 
@@ -263,6 +268,7 @@ export default function AssessmentsClient() {
     try {
       const formData = new FormData();
       formData.append("title", csvCreateTitle.trim());
+      formData.append("reportWorkflow", csvCreateReportWorkflow);
       formData.append("file", csvFile);
 
       const res = await fetch("/api/admin/assessments/import-csv", {
@@ -710,7 +716,7 @@ export default function AssessmentsClient() {
               </button>
             </div>
 
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   Assessment Title
@@ -722,6 +728,24 @@ export default function AssessmentsClient() {
                   placeholder="CPR Exam - March 2026"
                   disabled={csvBusy}
                 />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                  Report Workflow
+                </label>
+                <select
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  value={csvCreateReportWorkflow}
+                  onChange={(e) =>
+                    setCsvCreateReportWorkflow(
+                      e.target.value as "AI_STANDARD" | "MANUAL_PDF_UPLOAD",
+                    )
+                  }
+                  disabled={csvBusy}
+                >
+                  <option value="AI_STANDARD">AI Standard</option>
+                  <option value="MANUAL_PDF_UPLOAD">Manual PDF Upload</option>
+                </select>
               </div>
               <div>
                 <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
