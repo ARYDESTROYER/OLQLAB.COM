@@ -33,14 +33,19 @@ async function listParticipants(assessmentId: string, q?: string) {
           assessmentId,
           userId: { in: userIds },
         },
-        select: {
-          id: true,
-          userId: true,
-          status: true,
-          availableAt: true,
-          deliveryMethod: true,
+      select: {
+        id: true,
+        userId: true,
+        status: true,
+        availableAt: true,
+        deliveryMethod: true,
+        pdfAsset: {
+          select: {
+            id: true,
+          },
         },
-      })
+      },
+    })
     : [];
 
   let retestEligibility: Array<{ userId: string; eligibleAt: Date }> = [];
@@ -89,6 +94,7 @@ async function listParticipants(assessmentId: string, q?: string) {
       reportStatus: userReport?.status || null,
       reportAvailableAt: userReport?.availableAt || null,
       reportDeliveryMethod: userReport?.deliveryMethod || null,
+      hasManualPdf: Boolean(userReport?.pdfAsset),
       retestEligibleAt,
       canRetestNow,
       sources: user.sources,

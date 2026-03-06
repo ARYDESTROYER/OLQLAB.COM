@@ -5,6 +5,7 @@ import { computeScores, generateNarrative } from "@/lib/score";
 import { generateAiNarrative } from "@/lib/ai-report";
 import { resolveAssessmentAccess } from "@/lib/assessment-access";
 import { buildReportHtmlTemplate } from "@/lib/report-format";
+import { sendManualSubmissionAlertEmails } from "@/lib/report-delivery";
 
 export async function POST(
   _req: NextRequest,
@@ -55,11 +56,109 @@ export async function POST(
     });
   }
 
+  const answersByQuestion = new Map(
+    session.answers.map((answer) => [answer.questionId, answer]),
+  );
+
+  for (const question of session.assessment.questions) {
+    const answer = answersByQuestion.get(question.id);
+    const promptPreview = (question.prompt || "Question").slice(0, 60);
+
+    if (question.questionType === "LIKERT_TRAIT") {
+      if (!answer || typeof answer.value !== "number") {
+        return NextResponse.json(
+          { error: `Please answer all questions before submitting. Missing: ${promptPreview}` },
+          { status: 400 },
+        );
+      }
+      continue;
+    }
+
+    if (question.questionType === "SJT_SINGLE") {
+      if (!answer || !answer.optionId) {
+        return NextResponse.json(
+          { error: `Please answer all questions before submitting. Missing: ${promptPreview}` },
+          { status: 400 },
+        );
+      }
+      continue;
+    }
+
+    if (!answer || !answer.textValue?.trim()) {
+      return NextResponse.json(
+        { error: `Please answer all questions before submitting. Missing: ${promptPreview}` },
+        { status: 400 },
+      );
+    }
+  }
+
+  const submittedAt = new Date();
+  const reportWorkflow = session.assessment.policy?.reportWorkflow || "AI_STANDARD";
+
+  if (reportWorkflow === "MANUAL_PDF_UPLOAD") {
+    const participantName =
+      `${session.user.firstName} ${session.user.lastName}`.trim() || "Participant";
+    const narrative = {
+      assessmentTakenAt: submittedAt.toISOString(),
+      assessmentTitle: session.assessment.title,
+      participantName,
+      reportVersion: "manual_pdf_v1",
+      reportWorkflow,
+      note: "Manual report workflow enabled. Admin will upload and publish the PDF report.",
+    };
+
+    await db.$transaction([
+      db.quizSession.update({
+        where: { id },
+        data: { status: "SUBMITTED", submittedAt },
+      }),
+      db.report.upsert({
+        where: {
+          assessmentId_userId: {
+            assessmentId: session.assessmentId,
+            userId: session.userId,
+          },
+        },
+        create: {
+          assessmentId: session.assessmentId,
+          userId: session.userId,
+          narrativeJson: JSON.stringify(narrative),
+          status: "DRAFT",
+          availableAt: null,
+          deliveryMethod: null,
+        },
+        update: {
+          narrativeJson: JSON.stringify(narrative),
+          status: "DRAFT",
+          availableAt: null,
+          deliveryMethod: null,
+        },
+      }),
+    ]);
+
+    try {
+      await sendManualSubmissionAlertEmails({
+        assessmentId: session.assessmentId,
+        userId: session.userId,
+        startedAt: session.startedAt,
+        submittedAt,
+      });
+    } catch (error) {
+      console.error("Failed to send manual submission alerts:", error);
+    }
+
+    return NextResponse.json({
+      submitted: true,
+      postSubmitMessage:
+        session.assessment.policy?.postSubmitMessage ||
+        "Assessment completed. You will be notified once your report is available.",
+    });
+  }
+
   const { traits, competencies } = computeScores(
     session.assessment.questions,
     session.answers,
   );
-  const submittedAt = new Date();
   const baseNarrative = generateNarrative(traits, competencies);
   const cprScores = {
     composite: Math.round((traits.conscientiousness + traits.openness) / 2),

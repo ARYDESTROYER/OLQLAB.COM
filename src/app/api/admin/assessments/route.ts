@@ -25,7 +25,7 @@ type QuestionInput = {
   code?: string;
   prompt: string;
   category?: string;
-  questionType?: "LIKERT_TRAIT" | "SJT_SINGLE";
+  questionType?: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
   trait?: string;
   reverse?: boolean;
   scaleMin?: number;
@@ -57,6 +57,7 @@ function titleizeCode(input: string) {
 }
 
 function pickQuestionType(input?: string) {
+  if (input === "FREE_TEXT") return "FREE_TEXT";
   return input === "SJT_SINGLE" ? "SJT_SINGLE" : "LIKERT_TRAIT";
 }
 
@@ -161,6 +162,9 @@ async function createAssessmentLegacy(input: {
     resultReleaseDelayHours?: number;
     postSubmitMessage?: string;
     leaderCanViewFullReport?: boolean;
+    reportWorkflow?: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+    randomizeQuestionOrder?: boolean;
+    submissionAlertAdminIds?: string[];
   };
   competencies?: CompetencyInput[];
   sections?: SectionInput[];
@@ -642,6 +646,9 @@ export async function POST(req: NextRequest) {
       resultReleaseDelayHours?: number;
       postSubmitMessage?: string;
       leaderCanViewFullReport?: boolean;
+      reportWorkflow?: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+      randomizeQuestionOrder?: boolean;
+      submissionAlertAdminIds?: string[];
     };
     competencies?: CompetencyInput[];
     sections?: SectionInput[];
@@ -679,6 +686,9 @@ export async function POST(req: NextRequest) {
             postSubmitMessage:
               body.policy?.postSubmitMessage || "Thanks for completing your assessment.",
             leaderCanViewFullReport: body.policy?.leaderCanViewFullReport ?? true,
+            reportWorkflow: body.policy?.reportWorkflow ?? "AI_STANDARD",
+            randomizeQuestionOrder: body.policy?.randomizeQuestionOrder ?? false,
+            submissionAlertAdminIds: body.policy?.submissionAlertAdminIds ?? [],
           },
         },
       },

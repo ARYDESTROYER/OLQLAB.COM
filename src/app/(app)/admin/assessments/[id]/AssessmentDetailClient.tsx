@@ -17,6 +17,9 @@ type AssessmentDetail = {
     resultReleaseDelayHours: number;
     postSubmitMessage: string;
     leaderCanViewFullReport: boolean;
+    reportWorkflow: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+    randomizeQuestionOrder: boolean;
+    submissionAlertAdminIds: string[];
   } | null;
   _count?: {
     sections: number;
@@ -121,6 +124,7 @@ type Participant = {
   reportStatus: "DRAFT" | "PUBLISHED" | null;
   reportAvailableAt: string | null;
   reportDeliveryMethod: "DASHBOARD_ONLY" | "EMAIL_LINK" | null;
+  hasManualPdf: boolean;
   retestEligibleAt: string | null;
   canRetestNow: boolean;
   sources: Array<{ scope: "USER" | "TENANT"; enrollmentId: string }>;
@@ -159,6 +163,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [sections, setSections] = useState<AssessmentSection[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [questionForm, setQuestionForm] = useState({
@@ -175,6 +180,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     resultReleaseDelayHours: 0,
     postSubmitMessage: "Thanks for completing your assessment.",
     leaderCanViewFullReport: true,
+    reportWorkflow: "AI_STANDARD" as "AI_STANDARD" | "MANUAL_PDF_UPLOAD",
+    randomizeQuestionOrder: false,
+    submissionAlertAdminIds: [] as string[],
   });
 
   const [enrollForm, setEnrollForm] = useState({
@@ -210,6 +218,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       ),
     [participants, participantStatusFilter],
   );
+  const isManualWorkflow = policyForm.reportWorkflow === "MANUAL_PDF_UPLOAD";
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -250,6 +259,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             "Thanks for completing your assessment.",
           leaderCanViewFullReport:
             detailData.assessment.policy?.leaderCanViewFullReport ?? true,
+          reportWorkflow:
+            detailData.assessment.policy?.reportWorkflow ?? "AI_STANDARD",
+          randomizeQuestionOrder:
+            detailData.assessment.policy?.randomizeQuestionOrder ?? false,
+          submissionAlertAdminIds:
+            detailData.assessment.policy?.submissionAlertAdminIds ?? [],
         });
       }
 
@@ -267,6 +282,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
       setTenants(tenantsData.tenants || []);
       setUsers((usersData.users || []).filter((item: User) => item.role !== "ADMIN"));
+      setAdminUsers((usersData.users || []).filter((item: User) => item.role === "ADMIN"));
       if (questionsRes.ok) {
         const nextSections = questionsData.sections || [];
         setSections(nextSections);
@@ -512,9 +528,45 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     await loadAll();
   }
 
+  async function uploadManualPdf(participant: Participant, file: File) {
+    if (!participant.reportId) {
+      toast("No report exists yet for this participant.", "error");
+      return;
+    }
+
+    const notifyNow = window.confirm(
+      "Upload successful report PDF. Notify participant immediately by email link?",
+    );
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("notifyNow", String(notifyNow));
+    formData.append("deliveryMethod", "EMAIL_LINK");
+
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/admin/reports/${participant.reportId}/manual-pdf`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        toast(notifyNow ? "PDF uploaded and user notified." : "PDF uploaded. Notification deferred.", "success");
+      } else {
+        toast((data as { error?: string }).error || "Failed to upload PDF.", "error");
+      }
+      await loadAll();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function participantAction(
     participant: Participant,
-    action: "REGENERATE" | "RETEST_NOW" | "RESET" | "UNPUBLISH",
+    action: "REGENERATE" | "RETEST_NOW" | "RESET" | "UNPUBLISH" | "NOTIFY_USER",
   ) {
     setBusy(true);
     try {
@@ -544,6 +596,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ status: "DRAFT", availableAt: null }),
+        });
+      } else if (action === "NOTIFY_USER") {
+        if (!participant.reportId) {
+          toast("No report found to notify.", "error");
+          return;
+        }
+
+        res = await fetch(`/api/admin/reports/${participant.reportId}/send`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ deliveryMethod: "EMAIL_LINK" }),
         });
       } else {
         res = await fetch(
@@ -1126,7 +1189,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-lg font-semibold">Participants</h3>
           <p className="mt-1 text-xs text-slate-500">
-            Manual reports stay in DRAFT. Use "Review Draft" to edit and then publish via Dashboard or Email Link.
+            {isManualWorkflow
+              ? "Manual workflow enabled: review inputs, upload PDF, and notify users when ready."
+              : "AI report workflow enabled: use Review Draft/Open Report and publish controls."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {(["ALL", "NOT_STARTED", "IN_PROGRESS", "SUBMITTED"] as const).map((status) => (
@@ -1164,15 +1229,22 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <td className="px-3 py-2">{participant.status}</td>
                     <td className="px-3 py-2 text-xs text-slate-600">
                       {participant.reportStatus ? (
-                        <span
-                          className={`rounded-full px-2 py-1 font-semibold ${
-                            participant.reportStatus === "PUBLISHED"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
-                        >
-                          {participant.reportStatus}
-                        </span>
+                        <div className="space-y-1">
+                          <span
+                            className={`rounded-full px-2 py-1 font-semibold ${
+                              participant.reportStatus === "PUBLISHED"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {participant.reportStatus}
+                          </span>
+                          {isManualWorkflow && (
+                            <div className="text-[10px] text-slate-500">
+                              PDF: {participant.hasManualPdf ? "Uploaded" : "Missing"}
+                            </div>
+                          )}
+                        </div>
                       ) : (
                         "—"
                       )}
@@ -1182,6 +1254,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                       <div className="flex flex-wrap gap-1.5">
                         {participant.status === "SUBMITTED" && (
                           <Link
+                            href={`/admin/assessments/${assessmentId}/participants/${participant.userId}/responses`}
+                            className="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] hover:bg-sky-100 transition-colors"
+                          >
+                            View Inputs
+                          </Link>
+                        )}
+                        {participant.status === "SUBMITTED" && !isManualWorkflow && (
+                          <Link
                             href={`/reports/leader/${participant.userId}/${assessmentId}`}
                             target="_blank"
                             className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] hover:bg-emerald-100 transition-colors"
@@ -1189,7 +1269,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             View Report
                           </Link>
                         )}
-                        {participant.reportId && (
+                        {participant.reportId && !isManualWorkflow && (
                           <Link
                             href={`/admin/reports/${participant.reportId}`}
                             className={`rounded-lg border px-2.5 py-1 text-[11px] transition-colors ${
@@ -1201,10 +1281,45 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             {participant.reportStatus === "DRAFT" ? "Review Draft" : "Open Report"}
                           </Link>
                         )}
+                        {isManualWorkflow && participant.status === "SUBMITTED" && participant.reportId && (
+                          <>
+                            <input
+                              id={`manual-upload-${participant.userId}`}
+                              type="file"
+                              accept="application/pdf,.pdf"
+                              className="hidden"
+                              onChange={(event) => {
+                                const file = event.target.files?.[0];
+                                if (file) {
+                                  uploadManualPdf(participant, file);
+                                }
+                                event.currentTarget.value = "";
+                              }}
+                            />
+                            <button
+                              className="rounded-lg border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-[11px]"
+                              onClick={() =>
+                                document
+                                  .getElementById(`manual-upload-${participant.userId}`)
+                                  ?.click()
+                              }
+                              disabled={busy}
+                            >
+                              Upload PDF
+                            </button>
+                            <button
+                              className="rounded-lg border border-teal-300 bg-teal-50 px-2.5 py-1 text-[11px]"
+                              onClick={() => participantAction(participant, "NOTIFY_USER")}
+                              disabled={busy || !participant.hasManualPdf || !participant.reportId}
+                            >
+                              Notify User
+                            </button>
+                          </>
+                        )}
                         <button
                           className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
                           onClick={() => participantAction(participant, "REGENERATE")}
-                          disabled={busy || participant.status !== "SUBMITTED"}
+                          disabled={busy || participant.status !== "SUBMITTED" || isManualWorkflow}
                         >
                           Regenerate
                         </button>
@@ -1271,6 +1386,34 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               />
               Leader can view full report
             </label>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={policyForm.randomizeQuestionOrder}
+                onChange={(e) =>
+                  setPolicyForm((prev) => ({ ...prev, randomizeQuestionOrder: e.target.checked }))
+                }
+              />
+              Randomize question order for participants
+            </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+                Report workflow
+              </span>
+              <select
+                className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={policyForm.reportWorkflow}
+                onChange={(e) =>
+                  setPolicyForm((prev) => ({
+                    ...prev,
+                    reportWorkflow: e.target.value as "AI_STANDARD" | "MANUAL_PDF_UPLOAD",
+                  }))
+                }
+              >
+                <option value="AI_STANDARD">AI Standard</option>
+                <option value="MANUAL_PDF_UPLOAD">Manual PDF Upload</option>
+              </select>
+            </label>
             <input
               type="number"
               min={0}
@@ -1284,6 +1427,44 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               }
               placeholder="Result delay hours"
             />
+          </div>
+          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Submission Alert Recipients
+            </p>
+            {adminUsers.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-500">No admin users available.</p>
+            ) : (
+              <div className="mt-2 grid gap-2 md:grid-cols-2">
+                {adminUsers.map((admin) => {
+                  const checked = policyForm.submissionAlertAdminIds.includes(admin.id);
+                  return (
+                    <label
+                      key={admin.id}
+                      className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5 text-xs"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) =>
+                          setPolicyForm((prev) => ({
+                            ...prev,
+                            submissionAlertAdminIds: e.target.checked
+                              ? [...prev.submissionAlertAdminIds, admin.id]
+                              : prev.submissionAlertAdminIds.filter((id) => id !== admin.id),
+                          }))
+                        }
+                      />
+                      <span className="font-medium text-slate-700">{admin.firstName} {admin.lastName}</span>
+                      <span className="text-slate-500">{admin.email}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <p className="mt-2 text-[11px] text-slate-500">
+              Only selected admins receive completion alerts for manual workflow submissions.
+            </p>
           </div>
           <input
             className="mt-3 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"

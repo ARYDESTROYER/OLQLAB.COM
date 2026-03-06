@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 
@@ -18,10 +19,12 @@ export async function PATCH(
 
     const { narrativeJson, status, availableAt } = body;
 
-    const updateData: any = {};
-    if (narrativeJson !== undefined) updateData.narrativeJson = narrativeJson;
-    if (status !== undefined) updateData.status = status;
-    if (availableAt !== undefined) updateData.availableAt = availableAt === null ? null : new Date(availableAt);
+    const updateData: Prisma.ReportUpdateInput = {};
+    if (typeof narrativeJson === "string") updateData.narrativeJson = narrativeJson;
+    if (status === "DRAFT" || status === "PUBLISHED") updateData.status = status;
+    if (availableAt !== undefined) {
+        updateData.availableAt = availableAt === null ? null : new Date(availableAt);
+    }
 
     try {
         const report = await db.report.update({
@@ -29,7 +32,7 @@ export async function PATCH(
             data: updateData,
         });
         return NextResponse.json({ ok: true, report });
-    } catch (err) {
+    } catch {
         return NextResponse.json({ error: "Failed to update report" }, { status: 500 });
     }
 }

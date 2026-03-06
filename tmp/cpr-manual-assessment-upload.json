@@ -1,0 +1,1970 @@
+{
+  "title": "Wissen Leadership Readiness Test (CPR)",
+  "competencies": [],
+  "sections": [
+    {
+      "title": "Cognitive Orientation",
+      "kind": "SCENARIO",
+      "questions": [
+        {
+          "code": "Q1",
+          "prompt": "Arjun, a Delivery Excellence head, discovers a disruptive, open-source AI model that could replace a core feature of his team's flagship service, a major revenue generator. What should Arjun do first?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Immediately form a task force to assess the model's capabilities, limitations, and potential integration into the existing service, preparing a strategic options paper."
+            },
+            {
+              "code": "B",
+              "text": "Dismiss it as hype; enterprise clients value stability and won't trust an unproven open-source solution."
+            },
+            {
+              "code": "C",
+              "text": "Wait for a competitor to make the first move and then react to their strategy."
+            },
+            {
+              "code": "D",
+              "text": "Task his team with building a similar, proprietary model to maintain their unique selling proposition, regardless of cost."
+            },
+            {
+              "code": "E",
+              "text": "Consult with a few key clients to understand if this new model changes their expectations of the service."
+            }
+          ]
+        },
+        {
+          "code": "Q2",
+          "prompt": "Priya is asked to lead a cross-functional team to develop a new service line leveraging Quantum Machine Learning, an area where Wissen has no current expertise. To build a credible strategy, she should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Hire a few leading experts in the field and let them define the strategy."
+            },
+            {
+              "code": "B",
+              "text": "Personally conduct a deep-dive learning program, mapping emerging academic research against potential client problems in Wissen's key industries (Banking, Energy, etc.)."
+            },
+            {
+              "code": "C",
+              "text": "Focus on building a partnership with a Quantum hardware startup to secure early access."
+            },
+            {
+              "code": "D",
+              "text": "Propose a small, experimental \"skunkworks\" project to learn by doing, with a clear mandate to fail fast."
+            },
+            {
+              "code": "E",
+              "text": "Delay any investment until the technology matures and has clear, proven business use cases."
+            }
+          ]
+        },
+        {
+          "code": "Q3",
+          "prompt": "Rajesh's team budget for the next fiscal year is 15% higher than finance's allocation, primarily due to investment in new AI-driven automation tools. To advocate for his budget, Rajesh should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Present a detailed business case with ROI projections, showing how the automation tools will reduce operational costs and free up talent for higher-value work over a 3-year horizon."
+            },
+            {
+              "code": "B",
+              "text": "Focus the presentation on the risks of not investing, highlighting how competitors will gain an efficiency advantage."
+            },
+            {
+              "code": "C",
+              "text": "Propose cutting the automation investment to meet the allocated budget."
+            },
+            {
+              "code": "D",
+              "text": "Ask his team to re-forecast, hoping to find savings elsewhere to protect the automation investment."
+            },
+            {
+              "code": "E",
+              "text": "Agree to the budget cut but plan to request additional funds mid-year, citing \"unforeseen needs.\""
+            }
+          ]
+        },
+        {
+          "code": "Q4",
+          "prompt": "A major client tells Meera, a Senior VP, that her team's data analytics reports are too complex and not providing actionable insights. To solve this, Meera should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Ask the client for a list of specific questions they want answered and tailor the reports accordingly."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a workshop with the client's end-users to understand their workflow, decision-making process, and what \"actionable\" means to them."
+            },
+            {
+              "code": "C",
+              "text": "Replace her lead data scientist with someone who has better client-facing communication skills."
+            },
+            {
+              "code": "D",
+              "text": "Create a standardized, simplified dashboard template for all clients to ensure consistency."
+            },
+            {
+              "code": "E",
+              "text": "Provide the client with raw data and a suite of self-service analytics tools, allowing them to find their own insights."
+            }
+          ]
+        },
+        {
+          "code": "Q5",
+          "prompt": "Vikram is reviewing two project proposals. Project A has a 90% probability of a $5M return. Project B has a 20% probability of a $50M return. Both require similar investment. Which project should Vikram champion and why?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Project A, as the sure return is better for predictable growth and team morale."
+            },
+            {
+              "code": "B",
+              "text": "Project B, as the potential for a massive breakthrough aligns with a high-risk, high-reward strategy for the disruptive era."
+            },
+            {
+              "code": "C",
+              "text": "A portfolio of both, managing Project B as an exploratory \"venture\" while Project A funds the core business."
+            },
+            {
+              "code": "D",
+              "text": "Neither; he should look for a project with a more balanced risk-reward profile."
+            },
+            {
+              "code": "E",
+              "text": "He should let the team decide based on their passion and technical curiosity."
+            }
+          ]
+        },
+        {
+          "code": "Q6",
+          "prompt": "A new regulation (e.g., EU AI Act) threatens to make one of Anjali's top-selling software solutions non-compliant within 12 months. Her cognitive approach should be to:",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Immediately start a project to re-engineer the solution to be compliant, even if it means reducing features."
+            },
+            {
+              "code": "B",
+              "text": "Wait for the final legal text and official guidance before taking any irreversible action."
+            },
+            {
+              "code": "C",
+              "text": "Analyze the regulation to identify the core intent and explore multiple compliance pathways, including partnerships or acquisitions, while lobbying against the most onerous clauses."
+            },
+            {
+              "code": "D",
+              "text": "Advise the sales team to accelerate sales to clients in unaffected regions before the deadline."
+            },
+            {
+              "code": "E",
+              "text": "Plan a graceful exit from that market, focusing resources on regions with friendlier regulations."
+            }
+          ]
+        },
+        {
+          "code": "Q7",
+          "prompt": "To foster a \"continuous learning culture\" around AI within her marketing department, what is the most effective long-term strategy for Sunita?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Mandate that all team members complete a specific online AI certification within the year."
+            },
+            {
+              "code": "B",
+              "text": "Create a dedicated \"AI Innovation Time\" where teams can spend 10% of their hours on self-directed learning and pet projects."
+            },
+            {
+              "code": "C",
+              "text": "Sponsor a few high-potential individuals to get advanced degrees, expecting them to cascade knowledge."
+            },
+            {
+              "code": "D",
+              "text": "Host monthly guest lectures from academic and industry AI leaders."
+            },
+            {
+              "code": "E",
+              "text": "Incentivize learning by tying it directly to annual performance bonuses."
+            }
+          ]
+        },
+        {
+          "code": "Q8",
+          "prompt": "The Head of Marketing, Karan, proposes a campaign that relies heavily on personalizing content using a new AI tool. The tool requires access to extensive customer data, raising potential privacy concerns. Karan's decision process should be to:",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Trust his own judgment; he knows the campaign goals best."
+            },
+            {
+              "code": "B",
+              "text": "Approve the campaign but insist on a clear opt-out mechanism for customers."
+            },
+            {
+              "code": "C",
+              "text": "Convene a meeting with Marketing, Legal, and Data Privacy leaders to map data usage against privacy principles and brand risk before making a decision."
+            },
+            {
+              "code": "D",
+              "text": "Reject the campaign outright to avoid any potential privacy backlash."
+            },
+            {
+              "code": "E",
+              "text": "Approve a small-scale A/B test to measure the campaign's effectiveness before evaluating the privacy trade-offs."
+            }
+          ]
+        },
+        {
+          "code": "Q9",
+          "prompt": "A VP of Engineering, David, notices that project teams in Engineering and Delivery Excellence are independently developing similar AI-based code testing tools. David sees this as:",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "A healthy sign of innovation and initiative across teams."
+            },
+            {
+              "code": "B",
+              "text": "An opportunity to form a cross-functional team to consolidate efforts and build a single, more powerful internal tool for the entire company."
+            },
+            {
+              "code": "C",
+              "text": "A failure of leadership to provide clear strategic direction and shared roadmaps."
+            },
+            {
+              "code": "D",
+              "text": "A reason to let both projects continue; competition will produce the best outcome."
+            },
+            {
+              "code": "E",
+              "text": "An argument for outsourcing all internal tool development to a specialized vendor."
+            }
+          ]
+        },
+        {
+          "code": "Q10",
+          "prompt": "What is the primary heuristic (mental rule of thumb) that Suresh, a CFO, should use for making decisions in a highly ambiguous situation with incomplete data, like pivoting a financial strategy due to a new technology?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "\"First move advantage is critical; speed of execution trumps perfect analysis.\""
+            },
+            {
+              "code": "B",
+              "text": "\"Protect the core business; any new venture must not jeopardize our current revenue streams.\""
+            },
+            {
+              "code": "C",
+              "text": "\"Decide based on our company values and long-term vision for client partnership.\""
+            },
+            {
+              "code": "D",
+              "text": "\"Seek consensus from the most experienced leaders in the room.\""
+            },
+            {
+              "code": "E",
+              "text": "\"Gather the best available data, frame the decision as a series of experiments, and adjust as we learn.\""
+            }
+          ]
+        },
+        {
+          "code": "Q11",
+          "prompt": "A global service desk project led by Michael risks delay due to a vendor's failure to deliver dashboard software. What should Michael do first?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Escalate to senior management for immediate resolution."
+            },
+            {
+              "code": "B",
+              "text": "Update the risk register and assess impact on the project timeline."
+            },
+            {
+              "code": "C",
+              "text": "Renegotiate the vendor contract to include penalties."
+            },
+            {
+              "code": "D",
+              "text": "Assign additional team members to develop an in-house solution."
+            },
+            {
+              "code": "E",
+              "text": "Pause the project until the vendor delivers."
+            }
+          ]
+        },
+        {
+          "code": "Q12",
+          "prompt": "A compliance audit project led by Neha exceeds budget by 15%. What is the best action for Neha?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Absorb the overrun and proceed."
+            },
+            {
+              "code": "B",
+              "text": "Perform a cost-benefit analysis for audit scope."
+            },
+            {
+              "code": "C",
+              "text": "Request additional funding."
+            },
+            {
+              "code": "D",
+              "text": "Reduce audit frequency."
+            },
+            {
+              "code": "E",
+              "text": "Pause the audit."
+            }
+          ]
+        },
+        {
+          "code": "Q13",
+          "prompt": "An app development project led by Kevin is behind schedule due to integration testing failures. The client expects delivery in four weeks. How should Kevin recover the schedule?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Crash the schedule by adding resources."
+            },
+            {
+              "code": "B",
+              "text": "Rebaseline the schedule with a critical path analysis and stakeholder approval."
+            },
+            {
+              "code": "C",
+              "text": "Fast-track remaining tasks, risking quality."
+            },
+            {
+              "code": "D",
+              "text": "Reduce testing scope to meet the deadline."
+            },
+            {
+              "code": "E",
+              "text": "Proceed, expecting team overtime to recover."
+            }
+          ]
+        },
+        {
+          "code": "Q14",
+          "prompt": "A data science team led by Divya faces risks from unstable APIs. The client expects a risk-free deployment. How should Divya assess these risks?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Rely on team experience to evaluate risks."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a risk assessment with a probability-impact matrix."
+            },
+            {
+              "code": "C",
+              "text": "Ignore risks unless APIs fail."
+            },
+            {
+              "code": "D",
+              "text": "Outsource risk analysis to a vendor."
+            },
+            {
+              "code": "E",
+              "text": "Escalate to the client for guidance."
+            }
+          ]
+        },
+        {
+          "code": "Q15",
+          "prompt": "An app development project led by Amir needs serverless computing expertise, unavailable internally. The project is time-sensitive. How should Amir address this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Cognitive Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Hire a serverless computing expert."
+            },
+            {
+              "code": "B",
+              "text": "Implement a learning program with hands-on serverless labs for the existing team."
+            },
+            {
+              "code": "C",
+              "text": "Assign tasks to skilled members only."
+            },
+            {
+              "code": "D",
+              "text": "Outsource the migration."
+            },
+            {
+              "code": "E",
+              "text": "Ignore until post-project training."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Personality Orientation",
+      "kind": "SCENARIO",
+      "questions": [
+        {
+          "code": "Q16",
+          "prompt": "During a critical team meeting led by Rahul, a senior colleague interrupts and takes credit for a brilliant idea presented by a quiet, junior team member. How should Rahul immediately respond?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Publicly redirect credit: \"Apologies for the interruption, [Junior's Name], you were making a fascinating point about [the idea]. Could you please elaborate further?\""
+            },
+            {
+              "code": "B",
+              "text": "Privately speak to the senior colleague after the meeting to express his disappointment."
+            },
+            {
+              "code": "C",
+              "text": "Do nothing in the moment, but later suggest to the junior team member that they should be more assertive."
+            },
+            {
+              "code": "D",
+              "text": "Send a follow-up email to the team summarizing the meeting and explicitly crediting the junior member for the idea."
+            },
+            {
+              "code": "E",
+              "text": "Make a mental note; this is an internal team dynamic issue that will likely sort itself out."
+            }
+          ]
+        },
+        {
+          "code": "Q17",
+          "prompt": "Lakshmi is hiring for a senior leadership role in her finance team. Two candidates are equally qualified on paper. One is from a traditional corporate background; the other has a diverse career path including startups and non-profits. Lakshmi's approach should be:",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Focus exclusively on their ability to deliver against the specific KPIs of the role."
+            },
+            {
+              "code": "B",
+              "text": "Lean towards the traditional candidate, as they seem like a safer, more predictable fit for the team."
+            },
+            {
+              "code": "C",
+              "text": "Value the diverse perspective of the second candidate, believing it will foster innovation and challenge groupthink in the leadership team."
+            },
+            {
+              "code": "D",
+              "text": "Create a detailed case study for both to solve, allowing her to compare their problem-solving approaches side-by-side."
+            },
+            {
+              "code": "E",
+              "text": "Involve multiple team members from different departments in the final interview panel to get a variety of perspectives on cultural fit."
+            }
+          ]
+        },
+        {
+          "code": "Q18",
+          "prompt": "Anita's project team is feeling burned out after a sustained period of high-intensity work to launch a major product. Morale is dipping. How should Anita address this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Acknowledge their hard work and stress, then facilitate a team meeting to collectively re-prioritize tasks and explore flexible work options for the coming weeks."
+            },
+            {
+              "code": "B",
+              "text": "Offer a team bonus for completing the next milestone."
+            },
+            {
+              "code": "C",
+              "text": "Host a team dinner and share a motivating speech about the importance of their work."
+            },
+            {
+              "code": "D",
+              "text": "Bring in a professional to run a resilience and stress-management workshop."
+            },
+            {
+              "code": "E",
+              "text": "Remind them of the consequences of missing upcoming deadlines to refocus their efforts."
+            }
+          ]
+        },
+        {
+          "code": "Q19",
+          "prompt": "A colleague from another department makes a joke during a cross-functional meeting chaired by Arvind. Arvind finds it subtly offensive towards a minority group. The room falls silent. Arvind should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Say calmly, \"I'm not sure that landed as intended. Let's refocus on the agenda.\" Later, he speaks to them privately to explain why the joke was problematic."
+            },
+            {
+              "code": "B",
+              "text": "Laugh awkwardly to ease the tension and quickly move the meeting along."
+            },
+            {
+              "code": "C",
+              "text": "Ignore it, but report the incident to HR after the meeting."
+            },
+            {
+              "code": "D",
+              "text": "Publicly state, \"That kind of humor isn't appropriate here.\""
+            },
+            {
+              "code": "E",
+              "text": "Make eye contact with the person who made the joke and subtly shake his head."
+            }
+          ]
+        },
+        {
+          "code": "Q20",
+          "prompt": "A high-performing member of Priyanka's HR team, a single parent, asks about flexible working arrangements to manage school pick-ups. Company policy doesn't explicitly forbid it, but it's not the norm. Priyanka should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Agree to a trial period with clear deliverables and communication protocols to see if it works for everyone."
+            },
+            {
+              "code": "B",
+              "text": "Deny the request, citing the need for the team to be fully available during core business hours."
+            },
+            {
+              "code": "C",
+              "text": "Suggest they speak to HR about the formal flexible working request process."
+            },
+            {
+              "code": "D",
+              "text": "Agree, but ask them to keep it discreet so it doesn't set a precedent."
+            },
+            {
+              "code": "E",
+              "text": "Counter-offer with a later start and end time that still covers core hours, as a compromise."
+            }
+          ]
+        },
+        {
+          "code": "Q21",
+          "prompt": "The marketing team's campaign idea, led by Vivek, is shot down by senior leadership during a review meeting. Back in the team area, Vivek can see they are deflated. His immediate reaction is to:",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Close the door and give them a candid, motivating talk about why leadership is wrong and they'll prove it next time."
+            },
+            {
+              "code": "B",
+              "text": "Gather the team to honestly debrief the feedback, separate what was valid from what was misunderstood, and create an action plan to address concerns for a future proposal."
+            },
+            {
+              "code": "C",
+              "text": "Tell them not to worry and that he'll handle future communications with leadership."
+            },
+            {
+              "code": "D",
+              "text": "Send a calming email acknowledging the disappointment and reminding them of their past successes."
+            },
+            {
+              "code": "E",
+              "text": "Say nothing and let them process it; they're professionals and will move on."
+            }
+          ]
+        },
+        {
+          "code": "Q22",
+          "prompt": "Deepa, a senior director, discovers that a new, extremely rigid company policy is demotivating her creative team and stifling their work. She disagrees with it. How should Deepa lead her team?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Clearly explain the policy and the rationale behind it, but openly work with the team to find creative \"workarounds\" that adhere to the letter but not the spirit of the rule."
+            },
+            {
+              "code": "B",
+              "text": "Express her personal frustration with the policy, creating a \"us vs. them\" dynamic with senior management to build team camaraderie."
+            },
+            {
+              "code": "C",
+              "text": "Acknowledge their frustration, explain the policy, and empower them to help her draft a formal request to leadership for an exemption, backed by evidence of its impact on their work."
+            },
+            {
+              "code": "D",
+              "text": "Tell them to comply for now, as she is advocating for a change through official channels."
+            },
+            {
+              "code": "E",
+              "text": "Shield them from the policy by not telling them about it and finding ways to absorb the administrative burden herself."
+            }
+          ]
+        },
+        {
+          "code": "Q23",
+          "prompt": "A new employee from a different cultural background is struggling to adapt to Manoj's team's very direct and fast-paced communication style. To facilitate their integration, Manoj should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Privately advise the new employee on the nuances of the team's communication norms and how best to navigate them."
+            },
+            {
+              "code": "B",
+              "text": "Ask the team to be more mindful and patient in their interactions."
+            },
+            {
+              "code": "C",
+              "text": "Pair them with a mentor who can provide one-on-one support and decode unspoken team dynamics."
+            },
+            {
+              "code": "D",
+              "text": "Encourage the team to slow down and adopt a more inclusive communication style, perhaps by having a team discussion about communication preferences."
+            },
+            {
+              "code": "E",
+              "text": "Encourage the new employee to simply adapt; it's important for their career growth."
+            }
+          ]
+        },
+        {
+          "code": "Q24",
+          "prompt": "To build a truly inclusive environment, what should be Kavita's primary focus as a leader?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Ensuring all company-mandated diversity training is completed by her team."
+            },
+            {
+              "code": "B",
+              "text": "Actively seeking and valuing diverse perspectives in every major decision, and ensuring all voices are heard in meetings."
+            },
+            {
+              "code": "C",
+              "text": "Focusing on meritocracy; the best ideas and people will naturally rise to the top regardless of background."
+            },
+            {
+              "code": "D",
+              "text": "Mentoring individuals from underrepresented groups within her department."
+            },
+            {
+              "code": "E",
+              "text": "Celebrating different cultural holidays and events as a team."
+            }
+          ]
+        },
+        {
+          "code": "Q25",
+          "prompt": "When communicating a major, potentially unwelcome organizational change (e.g., a restructuring) to his team, what is Rohan's primary goal?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "To deliver the message with clarity and empathy, then provide a safe space for them to ask questions and express their feelings."
+            },
+            {
+              "code": "B",
+              "text": "To frame the change positively and focus on the opportunities it will create."
+            },
+            {
+              "code": "C",
+              "text": "To explain the business rationale clearly so they understand why it's necessary."
+            },
+            {
+              "code": "D",
+              "text": "To deliver the message efficiently and then give them space to process it on their own."
+            },
+            {
+              "code": "E",
+              "text": "To reassure them that their jobs are safe and that he will personally look out for them."
+            }
+          ]
+        },
+        {
+          "code": "Q26",
+          "prompt": "Two developers, Sanjay and Meera, disagree on prioritizing a UI feature vs. backend optimization for a client app, causing sprint delays. The client is pressing for delivery. How should their manager, Fatima, resolve this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Enforce a decision based on the project timeline."
+            },
+            {
+              "code": "B",
+              "text": "Facilitate a workshop to align on client priorities and technical trade-offs."
+            },
+            {
+              "code": "C",
+              "text": "Reassign one developer to another task to avoid conflict."
+            },
+            {
+              "code": "D",
+              "text": "Allow them to resolve it independently, risking further delays."
+            },
+            {
+              "code": "E",
+              "text": "Escalate to the technical lead for a decision."
+            }
+          ]
+        },
+        {
+          "code": "Q27",
+          "prompt": "Vikram, a key AI-ML engineer, receives a competitor's offer with a higher salary and a leadership role. His manager, Sana, relies on his expertise, but budget constraints limit raises. How should Sana retain him?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Match the competitor's salary to keep him."
+            },
+            {
+              "code": "B",
+              "text": "Discuss his career goals and offer a tailored leadership path within the project."
+            },
+            {
+              "code": "C",
+              "text": "Assign him to a high-visibility project to boost his profile."
+            },
+            {
+              "code": "D",
+              "text": "Ignore the offer, expecting loyalty to Wissen."
+            },
+            {
+              "code": "E",
+              "text": "Reduce his workload to ease stress."
+            }
+          ]
+        },
+        {
+          "code": "Q28",
+          "prompt": "A client demands a new compliance dashboard in six weeks, but Ravi's team's Gantt chart estimates ten weeks due to regulatory checks. The client threatens to escalate. How should Ravi handle this pushback?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Agree to the six-week deadline and crash the schedule."
+            },
+            {
+              "code": "B",
+              "text": "Present a Gantt chart with a risk analysis to negotiate a realistic timeline."
+            },
+            {
+              "code": "C",
+              "text": "Reduce scope to meet the six-week deadline, risking quality."
+            },
+            {
+              "code": "D",
+              "text": "Delegate negotiations to the project manager without data."
+            },
+            {
+              "code": "E",
+              "text": "Delay response until the client escalates."
+            }
+          ]
+        },
+        {
+          "code": "Q30",
+          "prompt": "A banking app project is on track, but the client is anxious due to past vendor delays. They request weekly updates, but Preeti's team is focused on coding. How should Preeti ensure effective communication?",
+          "questionType": "SJT_SINGLE",
+          "category": "Personality Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Provide detailed technical reports weekly."
+            },
+            {
+              "code": "B",
+              "text": "Create a simplified dashboard with key metrics and biweekly calls."
+            },
+            {
+              "code": "C",
+              "text": "Delegate updates to a junior member to save time."
+            },
+            {
+              "code": "D",
+              "text": "Offer a discount to ease concerns without updates."
+            },
+            {
+              "code": "E",
+              "text": "Provide updates only when milestones are met."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Response Orientation",
+      "kind": "SCENARIO",
+      "questions": [
+        {
+          "code": "Q31",
+          "prompt": "A critical security vulnerability is discovered in a client-facing application built by Sanjay's team. The client is not yet aware, but there is a risk of a data breach. Sanjay's immediate response should be to:",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Calmly assemble a tiger team to assess the vulnerability, develop a patch, and create a communication plan for the client, all before any public disclosure."
+            },
+            {
+              "code": "B",
+              "text": "Immediately take the application offline to contain the risk, then notify the client."
+            },
+            {
+              "code": "C",
+              "text": "Notify the client immediately and ask for guidance on how they would like him to proceed."
+            },
+            {
+              "code": "D",
+              "text": "Work quietly to patch the vulnerability, hoping to fix it before anyone notices or exploits it."
+            },
+            {
+              "code": "E",
+              "text": "Escalate the issue to senior leadership and legal, and await their instructions."
+            }
+          ]
+        },
+        {
+          "code": "Q32",
+          "prompt": "A key project led by Pooja is failing. The team is exhausted, the client is angry, and the budget is blown. How should Pooja respond?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Take full ownership of the failure with the client and her leadership, then work transparently with the team to conduct a blameless post-mortem and build a realistic recovery plan."
+            },
+            {
+              "code": "B",
+              "text": "Identify the specific points of failure and the individuals responsible to hold them accountable."
+            },
+            {
+              "code": "C",
+              "text": "Work around the clock with the team to try and salvage the project, promising the client a free remedial phase."
+            },
+            {
+              "code": "D",
+              "text": "Request that a more experienced leader be brought in to take over the project turnaround."
+            },
+            {
+              "code": "E",
+              "text": "Calmly explain to the client and leadership that the project's initial scope was unrealistic given the constraints."
+            }
+          ]
+        },
+        {
+          "code": "Q33",
+          "prompt": "Tarun is in a meeting with a long-standing, valuable client. They are furious about a recent service outage and are threatening to take their business elsewhere. Tarun's immediate reaction should be to:",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Listen attentively without interrupting, acknowledge their frustration and the impact on their business, and commit to a full investigation and action plan within 24 hours."
+            },
+            {
+              "code": "B",
+              "text": "Calmly explain the technical reasons for the outage to reassure them it was an isolated incident."
+            },
+            {
+              "code": "C",
+              "text": "Apologize profusely and offer a significant discount on their next invoice."
+            },
+            {
+              "code": "D",
+              "text": "Assure them that he has already implemented a fix and that it will never happen again."
+            },
+            {
+              "code": "E",
+              "text": "Suggest they speak to his manager or someone in client relations."
+            }
+          ]
+        },
+        {
+          "code": "Q34",
+          "prompt": "A vendor with whom Nisha has a close personal friendship offers her a significant gift (e.g., tickets to a major sports final) just before their company is due to re-bid for a contract with Wissen. Company policy is ambiguous. Nisha should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Accept the gift but declare it to the ethics committee, recusing herself from the vendor selection process."
+            },
+            {
+              "code": "B",
+              "text": "Politely decline the gift, explaining that it could be perceived as a conflict of interest."
+            },
+            {
+              "code": "C",
+              "text": "Accept the gift; her friendship is separate from business and she can remain objective."
+            },
+            {
+              "code": "D",
+              "text": "Accept the gift but not tell anyone, to avoid awkward questions."
+            },
+            {
+              "code": "E",
+              "text": "Suggest the vendor donate the value of the tickets to a charity instead."
+            }
+          ]
+        },
+        {
+          "code": "Q35",
+          "prompt": "Alok witnesses a senior leader making a decision that he believes is unethical, though not explicitly illegal. It could save the company money but harms a group of low-level employees. How should Alok respond?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Schedule a private meeting with the leader to respectfully share his concerns and the potential impact on employee morale and company reputation."
+            },
+            {
+              "code": "B",
+              "text": "Do nothing; it's not his place to challenge senior leadership."
+            },
+            {
+              "code": "C",
+              "text": "Anonymously report his concerns to the company's ethics hotline or HR."
+            },
+            {
+              "code": "D",
+              "text": "Discuss it with trusted colleagues to see if they share his concern, building a coalition."
+            },
+            {
+              "code": "E",
+              "text": "Focus on mitigating the impact on the affected employees within his own sphere of influence."
+            }
+          ]
+        },
+        {
+          "code": "Q36",
+          "prompt": "During a tense negotiation, the client's representative makes a personal and unfair attack on the competence of Geeta's team. Geeta's response should be to:",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Calmly but firmly state, \"I'm surprised to hear that, as it doesn't align with the data we've shared. Let's focus on the facts to move this forward.\""
+            },
+            {
+              "code": "B",
+              "text": "Defend her team passionately, listing their qualifications and past successes."
+            },
+            {
+              "code": "C",
+              "text": "Ask for a short break to let emotions settle before continuing the discussion."
+            },
+            {
+              "code": "D",
+              "text": "Respond in kind to show strength and that she won't be intimidated."
+            },
+            {
+              "code": "E",
+              "text": "Ignore the comment and continue with her presentation."
+            }
+          ]
+        },
+        {
+          "code": "Q37",
+          "prompt": "A major project Anil is leading is behind schedule. His manager, under pressure from above, tells him to instruct his team to work 12-hour days and weekends to catch up. Anil knows the team is already burnt out. Anil should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Comply with his manager's directive, as he must be a team player and deliver for the company."
+            },
+            {
+              "code": "B",
+              "text": "Push back to his manager, presenting a revised schedule based on a sustainable pace and explaining the risks of burnout and quality loss."
+            },
+            {
+              "code": "C",
+              "text": "Tell his team about the pressure from above and let them volunteer for the extra hours."
+            },
+            {
+              "code": "D",
+              "text": "Work the extra hours himself, shielding the team as much as possible."
+            },
+            {
+              "code": "E",
+              "text": "Promise his manager he'll get it done, but don't actually enforce the extra hours on his team."
+            }
+          ]
+        },
+        {
+          "code": "Q38",
+          "prompt": "A brilliant but abrasive senior team member, who is critical to Smita's most important project, has just berated a junior colleague in front of others, causing the junior to cry. How should Smita react?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "In the moment, calmly ask the senior team member to join her for a private discussion, where she addresses the behavior's unacceptability and mandates an apology."
+            },
+            {
+              "code": "B",
+              "text": "Comfort the junior colleague first, then later have a formal, documented performance conversation with the senior team member about their conduct."
+            },
+            {
+              "code": "C",
+              "text": "Ignore it for now, but address it in the senior member's upcoming performance review."
+            },
+            {
+              "code": "D",
+              "text": "Publicly reprimand the senior team member for their behavior."
+            },
+            {
+              "code": "E",
+              "text": "Speak to the junior colleague privately, advising them on how to handle such situations in the future."
+            }
+          ]
+        },
+        {
+          "code": "Q39",
+          "prompt": "The HR department, led by Asif, is asked to make a 10% budget cut with immediate effect. Asif's initial reaction should be to:",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Panic and ask his team leads for a list of essential and non-essential expenses by the end of the day."
+            },
+            {
+              "code": "B",
+              "text": "Remain composed and communicate the challenge to his team, tasking them with identifying creative ways to achieve the cut while protecting their strategic capabilities."
+            },
+            {
+              "code": "C",
+              "text": "Immediately identify the lowest-performing 10% of his team and begin planning for layoffs."
+            },
+            {
+              "code": "D",
+              "text": "Request a meeting with his manager to negotiate the cut, arguing its impact on key projects."
+            },
+            {
+              "code": "E",
+              "text": "Freeze all discretionary spending and hiring, buying time to formulate a more strategic response."
+            }
+          ]
+        },
+        {
+          "code": "Q40",
+          "prompt": "A year later, Rajiv realizes he made a significant strategic error six months ago that has cost the company money and wasted team effort. In a review meeting with his own leader, Rajiv should:",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Own up to the mistake immediately, explain what he's learned, and present the corrective actions he's already put in place."
+            },
+            {
+              "code": "B",
+              "text": "Explain the market conditions and other factors that contributed to the error."
+            },
+            {
+              "code": "C",
+              "text": "Present the data on the error, but focus his report on the path forward."
+            },
+            {
+              "code": "D",
+              "text": "Hope that the error is attributed to the general challenges of the business environment."
+            },
+            {
+              "code": "E",
+              "text": "Subtly shift context to show that while the direct outcome was a loss, it has opened up other unexpected opportunities."
+            }
+          ]
+        },
+        {
+          "code": "Q41",
+          "prompt": "A compliance system led by Kiran fails an external audit due to data discrepancies. The client is concerned about penalties. What is the first step for Kiran?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Implement a quick data fix."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a root cause analysis with a fishbone diagram."
+            },
+            {
+              "code": "C",
+              "text": "Retrain the team on data handling."
+            },
+            {
+              "code": "D",
+              "text": "Notify the client of the issue."
+            },
+            {
+              "code": "E",
+              "text": "Switch to a new data system."
+            }
+          ]
+        },
+        {
+          "code": "Q42",
+          "prompt": "An AI platform led by Imran experiences intermittent outages, unnoticed until clients complain. The client demands proactive monitoring. How should Imran address this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Rely on manual monitoring checks."
+            },
+            {
+              "code": "B",
+              "text": "Implement automated monitoring with tools like Prometheus."
+            },
+            {
+              "code": "C",
+              "text": "Delegate to the operations team."
+            },
+            {
+              "code": "D",
+              "text": "Monitor only critical components."
+            },
+            {
+              "code": "E",
+              "text": "Ignore unless outages increase."
+            }
+          ]
+        },
+        {
+          "code": "Q43",
+          "prompt": "A complex encryption issue delays Farah's compliance system. An external expert offers a solution but charges a premium. How should Farah proceed?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Solve internally to save costs."
+            },
+            {
+              "code": "B",
+              "text": "Engage the expert for targeted consultation."
+            },
+            {
+              "code": "C",
+              "text": "Delegate to the team to research solutions."
+            },
+            {
+              "code": "D",
+              "text": "Ignore unless the issue escalates."
+            },
+            {
+              "code": "E",
+              "text": "Hire the expert permanently."
+            }
+          ]
+        },
+        {
+          "code": "Q44",
+          "prompt": "A service desk system upgrade led by Gopal fails due to integration issues, delaying client rollout. How should Gopal foster learning from this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Move to the next project to avoid dwelling."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a post-mortem with lessons learned and action plans."
+            },
+            {
+              "code": "C",
+              "text": "Retrain the team on integration."
+            },
+            {
+              "code": "D",
+              "text": "Blame the integration team."
+            },
+            {
+              "code": "E",
+              "text": "Escalate to leadership for guidance."
+            }
+          ]
+        },
+        {
+          "code": "Q45",
+          "prompt": "A compliance team member, Neha, has a financial stake in a vendor bidding for her project. She's part of the evaluation team. How should her manager, Omar, handle this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Allow Neha to evaluate, trusting her professionalism."
+            },
+            {
+              "code": "B",
+              "text": "Remove Neha from the evaluation and disclose her interest."
+            },
+            {
+              "code": "C",
+              "text": "Disclose her interest but allow her input."
+            },
+            {
+              "code": "D",
+              "text": "Ignore unless the vendor is selected."
+            },
+            {
+              "code": "E",
+              "text": "Escalate to HR for a decision."
+            }
+          ]
+        },
+        {
+          "code": "Q46",
+          "prompt": "Under pressure to meet a client deadline, a developer suggests bypassing security tests for a banking app. The client is unaware. How should the project lead, Zara, respond?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Allow bypassing tests to meet the deadline."
+            },
+            {
+              "code": "B",
+              "text": "Reinforce ethical standards and explore schedule recovery options."
+            },
+            {
+              "code": "C",
+              "text": "Reduce app features to meet the deadline."
+            },
+            {
+              "code": "D",
+              "text": "Notify the client of potential risks."
+            },
+            {
+              "code": "E",
+              "text": "Escalate to leadership for guidance."
+            }
+          ]
+        },
+        {
+          "code": "Q47",
+          "prompt": "A DR test led by Harsh fails to restore systems in time. What is the first step for Harsh?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Retrain the DR team."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a root cause analysis."
+            },
+            {
+              "code": "C",
+              "text": "Switch to a new DR tool."
+            },
+            {
+              "code": "D",
+              "text": "Notify stakeholders of the failure."
+            },
+            {
+              "code": "E",
+              "text": "Increase test frequency."
+            }
+          ]
+        },
+        {
+          "code": "Q48",
+          "prompt": "Stakeholders are concerned about DR test results from a test led by Indira. How should Indira address this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Provide a detailed technical report."
+            },
+            {
+              "code": "B",
+              "text": "Present a summary with improvement plans."
+            },
+            {
+              "code": "C",
+              "text": "Delegate communication to the DR team."
+            },
+            {
+              "code": "D",
+              "text": "Offer a discount for test failures."
+            },
+            {
+              "code": "E",
+              "text": "Avoid discussing results."
+            }
+          ]
+        },
+        {
+          "code": "Q49",
+          "prompt": "A client demands a 4-hour RTO for critical systems. How should Jaspreet ensure this?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Upgrade all systems."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a gap analysis for RTO compliance."
+            },
+            {
+              "code": "C",
+              "text": "Train the team on faster recovery."
+            },
+            {
+              "code": "D",
+              "text": "Outsource DR to a vendor."
+            },
+            {
+              "code": "E",
+              "text": "Promise the RTO without analysis."
+            }
+          ]
+        },
+        {
+          "code": "Q50",
+          "prompt": "A data privacy law impacts Kamal's project. What is the first step for Kamal?",
+          "questionType": "SJT_SINGLE",
+          "category": "Response Orientation",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Implement new security measures."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a privacy impact assessment."
+            },
+            {
+              "code": "C",
+              "text": "Train the team on the law."
+            },
+            {
+              "code": "D",
+              "text": "Outsource compliance tasks."
+            },
+            {
+              "code": "E",
+              "text": "Ignore until audit."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "The Probability Dilemma",
+      "kind": "SCENARIO",
+      "questions": [
+        {
+          "code": "Q51",
+          "prompt": "Vikram's team has developed a breakthrough AI model that gives Wissen a significant competitive advantage. During final validation, he discovers that the model was trained on a dataset that includes a small percentage of copyrighted material, obtained through a web scrape. Retraining would delay launch by 18 months, allowing competitors to catch up. Legal advises the risk of litigation is low but not zero. What should Vikram do?",
+          "questionType": "SJT_SINGLE",
+          "category": "The Probability Dilemma",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Launch immediately; the competitive advantage justifies the minimal legal risk. The delay would harm Wissen more than a potential lawsuit."
+            },
+            {
+              "code": "B",
+              "text": "Scrap the model and start over with properly licensed data, accepting the 18-month delay and loss of market advantage as the price of integrity."
+            },
+            {
+              "code": "C",
+              "text": "Launch but immediately form a secret team to develop a replacement model, hoping to swap it out before any legal challenges arise."
+            },
+            {
+              "code": "D",
+              "text": "Disclose the issue to a few key clients, ask for their trust, and launch with a transparent commitment to rectify any future legal findings."
+            },
+            {
+              "code": "E",
+              "text": "Convene a closed-door strategy session with leadership to explore acquiring the rights retroactively or settling potential claims preemptively."
+            }
+          ]
+        },
+        {
+          "code": "Q52",
+          "prompt": "Anita's team is two weeks away from delivering a mission-critical system to a top-tier banking client. A junior developer discovers a fundamental architectural flaw that, while not causing immediate failure, will make the system impossible to scale or upgrade after 18 months. Fixing it now would mean missing the deadline, breaching the contract, and potentially losing the client. The client is unlikely to discover the flaw for at least a year. What should Anita do?",
+          "questionType": "SJT_SINGLE",
+          "category": "The Probability Dilemma",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Deliver as planned, and immediately form a post-launch team to work on a \"version 2.0\" that can be swapped in before the scalability issue becomes critical."
+            },
+            {
+              "code": "B",
+              "text": "Inform the client immediately, explain the situation transparently, and accept the contractual penalties and reputational damage as the cost of doing the right thing."
+            },
+            {
+              "code": "C",
+              "text": "Fix the flaw, delay delivery, and present the client with an ultimatum: accept the delay for a superior long-term solution, or we part ways."
+            },
+            {
+              "code": "D",
+              "text": "Document the flaw thoroughly, deliver the system, and ensure the client signs off on the final acceptance, shifting long-term responsibility to them."
+            },
+            {
+              "code": "E",
+              "text": "Approach the client's CTO privately, explain the trade-off, and seek their informal blessing to deliver now with a confidential roadmap for the upgrade."
+            }
+          ]
+        },
+        {
+          "code": "Q53",
+          "prompt": "Two of Rohan's most senior leaders, both critical to Wissen's future, have reached an irreconcilable personal and professional conflict. Their feud is beginning to poison the wider leadership team. If both stay, the toxicity will spread. If either leaves, Wissen loses irreplaceable expertise and client relationships. Mediation has failed. What should Rohan do?",
+          "questionType": "SJT_SINGLE",
+          "category": "The Probability Dilemma",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Keep both, but restructure the organization to create maximum separation between them and their teams, even if it creates inefficiency."
+            },
+            {
+              "code": "B",
+              "text": "Conduct a difficult but honest assessment of who is more aligned with Wissen's long-term culture and values, and make the painful decision to let the other go."
+            },
+            {
+              "code": "C",
+              "text": "Let them both go. The cost of the toxicity and the precedent it sets is higher than losing any single individual, no matter how talented."
+            },
+            {
+              "code": "D",
+              "text": "Send both to an extreme, high-stakes leadership retreat or challenge, hoping that a shared difficult experience will force a breakthrough."
+            },
+            {
+              "code": "E",
+              "text": "Do nothing for now, hoping that time or a external event will resolve the conflict, while managing the symptoms."
+            }
+          ]
+        },
+        {
+          "code": "Q54",
+          "prompt": "A sudden, severe market downturn means Wissen must make immediate, deep budget cuts. Deepa's department must cut 30% of its budget in 30 days. Any significant cut will mean either: (a) laying off 30% of her team, including many high-performers, or (b) canceling a high-profile innovation project that is the future of the business. Both options are devastating. What should Deepa do?",
+          "questionType": "SJT_SINGLE",
+          "category": "The Probability Dilemma",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Implement a combination of both: layoffs and project cuts, spreading the pain but ensuring neither the team nor the future is completely destroyed."
+            },
+            {
+              "code": "B",
+              "text": "Fight leadership on the cut, presenting alternative, creative financing options and arguing passionately that the long-term damage outweighs the short-term savings."
+            },
+            {
+              "code": "C",
+              "text": "Protect the people at all costs. Cut the innovation project completely, believing that talent can rebuild strategy, but strategy cannot replace lost talent."
+            },
+            {
+              "code": "D",
+              "text": "Protect the future at all costs. Make the layoffs, believing that the innovation project is the only way to secure jobs for everyone in the long run."
+            },
+            {
+              "code": "E",
+              "text": "Propose a dramatic, high-risk alternative: a 50% cut to everything, creating a \"survival mode\" that will burn out the remaining team but keep both people and project alive."
+            }
+          ]
+        },
+        {
+          "code": "Q55",
+          "prompt": "During a high-stakes acquisition negotiation that would transform Wissen's market position, the target company's CEO privately offers Priya a personal consulting deal worth $2M over three years, contingent on the acquisition closing. The deal is structured to be private and would not technically violate any laws in the target's jurisdiction. Priya knows this could influence her judgment, but also believes the acquisition is absolutely the right move for Wissen. What should Priya do?",
+          "questionType": "SJT_SINGLE",
+          "category": "The Probability Dilemma",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "Immediately and firmly decline the personal deal, and disclose the offer to Wissen's board and her own leadership, even if it jeopardizes the acquisition."
+            },
+            {
+              "code": "B",
+              "text": "Accept the deal but donate the entire amount to a charity of Wissen's choice, ensuring no personal gain."
+            },
+            {
+              "code": "C",
+              "text": "Reject the deal, but do not disclose it to avoid any risk of the acquisition falling through. She knows it won't influence her judgment."
+            },
+            {
+              "code": "D",
+              "text": "Propose that the $2M be structured as a reduction in the acquisition price instead, benefiting Wissen directly."
+            },
+            {
+              "code": "E",
+              "text": "Consult with a trusted mentor outside Wissen for advice on how to navigate this without disclosing spe"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Word Association",
+      "kind": "SCENARIO",
+      "questions": [
+        {
+          "code": "Q56",
+          "prompt": "Betrayal",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q57",
+          "prompt": "Sabotage",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q58",
+          "prompt": "Failure",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q59",
+          "prompt": "Chaos",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q60",
+          "prompt": "Exploit",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q61",
+          "prompt": "Dissent",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q62",
+          "prompt": "Abandon",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q63",
+          "prompt": "Corruption",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q64",
+          "prompt": "Panic",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        },
+        {
+          "code": "Q65",
+          "prompt": "Sacrifice",
+          "questionType": "FREE_TEXT",
+          "category": "Word Association",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5
+        }
+      ]
+    },
+    {
+      "title": "Tale Spin",
+      "kind": "SCENARIO",
+      "questions": [
+        {
+          "code": "Q66",
+          "prompt": "In the common story, why did the thirsty crow drop stones into the pot to raise the water level?",
+          "questionType": "SJT_SINGLE",
+          "category": "Tale Spin",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "He was intelligent and figured out the solution through trial and error."
+            },
+            {
+              "code": "B",
+              "text": "He was desperate and would try anything to survive."
+            },
+            {
+              "code": "C",
+              "text": "He had seen another bird do this and simply copied the behavior."
+            },
+            {
+              "code": "D",
+              "text": "He refused to accept death and fought creatively against it."
+            },
+            {
+              "code": "E",
+              "text": "He wanted to prove to the other animals that he was clever."
+            }
+          ]
+        },
+        {
+          "code": "Q67",
+          "prompt": "Why did the honest woodcutter in the folk tale refuse the golden axe and ask only for his iron one?",
+          "questionType": "SJT_SINGLE",
+          "category": "Tale Spin",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "He was honest by nature and couldn't take what wasn't his."
+            },
+            {
+              "code": "B",
+              "text": "He was afraid of being caught in a lie."
+            },
+            {
+              "code": "C",
+              "text": "He calculated that honesty would be rewarded more in the long run."
+            },
+            {
+              "code": "D",
+              "text": "He didn't believe the golden axe was real."
+            },
+            {
+              "code": "E",
+              "text": "He was attached to his old axe and didn't want a new one."
+            }
+          ]
+        },
+        {
+          "code": "Q68",
+          "prompt": "Why did the smart student in the colony, who knew all the answers, deliberately let others answer sometimes?",
+          "questionType": "SJT_SINGLE",
+          "category": "Tale Spin",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "He understood that learning is collaborative and others need confidence too."
+            },
+            {
+              "code": "B",
+              "text": "He was afraid of being seen as a show-off."
+            },
+            {
+              "code": "C",
+              "text": "He was tired of always being the one to answer."
+            },
+            {
+              "code": "D",
+              "text": "He wanted the teacher to like him less."
+            },
+            {
+              "code": "E",
+              "text": "He was testing whether others had done the homework."
+            }
+          ]
+        },
+        {
+          "code": "Q69",
+          "prompt": "Why did the smart fox run away from the grapes?",
+          "questionType": "SJT_SINGLE",
+          "category": "Tale Spin",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "He realized it was an impossible task; no point wasting efforts."
+            },
+            {
+              "code": "B",
+              "text": "He was fed up with a world that keeps rewards out of reach of hardworking folks."
+            },
+            {
+              "code": "C",
+              "text": "He thought, \"I will find better grapes nearby if I search hard enough.\""
+            },
+            {
+              "code": "D",
+              "text": "He thought, \"To hell with the grapes\u2014I will eat cucumbers today.\""
+            },
+            {
+              "code": "E",
+              "text": "He worried that other animals would mock him if he failed."
+            }
+          ]
+        },
+        {
+          "code": "Q70",
+          "prompt": "Why did the tortoise challenge the hare to a race?",
+          "questionType": "SJT_SINGLE",
+          "category": "Tale Spin",
+          "reverse": false,
+          "scaleMin": 1,
+          "scaleMax": 5,
+          "options": [
+            {
+              "code": "A",
+              "text": "He knew that consistency and patience always defeat raw speed."
+            },
+            {
+              "code": "B",
+              "text": "He was tired of the hare's arrogance and wanted to teach him a lesson."
+            },
+            {
+              "code": "C",
+              "text": "He had nothing to lose and everything to gain by trying."
+            },
+            {
+              "code": "D",
+              "text": "He miscalculated and didn't realize how fast the hare truly was."
+            },
+            {
+              "code": "E",
+              "text": "He wanted to inspire other slow animals to believe in themselves."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "policy": {
+    "showResultsToEmployee": true,
+    "resultReleaseDelayHours": 0,
+    "postSubmitMessage": "Assessment completed. You will be notified once your report is available.",
+    "leaderCanViewFullReport": true,
+    "reportWorkflow": "MANUAL_PDF_UPLOAD",
+    "randomizeQuestionOrder": false,
+    "submissionAlertAdminIds": []
+  }
+}

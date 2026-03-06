@@ -19,9 +19,10 @@ type QuestionOption = {
 
 type Question = {
   id: string;
+  code?: string | null;
   sectionId?: string | null;
   prompt: string;
-  questionType: "LIKERT_TRAIT" | "SJT_SINGLE";
+  questionType: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
   category?: string | null;
   scaleMin: number;
   scaleMax: number;
@@ -32,11 +33,13 @@ type Answer = {
   questionId: string;
   value: number | null;
   optionId: string | null;
+  textValue?: string | null;
 };
 
 type AnswerState = {
   value?: number;
   optionId?: string;
+  textValue?: string;
 };
 
 export default function SessionPage() {
@@ -83,6 +86,7 @@ export default function SessionPage() {
           next[answer.questionId] = {
             value: typeof answer.value === "number" ? answer.value : undefined,
             optionId: answer.optionId || undefined,
+            textValue: answer.textValue || undefined,
           };
         }
         setAnswers(next);
@@ -102,7 +106,8 @@ export default function SessionPage() {
         const answer = answers[question.id];
         if (!answer) return false;
         if (question.questionType === "LIKERT_TRAIT") return typeof answer.value === "number";
-        return Boolean(answer.optionId);
+        if (question.questionType === "SJT_SINGLE") return Boolean(answer.optionId);
+        return Boolean(answer.textValue?.trim());
       }).length,
     [answers, questions],
   );
@@ -150,6 +155,16 @@ export default function SessionPage() {
     });
   }
 
+  async function answerText(questionId: string, textValue: string) {
+    if (isReadOnly) return;
+
+    await fetch(`/api/assessment/sessions/${sessionId}/answer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ questionId, textValue }),
+    });
+  }
+
   async function submit() {
     if (isReadOnly) {
       router.push(`/reports/me/${assessmentId}`);
@@ -157,6 +172,20 @@ export default function SessionPage() {
     }
     try {
       setSubmitting(true);
+      const textSaves = questions
+        .filter((question) => question.questionType === "FREE_TEXT")
+        .map((question) =>
+          fetch(`/api/assessment/sessions/${sessionId}/answer`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              questionId: question.id,
+              textValue: answers[question.id]?.textValue || "",
+            }),
+          }),
+        );
+      await Promise.all(textSaves);
+
       const res = await fetch(`/api/assessment/sessions/${sessionId}/submit`, {
         method: "POST",
       });
@@ -246,7 +275,8 @@ export default function SessionPage() {
               <article key={question.id} className="rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-slate-900">
-                    {idx + 1}. {question.prompt}
+                    {question.code ? `${question.code}. ` : `${idx + 1}. `}
+                    {question.prompt}
                   </p>
                   {question.category && (
                     <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">
@@ -275,7 +305,7 @@ export default function SessionPage() {
                       </button>
                     ))}
                   </div>
-                ) : (
+                ) : question.questionType === "SJT_SINGLE" ? (
                   <div className="mt-4 grid gap-2">
                     {question.options.map((option) => (
                       <button
@@ -291,6 +321,25 @@ export default function SessionPage() {
                         {option.text}
                       </button>
                     ))}
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <textarea
+                      className="min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none ring-offset-2 focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+                      placeholder="Type your response"
+                      value={answers[question.id]?.textValue || ""}
+                      onChange={(event) => {
+                        const nextValue = event.target.value;
+                        setAnswers((prev) => ({
+                          ...prev,
+                          [question.id]: {
+                            textValue: nextValue,
+                          },
+                        }));
+                      }}
+                      onBlur={(event) => answerText(question.id, event.target.value)}
+                      disabled={isReadOnly}
+                    />
                   </div>
                 )}
               </article>

@@ -141,13 +141,16 @@ export async function resolveAssessmentAccess(
     let enrollmentReportDelayHours = 0;
 
     if (directEnrollment && directEnrollment.createdAt <= atTime) {
-      enrollmentReportMode = (directEnrollment as any).reportMode || "AUTO";
-      enrollmentReportDelayHours = (directEnrollment as any).reportDelayHours || 0;
+      enrollmentReportMode = directEnrollment.reportMode || "AUTO";
+      enrollmentReportDelayHours = directEnrollment.reportDelayHours || 0;
     } else if (tenantEnrollments.length > 0) {
-      const qualifying = tenantEnrollments.find((e: any) => e.includeFutureUsers || (user && user.createdAt <= e.createdAt));
+      const qualifying = tenantEnrollments.find(
+        (enrollment) =>
+          enrollment.includeFutureUsers || (user && user.createdAt <= enrollment.createdAt),
+      );
       if (qualifying) {
-        enrollmentReportMode = (qualifying as any).reportMode || "AUTO";
-        enrollmentReportDelayHours = (qualifying as any).reportDelayHours || 0;
+        enrollmentReportMode = qualifying.reportMode || "AUTO";
+        enrollmentReportDelayHours = qualifying.reportDelayHours || 0;
       }
     }
 

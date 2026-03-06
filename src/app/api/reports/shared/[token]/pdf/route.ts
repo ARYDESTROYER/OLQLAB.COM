@@ -46,9 +46,17 @@ export async function GET(
           userId: tokenRow.userId,
         },
       },
-      select: {
-        status: true,
-        narrativeJson: true,
+      include: {
+        assessment: {
+          select: {
+            policy: {
+              select: {
+                reportWorkflow: true,
+              },
+            },
+          },
+        },
+        pdfAsset: true,
       },
     }),
     db.quizSession.findUnique({
@@ -69,6 +77,25 @@ export async function GET(
       { error: "Report is still in draft and cannot be shared yet." },
       { status: 403 },
     );
+  }
+
+  if (report.assessment.policy?.reportWorkflow === "MANUAL_PDF_UPLOAD") {
+    if (!report.pdfAsset?.pdfBytes?.length) {
+      return NextResponse.json({ error: "Report PDF not available." }, { status: 404 });
+    }
+
+    const filename = (report.pdfAsset.fileName || `shared-report-${tokenRow.user.firstName}-${tokenRow.user.lastName}.pdf`)
+      .toLowerCase()
+      .replace(/[^a-z0-9_.-]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    return new Response(new Uint8Array(report.pdfAsset.pdfBytes), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename=\"${filename}\"`,
+        "Cache-Control": "no-store",
+      },
+    });
   }
 
   const narrative = JSON.parse(report.narrativeJson || "{}");

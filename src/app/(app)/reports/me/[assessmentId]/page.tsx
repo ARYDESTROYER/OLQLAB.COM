@@ -35,6 +35,9 @@ type CompetencyRow = {
 
 type Data = {
   message?: string;
+  reportWorkflow?: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+  reportStatus?: "DRAFT" | "PUBLISHED" | null;
+  manualPdfReady?: boolean;
   submittedAt?: string | null;
   assessment?: {
     id: string;
@@ -353,6 +356,44 @@ export default function MyReportPage() {
               My Reports
             </Link>
             <Link href="/assessment/current" className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">
+              Assessment Center
+            </Link>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (data.reportWorkflow === "MANUAL_PDF_UPLOAD") {
+    const isPublished = data.reportStatus === "PUBLISHED";
+    return (
+      <main className="mx-auto max-w-3xl p-6 md:p-10">
+        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-slate-900">{assessmentTitle}</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            {isPublished
+              ? "Your report is available. Download the PDF below."
+              : "Assessment completed. Your report is under review. You will be notified once it is available."}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {isPublished && (
+              <a
+                href={`/api/reports/me/${assessmentId}/pdf`}
+                className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+              >
+                Download Full PDF
+              </a>
+            )}
+            <Link
+              href="/reports/current"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+            >
+              My Reports
+            </Link>
+            <Link
+              href="/assessment/current"
+              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+            >
               Assessment Center
             </Link>
           </div>

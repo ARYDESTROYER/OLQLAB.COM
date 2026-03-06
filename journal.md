@@ -505,3 +505,96 @@ This file is the append-only engineering diary for implementation work in this r
   - Earlier historical entries include environment-specific validation notes that remain accurate for their time but should not be treated as current runtime status.
 - Next step:
   - Continue appending one journal entry per meaningful implementation/doc update and keep guide API/UX sections in sync with shipped behavior.
+
+## Entry 2026-03-05-02
+- Timestamp (UTC): 2026-03-05T19:33:37Z
+- Timestamp (Local): 2026-03-06 01:03:37 IST (+0530)
+- Task: Implement bulk actions for Tenants and Assessments admin tables.
+- Why: User accepted bulk-actions QoL as high-value and requested implementation beyond Users.
+- What changed:
+  - Updated `src/app/(app)/admin/tenants/TenantsClient.tsx`:
+    - Added row multi-select + header select-all checkbox.
+    - Added bulk action bar for selected rows.
+    - Added guarded bulk operations:
+      - `Archive Selected`
+      - `Unarchive Selected`
+    - Added busy-state guards during bulk operations and preserved inline-save behavior.
+  - Updated `src/app/(app)/admin/assessments/AssessmentsClient.tsx`:
+    - Added row multi-select + header select-all checkbox.
+    - Added bulk action bar for selected rows.
+    - Added guarded bulk operations:
+      - `Publish Selected`
+      - `Unpublish Selected`
+      - `Delete Selected` (confirmation required)
+    - Added conflict guards so row actions are disabled while bulk actions run.
+  - Updated `guide.md` section 12.2 and 12.3 to document these new bulk actions.
+- How:
+  - Reused existing single-item endpoints in controlled sequential loops for batch processing.
+  - Added success/failure aggregation to return clear toast outcomes after batch completion.
+- Validation/output:
+  - Ran lint for touched UI files:
+    - `npm run lint -- 'src/app/(app)/admin/tenants/TenantsClient.tsx' 'src/app/(app)/admin/assessments/AssessmentsClient.tsx'`
+  - Result: passed.
+- Risks/unknowns:
+  - Very large batch operations remain sequential by design for safety; performance is acceptable for normal admin usage but can be slower on very large selections.
+- Next step:
+  - Consider optional batched API endpoints for higher throughput if admin workloads involve very large tenant/assessment bulk updates.
+
+## Entry 2026-03-05-03
+- Timestamp (UTC): 2026-03-05T20:17:44Z
+- Timestamp (Local): 2026-03-06 01:47:44 IST (+0530)
+- Task: Implement CPR exam deployment primitives with manual PDF report workflow, participant question randomization, and admin submission-alert/review pipeline.
+- Why: User requested full rollout of a non-AI, exam-style module where admins manually review responses, upload PDF reports, and control participant notification timing.
+- What changed:
+  - Updated Prisma schema + migration:
+    - Added `QuestionType.FREE_TEXT`, `Answer.textValue`.
+    - Added `ReportWorkflow` enum and policy fields: `reportWorkflow`, `randomizeQuestionOrder`, `submissionAlertAdminIds`.
+    - Added `ReportPdfAsset` model and report relation for manual uploaded PDFs.
+  - Added delivery/service utilities in `src/lib/report-delivery.ts`:
+    - participant report-published email helper
+    - manual workflow submission-alert email helper (admin-recipient aware)
+  - Updated participant runtime:
+    - `POST /api/assessment/sessions/[id]/answer` now supports free-text responses.
+    - `GET /api/assessment/sessions/[id]` now supports deterministic participant-only randomized question order when policy enabled.
+    - `POST /api/assessment/sessions/[id]/submit` now branches by workflow:
+      - `MANUAL_PDF_UPLOAD`: skip AI scoring/report generation, create `DRAFT` report, send configured admin alerts.
+      - `AI_STANDARD`: existing behavior preserved.
+  - Added manual report delivery APIs:
+    - `POST /api/admin/reports/[reportId]/manual-pdf` (PDF-only upload, optional immediate notify).
+    - Extended `POST /api/admin/reports/[reportId]/send` to enforce uploaded PDF for manual workflow.
+  - Added admin response review endpoint:
+    - `GET /api/admin/assessments/[id]/participants/[userId]/responses` with canonical question order and selected/free-text answers.
+  - Updated report fetch/download surfaces:
+    - `GET /api/reports/me/[assessmentId]` now emits manual pending states/messages.
+    - `GET /api/reports/me/[assessmentId]/pdf` streams uploaded manual PDF when workflow is manual.
+    - `GET /api/reports/shared/[token]/pdf` streams uploaded manual PDF for shared links when applicable.
+    - Shared report page now renders simplified manual-PDF download UX for manual workflow reports.
+  - Updated admin and participant UIs:
+    - `AssessmentDetailClient` policy tab now supports workflow toggle, question randomization toggle, and admin alert recipient selection.
+    - Participants tab now supports `View Inputs`, manual PDF upload, and notify-user actions.
+    - Added new admin review page: `/admin/assessments/[id]/participants/[userId]/responses`.
+    - Participant session page now renders free-text questions and flushes text answers on submit.
+    - Participant report page now shows manual-workflow pending/ready states with PDF-first UX.
+  - Added CPR payload generation tooling:
+    - `prisma/scripts/generate-cpr-manual-upload-payload.py`
+    - Generated `tmp/cpr-manual-assessment-upload.json` from uploaded workbook (69 questions; Q29 intentionally absent).
+  - Updated handover guide (`guide.md`) with a dedicated manual PDF workflow section.
+- How:
+  - Implemented migration-first changes, then API/runtime branching, then UI wiring.
+  - Reused existing secure share-token issuance/delivery path for manual report notifications.
+  - Preserved canonical source-order response review while enabling participant-side randomized rendering.
+- Validation/output:
+  - `npm run lint` completed with 0 errors (3 pre-existing warnings remain in untouched files).
+  - `npm run build` fails in this shell due pre-existing environment/package issues:
+    - unresolved TipTap modules in `ReportEditorClient` (`@tiptap/*`)
+    - blocked Google Fonts fetch in network-restricted build context.
+  - `npx tsc --noEmit` confirms the same pre-existing TipTap dependency resolution issue.
+  - Generated payload verification:
+    - 6 sections
+    - 69 total questions
+    - source numbering preserved (Q1..Q70 with missing Q29 retained).
+- Risks/unknowns:
+  - Build cannot be fully validated in this environment until TipTap deps are present and/or network font fetch is available.
+  - In compatibility-mode deployments that intentionally skip latest migrations, new manual workflow fields/APIs are not expected to function.
+- Next step:
+  - Run DB migration + deploy in environment with dependencies installed, then execute end-to-end QA for manual submit -> admin review -> PDF upload -> notify flow.

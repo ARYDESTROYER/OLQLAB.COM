@@ -50,9 +50,12 @@ export async function GET(
   }
 
   const policy = session.assessment.policy;
+  const reportWorkflow = policy?.reportWorkflow || "AI_STANDARD";
   if (!policy?.showResultsToEmployee) {
     return NextResponse.json({
       message: "Your organization has chosen not to release individual results.",
+      reportWorkflow,
+      reportStatus: null,
     });
   }
 
@@ -61,27 +64,77 @@ export async function GET(
     if (new Date() < releaseAt) {
       return NextResponse.json({
         message: `Results will be available after ${releaseAt.toISOString()}.`,
+        reportWorkflow,
+        reportStatus: null,
       });
     }
   }
 
-  const score = await db.score.findUnique({
-    where: { assessmentId_userId: { assessmentId, userId: check.session.user.id } },
-  });
-  const report = await db.report.findUnique({
-    where: { assessmentId_userId: { assessmentId, userId: check.session.user.id } },
-  });
+  const [score, report] = await Promise.all([
+    db.score.findUnique({
+      where: { assessmentId_userId: { assessmentId, userId: check.session.user.id } },
+    }),
+    db.report.findUnique({
+      where: { assessmentId_userId: { assessmentId, userId: check.session.user.id } },
+      include: {
+        pdfAsset: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    }),
+  ]);
 
-  if (!report || report.status !== "PUBLISHED") {
+  if (!report) {
+    if (reportWorkflow === "MANUAL_PDF_UPLOAD") {
+      return NextResponse.json({
+        message:
+          "Assessment completed. Your report is under review. You will be notified once it is available.",
+        reportWorkflow,
+        reportStatus: "DRAFT",
+        manualPdfReady: false,
+      });
+    }
+
+    return NextResponse.json({ error: "No submitted report" }, { status: 404 });
+  }
+
+  if (report.status !== "PUBLISHED") {
+    if (reportWorkflow === "MANUAL_PDF_UPLOAD") {
+      return NextResponse.json({
+        message:
+          "Assessment completed. Your report is under review. You will be notified once it is available.",
+        reportWorkflow,
+        reportStatus: report.status,
+        manualPdfReady: Boolean(report.pdfAsset),
+      });
+    }
+
     return NextResponse.json({
       message:
         "Your report is still under review and has not been published yet.",
+      reportWorkflow,
+      reportStatus: report.status,
     });
   }
 
   if (report.availableAt && new Date() < report.availableAt) {
     return NextResponse.json({
       message: `Your report will be available after ${report.availableAt.toISOString()}.`,
+      reportWorkflow,
+      reportStatus: report.status,
+      manualPdfReady: Boolean(report.pdfAsset),
+    });
+  }
+
+  if (reportWorkflow === "MANUAL_PDF_UPLOAD" && !report.pdfAsset) {
+    return NextResponse.json({
+      message:
+        "Assessment completed. Your report is under review. You will be notified once it is available.",
+      reportWorkflow,
+      reportStatus: "DRAFT",
+      manualPdfReady: false,
     });
   }
 
@@ -92,6 +145,9 @@ export async function GET(
     },
     submittedAt: session.submittedAt,
     score,
+    reportStatus: report.status,
+    reportWorkflow,
+    manualPdfReady: Boolean(report.pdfAsset),
     narrative: JSON.parse(report.narrativeJson),
   });
 }

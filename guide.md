@@ -365,3 +365,29 @@ Prevention tips:
 - Configure editor default EOL to LF for this repo.
 - Add/keep `.gitattributes` as source of truth for line endings.
 - Avoid mixing large line-ending cleanups with product/UI changes.
+
+## 17. Manual PDF Workflow (CPR Exam Modules)
+
+New assessment policy controls:
+- `reportWorkflow`: `AI_STANDARD | MANUAL_PDF_UPLOAD`
+- `randomizeQuestionOrder`: boolean (participant-only randomized display)
+- `submissionAlertAdminIds`: admin user IDs notified on submit
+
+New question/answer support:
+- `QuestionType.FREE_TEXT`
+- `Answer.textValue`
+
+Manual workflow behavior:
+1. Participant submits assessment.
+2. Report remains `DRAFT`; participant sees pending-notification message.
+3. Selected admins receive completion email with direct response-review link.
+4. Admin reviews canonical question order and participant answers.
+5. Admin uploads PDF (`/api/admin/reports/:reportId/manual-pdf`) and can notify immediately or later.
+6. When published, participant can download PDF in app and via secure no-login share links.
+
+New/updated API surface:
+- `GET /api/admin/assessments/:id/participants/:userId/responses`
+- `POST /api/admin/reports/:reportId/manual-pdf`
+- `POST /api/admin/reports/:reportId/send` now enforces uploaded PDF for `MANUAL_PDF_UPLOAD`
+- `GET /api/reports/me/:assessmentId` now returns manual pending/ready messaging metadata
+- `GET /api/reports/me/:assessmentId/pdf` and `GET /api/reports/shared/:token/pdf` stream uploaded manual PDFs when applicable

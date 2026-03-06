@@ -10,10 +10,11 @@ export async function POST(
   if ("error" in check) return check.error;
   const { id } = await params;
 
-  const { questionId, value, optionId } = (await req.json()) as {
+  const { questionId, value, optionId, textValue } = (await req.json()) as {
     questionId: string;
     value?: number;
     optionId?: string;
+    textValue?: string;
   };
 
   if (!questionId) {
@@ -51,29 +52,57 @@ export async function POST(
 
     const answer = await db.answer.upsert({
       where: { sessionId_questionId: { sessionId: id, questionId } },
-      create: { sessionId: id, questionId, value, optionId: null },
-      update: { value, optionId: null },
+      create: { sessionId: id, questionId, value, optionId: null, textValue: null },
+      update: { value, optionId: null, textValue: null },
     });
 
     return NextResponse.json(answer);
   }
 
-  if (!optionId) {
+  if (question.questionType === "SJT_SINGLE") {
+    if (!optionId) {
+      return NextResponse.json(
+        { error: "Scenario question requires optionId" },
+        { status: 400 },
+      );
+    }
+
+    const option = question.options.find((item) => item.id === optionId);
+    if (!option) {
+      return NextResponse.json({ error: "Option not found" }, { status: 404 });
+    }
+
+    const answer = await db.answer.upsert({
+      where: { sessionId_questionId: { sessionId: id, questionId } },
+      create: { sessionId: id, questionId, optionId: option.id, value: null, textValue: null },
+      update: { optionId: option.id, value: null, textValue: null },
+    });
+
+    return NextResponse.json(answer);
+  }
+
+  const normalizedText = (textValue || "").trim();
+  if (!normalizedText) {
     return NextResponse.json(
-      { error: "Scenario question requires optionId" },
+      { error: "Text response question requires textValue" },
       { status: 400 },
     );
   }
 
-  const option = question.options.find((item) => item.id === optionId);
-  if (!option) {
-    return NextResponse.json({ error: "Option not found" }, { status: 404 });
-  }
-
   const answer = await db.answer.upsert({
     where: { sessionId_questionId: { sessionId: id, questionId } },
-    create: { sessionId: id, questionId, optionId: option.id, value: null },
-    update: { optionId: option.id, value: null },
+    create: {
+      sessionId: id,
+      questionId,
+      textValue: normalizedText,
+      value: null,
+      optionId: null,
+    },
+    update: {
+      textValue: normalizedText,
+      value: null,
+      optionId: null,
+    },
   });
 
   return NextResponse.json(answer);

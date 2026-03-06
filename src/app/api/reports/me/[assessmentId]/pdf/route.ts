@@ -725,26 +725,19 @@ export async function GET(
     }
   }
 
-  const [score, report] = await Promise.all([
-    db.score.findUnique({
-      where: {
-        assessmentId_userId: {
-          assessmentId,
-          userId: check.session.user.id,
-        },
+  const report = await db.report.findUnique({
+    where: {
+      assessmentId_userId: {
+        assessmentId,
+        userId: check.session.user.id,
       },
-    }),
-    db.report.findUnique({
-      where: {
-        assessmentId_userId: {
-          assessmentId,
-          userId: check.session.user.id,
-        },
-      },
-    }),
-  ]);
+    },
+    include: {
+      pdfAsset: true,
+    },
+  });
 
-  if (!score || !report) {
+  if (!report) {
     return NextResponse.json({ error: "Report not ready" }, { status: 404 });
   }
 
@@ -760,6 +753,41 @@ export async function GET(
       { error: `Report will be available after ${report.availableAt.toISOString()}.` },
       { status: 403 },
     );
+  }
+
+  if (policy.reportWorkflow === "MANUAL_PDF_UPLOAD") {
+    if (!report.pdfAsset?.pdfBytes?.length) {
+      return NextResponse.json(
+        { error: "Report PDF is not uploaded yet." },
+        { status: 404 },
+      );
+    }
+
+    const fallbackFileName = `report-${session.user.firstName}-${session.user.lastName}-${assessmentId}`
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+
+    return new Response(new Uint8Array(report.pdfAsset.pdfBytes), {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename=\"${report.pdfAsset.fileName || `${fallbackFileName}.pdf`}\"`,
+        "Cache-Control": "no-store",
+      },
+    });
+  }
+
+  const score = await db.score.findUnique({
+    where: {
+      assessmentId_userId: {
+        assessmentId,
+        userId: check.session.user.id,
+      },
+    },
+  });
+
+  if (!score) {
+    return NextResponse.json({ error: "Report not ready" }, { status: 404 });
   }
 
   let narrative: NarrativePayload = {};

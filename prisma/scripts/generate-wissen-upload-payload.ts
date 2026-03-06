@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-nocheck
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";

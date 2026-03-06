@@ -1,102 +1,89 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
-import { issueReportShareToken } from "@/lib/unenroll-jobs";
-import { getEnv } from "@/lib/env";
-import { getResend } from "@/lib/resend";
+import { sendPublishedReportEmail } from "@/lib/report-delivery";
 
 export async function POST(
-    req: NextRequest,
-    { params }: { params: Promise<{ reportId: string }> }
+  req: NextRequest,
+  { params }: { params: Promise<{ reportId: string }> }
 ) {
-    const check = await requireAdmin();
-    if ("error" in check) return check.error;
+  const check = await requireAdmin();
+  if ("error" in check) return check.error;
 
-    const { reportId } = await params;
-    const body = await req.json().catch(() => null);
+  const { reportId } = await params;
+  const body = await req.json().catch(() => null);
 
-    if (!body || !body.deliveryMethod) {
-        return NextResponse.json({ error: "Invalid body. deliveryMethod strictly required." }, { status: 400 });
-    }
+  if (!body || !body.deliveryMethod) {
+    return NextResponse.json({ error: "Invalid body. deliveryMethod strictly required." }, { status: 400 });
+  }
 
-    const { narrativeJson, deliveryMethod } = body;
+  const { narrativeJson, deliveryMethod } = body;
+  const normalizedDeliveryMethod =
+    deliveryMethod === "EMAIL_LINK" ? "EMAIL_LINK" : "DASHBOARD_ONLY";
 
-    const report = await db.report.findUnique({
-        where: { id: reportId },
+  const report = await db.report.findUnique({
+    where: { id: reportId },
+    include: {
+      assessment: {
         select: {
-            id: true,
-            assessmentId: true,
-            userId: true,
+          id: true,
+          policy: {
+            select: {
+              reportWorkflow: true,
+            },
+          },
         },
-    });
+      },
+      pdfAsset: {
+        select: {
+          id: true,
+        },
+      },
+    },
+  });
 
-    if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 });
+  if (!report) return NextResponse.json({ error: "Report not found" }, { status: 404 });
 
-    const [user, assessment] = await Promise.all([
-        db.user.findUnique({
-            where: { id: report.userId },
-            select: {
-                firstName: true,
-                email: true,
-            },
-        }),
-        db.assessment.findUnique({
-            where: { id: report.assessmentId },
-            select: {
-                title: true,
-            },
-        }),
-    ]);
+  if (
+    report.assessment.policy?.reportWorkflow === "MANUAL_PDF_UPLOAD" &&
+    !report.pdfAsset
+  ) {
+    return NextResponse.json(
+      { error: "Please upload a PDF before publishing this manual report." },
+      { status: 400 },
+    );
+  }
 
-    if (!user || !assessment) {
-        return NextResponse.json({ error: "Related report data not found" }, { status: 404 });
+  const updateData: {
+    status: "PUBLISHED";
+    availableAt: Date;
+    deliveryMethod: "DASHBOARD_ONLY" | "EMAIL_LINK";
+    narrativeJson?: string;
+  } = {
+    status: "PUBLISHED",
+    availableAt: new Date(),
+    deliveryMethod: normalizedDeliveryMethod,
+  };
+
+  if (narrativeJson) {
+    updateData.narrativeJson = narrativeJson;
+  }
+
+  const updated = await db.report.update({
+    where: { id: reportId },
+    data: updateData,
+  });
+
+  if (normalizedDeliveryMethod === "EMAIL_LINK") {
+    try {
+      await sendPublishedReportEmail({
+        assessmentId: report.assessmentId,
+        userId: report.userId,
+      });
+    } catch (error) {
+      console.error("Failed to send report email:", error);
     }
+  }
 
-    const updateData: any = {
-        status: "PUBLISHED",
-        availableAt: new Date(),
-        deliveryMethod,
-    };
-
-    if (narrativeJson) {
-        updateData.narrativeJson = narrativeJson;
-    }
-
-    const updated = await db.report.update({
-        where: { id: reportId },
-        data: updateData
-    });
-
-    if (deliveryMethod === "EMAIL_LINK") {
-        const tokenData = await issueReportShareToken({
-            assessmentId: report.assessmentId,
-            userId: report.userId,
-            ttlHours: 168, // 1 week
-        });
-
-        if (tokenData) {
-            const resend = getResend();
-            const env = getEnv();
-            const baseUrl = env.REPORT_SHARE_BASE_URL || env.NEXTAUTH_URL || "http://localhost:3000";
-            const reportUrl = `${baseUrl}/reports/shared/${encodeURIComponent(tokenData.token)}`;
-            const pdfUrl = `${baseUrl}/api/reports/shared/${encodeURIComponent(tokenData.token)}/pdf`;
-
-            try {
-                await resend.emails.send({
-                    from: env.EMAIL_FROM,
-                    to: user.email,
-                    subject: `Your assessment report is ready: ${assessment.title}`,
-                    html: `<p>Hi ${user.firstName},</p>
-<p>Your report for <strong>${assessment.title}</strong> has been published and is now available.</p>
-<p><a href="${reportUrl}">View your report online</a></p>
-<p><a href="${pdfUrl}">Download PDF version</a></p>
-<p>This secure link will expire in 7 days. No sign-in is required to view your report.</p>`
-                });
-            } catch (e) {
-                console.error("Failed to send report email:", e);
-            }
-        }
-    }
-
-    return NextResponse.json({ ok: true, report: updated });
+  return NextResponse.json({ ok: true, report: updated });
 }
