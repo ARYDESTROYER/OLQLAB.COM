@@ -56,13 +56,15 @@ export default function UsersClient() {
   const [query, setQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
   const [selectedRole, setSelectedRole] = useState<"" | "ADMIN" | "EMPLOYEE" | "LEADER">("");
-  const [selectedTenantType, setSelectedTenantType] = useState<"" | "ORGANIZATION" | "SOLO">("");
-  const [selectedManagerFilter, setSelectedManagerFilter] = useState<"" | "WITH" | "WITHOUT">(
-    "",
+  const [selectedTenantType, setSelectedTenantType] = useState<
+    "ANY" | "ORGANIZATION" | "SOLO"
+  >("ANY");
+  const [selectedManagerFilter, setSelectedManagerFilter] = useState<"ANY" | "WITH" | "WITHOUT">(
+    "ANY",
   );
   const [selectedTenantArchived, setSelectedTenantArchived] = useState<
-    "" | "ACTIVE" | "ARCHIVED"
-  >("");
+    "ANY" | "ACTIVE" | "ARCHIVED"
+  >("ANY");
   const [sortBy, setSortBy] = useState<"createdAt" | "updatedAt" | "name" | "email">(
     "createdAt",
   );
@@ -140,7 +142,7 @@ export default function UsersClient() {
       if (query.trim()) params.set("q", query.trim());
       if (selectedTenantId) params.set("tenantId", selectedTenantId);
       if (selectedRole) params.set("role", selectedRole);
-      if (selectedTenantType) params.set("tenantType", selectedTenantType);
+      if (selectedTenantType !== "ANY") params.set("tenantType", selectedTenantType);
       if (selectedManagerFilter === "WITH") params.set("hasManager", "1");
       if (selectedManagerFilter === "WITHOUT") params.set("hasManager", "0");
       if (selectedTenantArchived === "ACTIVE") params.set("tenantArchived", "0");
@@ -414,9 +416,9 @@ export default function UsersClient() {
   function clearAdvancedFilters() {
     setScope("ALL");
     setSelectedRole("");
-    setSelectedTenantType("");
-    setSelectedManagerFilter("");
-    setSelectedTenantArchived("");
+    setSelectedTenantType("ANY");
+    setSelectedManagerFilter("ANY");
+    setSelectedTenantArchived("ANY");
     setSortBy("createdAt");
     setSortOrder("desc");
     setSelectedTenantId("");
@@ -787,10 +789,10 @@ export default function UsersClient() {
                   className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   value={selectedTenantType}
                   onChange={(e) =>
-                    setSelectedTenantType(e.target.value as "" | "ORGANIZATION" | "SOLO")
+                    setSelectedTenantType(e.target.value as "ANY" | "ORGANIZATION" | "SOLO")
                   }
                 >
-                  <option value="">All tenant types</option>
+                  <option value="ANY">All tenant types</option>
                   <option value="ORGANIZATION">Organization</option>
                   <option value="SOLO">Solo</option>
                 </select>
@@ -798,10 +800,10 @@ export default function UsersClient() {
                   className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   value={selectedManagerFilter}
                   onChange={(e) =>
-                    setSelectedManagerFilter(e.target.value as "" | "WITH" | "WITHOUT")
+                    setSelectedManagerFilter(e.target.value as "ANY" | "WITH" | "WITHOUT")
                   }
                 >
-                  <option value="">Manager: Any</option>
+                  <option value="ANY">Manager: Any</option>
                   <option value="WITH">With manager</option>
                   <option value="WITHOUT">Without manager</option>
                 </select>
@@ -809,10 +811,10 @@ export default function UsersClient() {
                   className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
                   value={selectedTenantArchived}
                   onChange={(e) =>
-                    setSelectedTenantArchived(e.target.value as "" | "ACTIVE" | "ARCHIVED")
+                    setSelectedTenantArchived(e.target.value as "ANY" | "ACTIVE" | "ARCHIVED")
                   }
                 >
-                  <option value="">Tenant status: Any</option>
+                  <option value="ANY">Tenant status: Any</option>
                   <option value="ACTIVE">Active tenants</option>
                   <option value="ARCHIVED">Archived tenants</option>
                 </select>
