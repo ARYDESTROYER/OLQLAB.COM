@@ -11,6 +11,7 @@ function normalizeEmail(email: string) {
 }
 
 function parseLimit(raw: string | null, fallback: number, max: number) {
+  if (raw === null || raw.trim() === "") return fallback;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return fallback;
   const rounded = Math.floor(parsed);
