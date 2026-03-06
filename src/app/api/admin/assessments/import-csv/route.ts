@@ -57,7 +57,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid multipart payload." }, { status: 400 });
   }
 
-  const title = typeof formData.get("title") === "string" ? formData.get("title")?.trim() : "";
+  const titleInput = formData.get("title");
+  const title = typeof titleInput === "string" ? titleInput.trim() : "";
   if (!title) {
     return NextResponse.json({ error: "title is required." }, { status: 400 });
   }
@@ -138,6 +139,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  const postSubmitMessageInput = formData.get("postSubmitMessage");
+  const postSubmitMessage =
+    typeof postSubmitMessageInput === "string" && postSubmitMessageInput.trim()
+      ? postSubmitMessageInput.trim()
+      : "Thanks for completing your assessment.";
+
   try {
     const created = await db.$transaction(async (tx) => {
       const assessment = await tx.assessment.create({
@@ -149,10 +156,7 @@ export async function POST(req: NextRequest) {
             create: {
               showResultsToEmployee: parseBoolean(formData.get("showResultsToEmployee"), true),
               resultReleaseDelayHours: parseInteger(formData.get("resultReleaseDelayHours"), 0),
-              postSubmitMessage:
-                (typeof formData.get("postSubmitMessage") === "string" &&
-                  formData.get("postSubmitMessage")?.trim()) ||
-                "Thanks for completing your assessment.",
+              postSubmitMessage,
               leaderCanViewFullReport: parseBoolean(formData.get("leaderCanViewFullReport"), true),
               reportWorkflow: requestedWorkflow,
               randomizeQuestionOrder: parseBoolean(formData.get("randomizeQuestionOrder"), false),
