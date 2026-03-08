@@ -46,16 +46,46 @@ type AssessmentSection = {
   sortOrder: number;
 };
 
+type QuestionOptionImpactRow = {
+  id: string;
+  delta: number;
+  competency?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
+  assessmentCompetency?: {
+    id: string;
+    code: string;
+    name: string;
+  } | null;
+};
+
+type QuestionOptionRow = {
+  id: string;
+  code: string;
+  text: string;
+  displayOrder: number;
+  impacts: QuestionOptionImpactRow[];
+};
+
 type QuestionRow = {
   id: string;
+  code: string | null;
   prompt: string;
   imageUrl: string | null;
   imageAlt: string | null;
   imageCaption: string | null;
+  questionType: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
+  category: string | null;
   trait: string | null;
   reverse: boolean;
+  scaleMin: number;
+  scaleMax: number;
+  sortOrder: number;
   sectionId: string | null;
   section?: { id: string; title: string } | null;
+  options: QuestionOptionRow[];
 };
 
 type User = {
@@ -185,6 +215,31 @@ const tabs: Array<{ key: TabKey; label: string }> = [
 
 function formatScopeLabel(scope: "USER" | "TENANT") {
   return scope === "TENANT" ? "ORGANISATION" : "USER";
+}
+
+function formatQuestionTypeLabel(questionType: QuestionRow["questionType"]) {
+  if (questionType === "LIKERT_TRAIT") return "Likert Trait";
+  if (questionType === "SJT_SINGLE") return "Single-Select MCQ";
+  return "Free Text";
+}
+
+function formatQuestionCode(question: QuestionRow, index: number) {
+  return question.code?.trim() || `Question ${index + 1}`;
+}
+
+function formatScaleLabel(question: QuestionRow) {
+  if (question.questionType === "FREE_TEXT") return "Free response";
+  return `${question.scaleMin} to ${question.scaleMax}`;
+}
+
+function formatImpactDelta(delta: number) {
+  return `${delta > 0 ? "+" : ""}${Number.isInteger(delta) ? delta : delta.toFixed(2)}`;
+}
+
+function formatImpactLabel(impact: QuestionOptionImpactRow) {
+  const linked = impact.assessmentCompetency || impact.competency;
+  if (!linked) return "Impact";
+  return linked.code ? `${linked.code} · ${linked.name}` : linked.name;
 }
 
 export default function AssessmentDetailClient({ assessmentId }: { assessmentId: string }) {
@@ -507,6 +562,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     } finally {
       setBusy(false);
     }
+  }
+
+  function updateQuestion(questionId: string, patch: Partial<QuestionRow>) {
+    setQuestions((prev) =>
+      prev.map((item) => (item.id === questionId ? { ...item, ...patch } : item)),
+    );
   }
 
   function patchQuestionImageState(
@@ -1155,236 +1216,335 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               Add Question
             </button>
 
-            <div className="mt-4 overflow-auto rounded-lg border border-slate-200 bg-white">
-              <table className="min-w-full text-left text-xs">
-                <thead className="bg-slate-50 text-slate-600">
-                  <tr>
-                    <th className="px-3 py-2">Prompt</th>
-                    <th className="px-3 py-2">Image</th>
-                    <th className="px-3 py-2">Trait</th>
-                    <th className="px-3 py-2">Section</th>
-                    <th className="px-3 py-2">Reverse</th>
-                    <th className="px-3 py-2">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {questions.map((question) => (
-                    <tr key={question.id} className="border-t border-slate-100">
-                      <td className="px-3 py-2">
+            <div className="mt-4 space-y-4">
+              {questions.map((question, index) => {
+                const totalImpacts = question.options.reduce(
+                  (count, option) => count + option.impacts.length,
+                  0,
+                );
+                const questionCode = formatQuestionCode(question, index);
+
+                return (
+                  <article key={question.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                      <div>
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          Question {index + 1}
+                        </p>
+                        <h5 className="mt-1 text-base font-semibold text-slate-900">{questionCode}</h5>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {formatQuestionTypeLabel(question.questionType)}
+                          {question.category ? ` · ${question.category}` : ""}
+                          {question.section?.title ? ` · ${question.section.title}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600">
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                          Scale {formatScaleLabel(question)}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                          {question.options.length} option{question.options.length === 1 ? "" : "s"}
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                          {totalImpacts} mark{totalImpacts === 1 ? "" : "s"}
+                        </span>
+                        {question.reverse ? (
+                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">
+                            Reverse scored
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
+                      <div className="space-y-4">
+                        <div>
+                          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                            Full Prompt
+                          </label>
+                          <textarea
+                            className="min-h-[110px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            value={question.prompt}
+                            onChange={(e) => updateQuestion(question.id, { prompt: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Source Code
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              {question.code || "Not set"}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Response Type
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              {formatQuestionTypeLabel(question.questionType)}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Category
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              {question.category || "Not set"}
+                            </p>
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                              Trait
+                            </label>
+                            <input
+                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              value={question.trait || ""}
+                              onChange={(e) => updateQuestion(question.id, { trait: e.target.value })}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                              Section
+                            </label>
+                            <select
+                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              value={question.sectionId || ""}
+                              onChange={(e) => {
+                                const nextSection = sections.find((section) => section.id === e.target.value);
+                                updateQuestion(question.id, {
+                                  sectionId: e.target.value,
+                                  section: nextSection
+                                    ? { id: nextSection.id, title: nextSection.title }
+                                    : null,
+                                });
+                              }}
+                            >
+                              {sections.map((section) => (
+                                <option key={section.id} value={section.id}>
+                                  {section.title}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                              Stored Scale
+                            </p>
+                            <p className="mt-1 text-sm font-medium text-slate-800">
+                              {formatScaleLabel(question)}
+                            </p>
+                          </div>
+                        </div>
+
+                        <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+                          <input
+                            type="checkbox"
+                            checked={question.reverse}
+                            onChange={(e) => updateQuestion(question.id, { reverse: e.target.checked })}
+                          />
+                          Reverse score this question
+                        </label>
+                      </div>
+
+                      <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                            Image Metadata
+                          </p>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Manual URL entry and direct uploads stay side by side for the same question.
+                          </p>
+                        </div>
                         <input
-                          className="w-full rounded border border-slate-300 px-2 py-1"
-                          value={question.prompt}
-                          onChange={(e) =>
-                            setQuestions((prev) =>
-                              prev.map((item) =>
-                                item.id === question.id ? { ...item, prompt: e.target.value } : item,
-                              ),
-                            )
-                          }
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          placeholder="Image URL or /public path"
+                          value={question.imageUrl || ""}
+                          onChange={(e) => updateQuestion(question.id, { imageUrl: e.target.value })}
                         />
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="grid gap-2">
-                          <input
-                            className="w-full rounded border border-slate-300 px-2 py-1"
-                            placeholder="Image URL or /public path"
-                            value={question.imageUrl || ""}
-                            onChange={(e) =>
-                              setQuestions((prev) =>
-                                prev.map((item) =>
-                                  item.id === question.id ? { ...item, imageUrl: e.target.value } : item,
-                                ),
-                              )
+                        <input
+                          id={`question-image-upload-${question.id}`}
+                          type="file"
+                          accept={QUESTION_IMAGE_ACCEPT}
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              void uploadQuestionImage(question, file);
                             }
-                          />
-                          <input
-                            id={`question-image-upload-${question.id}`}
-                            type="file"
-                            accept={QUESTION_IMAGE_ACCEPT}
-                            className="hidden"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              if (file) {
-                                void uploadQuestionImage(question, file);
-                              }
-                              e.target.value = "";
-                            }}
-                          />
-                          <div
-                            className={`rounded-lg border border-dashed px-3 py-3 text-xs transition-colors ${
-                              dragOverQuestionId === question.id
-                                ? "border-cyan-500 bg-cyan-50 text-cyan-900"
-                                : "border-slate-300 bg-slate-50 text-slate-600"
-                            }`}
-                            onDragOver={(event) => {
-                              event.preventDefault();
-                              if (uploadingQuestionId !== question.id) {
-                                setDragOverQuestionId(question.id);
-                              }
-                            }}
-                            onDragLeave={(event) => {
-                              event.preventDefault();
-                              if (dragOverQuestionId === question.id) {
-                                setDragOverQuestionId(null);
-                              }
-                            }}
-                            onDrop={(event) => {
-                              event.preventDefault();
+                            e.target.value = "";
+                          }}
+                        />
+                        <div
+                          className={`rounded-lg border border-dashed px-3 py-3 text-xs transition-colors ${
+                            dragOverQuestionId === question.id
+                              ? "border-cyan-500 bg-cyan-50 text-cyan-900"
+                              : "border-slate-300 bg-white text-slate-600"
+                          }`}
+                          onDragOver={(event) => {
+                            event.preventDefault();
+                            if (uploadingQuestionId !== question.id) {
+                              setDragOverQuestionId(question.id);
+                            }
+                          }}
+                          onDragLeave={(event) => {
+                            event.preventDefault();
+                            if (dragOverQuestionId === question.id) {
                               setDragOverQuestionId(null);
-                              const file = event.dataTransfer.files?.[0];
-                              if (file) {
-                                void uploadQuestionImage(question, file);
-                              }
-                            }}
-                          >
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div>
-                                <p className="font-semibold text-slate-700">
-                                  {uploadingQuestionId === question.id
-                                    ? "Uploading image..."
-                                    : "Drag and drop JPG, PNG, or WebP here"}
-                                </p>
-                                <p className="mt-1 text-slate-500">
-                                  Or upload directly while keeping the manual URL field available.
-                                </p>
-                              </div>
-                              <div className="flex flex-wrap gap-2">
+                            }
+                          }}
+                          onDrop={(event) => {
+                            event.preventDefault();
+                            setDragOverQuestionId(null);
+                            const file = event.dataTransfer.files?.[0];
+                            if (file) {
+                              void uploadQuestionImage(question, file);
+                            }
+                          }}
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="font-semibold text-slate-700">
+                                {uploadingQuestionId === question.id
+                                  ? "Uploading image..."
+                                  : "Drag and drop JPG, PNG, or WebP here"}
+                              </p>
+                              <p className="mt-1 text-slate-500">
+                                Upload directly without losing access to the manual URL field.
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700"
+                                onClick={() =>
+                                  document.getElementById(`question-image-upload-${question.id}`)?.click()
+                                }
+                                disabled={uploadingQuestionId === question.id}
+                              >
+                                {question.imageUrl ? "Replace Image" : "Upload Image"}
+                              </button>
+                              {question.imageUrl ? (
                                 <button
                                   type="button"
-                                  className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700"
-                                  onClick={() =>
-                                    document
-                                      .getElementById(`question-image-upload-${question.id}`)
-                                      ?.click()
-                                  }
+                                  className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-700"
+                                  onClick={() => void removeQuestionImage(question)}
                                   disabled={uploadingQuestionId === question.id}
                                 >
-                                  {question.imageUrl ? "Replace Image" : "Upload Image"}
+                                  Remove Image
                                 </button>
-                                {question.imageUrl ? (
-                                  <button
-                                    type="button"
-                                    className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-700"
-                                    onClick={() => void removeQuestionImage(question)}
-                                    disabled={uploadingQuestionId === question.id}
-                                  >
-                                    Remove Image
-                                  </button>
-                                ) : null}
-                              </div>
+                              ) : null}
                             </div>
                           </div>
-                          {question.imageUrl ? (
-                            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={question.imageUrl}
-                                alt={question.imageAlt || "Question image preview"}
-                                className="max-h-48 w-full object-contain bg-slate-50"
-                              />
-                            </div>
-                          ) : null}
-                          <input
-                            className="w-full rounded border border-slate-300 px-2 py-1"
-                            placeholder="Image alt text"
-                            value={question.imageAlt || ""}
-                            onChange={(e) =>
-                              setQuestions((prev) =>
-                                prev.map((item) =>
-                                  item.id === question.id ? { ...item, imageAlt: e.target.value } : item,
-                                ),
-                              )
-                            }
-                          />
-                          <input
-                            className="w-full rounded border border-slate-300 px-2 py-1"
-                            placeholder="Image caption"
-                            value={question.imageCaption || ""}
-                            onChange={(e) =>
-                              setQuestions((prev) =>
-                                prev.map((item) =>
-                                  item.id === question.id ? { ...item, imageCaption: e.target.value } : item,
-                                ),
-                              )
-                            }
-                          />
                         </div>
-                      </td>
-                      <td className="px-3 py-2">
+                        {question.imageUrl ? (
+                          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={question.imageUrl}
+                              alt={question.imageAlt || "Question image preview"}
+                              className="max-h-56 w-full object-contain bg-slate-50"
+                            />
+                          </div>
+                        ) : null}
                         <input
-                          className="w-full rounded border border-slate-300 px-2 py-1"
-                          value={question.trait || ""}
-                          onChange={(e) =>
-                            setQuestions((prev) =>
-                              prev.map((item) =>
-                                item.id === question.id ? { ...item, trait: e.target.value } : item,
-                              ),
-                            )
-                          }
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          placeholder="Image alt text"
+                          value={question.imageAlt || ""}
+                          onChange={(e) => updateQuestion(question.id, { imageAlt: e.target.value })}
                         />
-                      </td>
-                      <td className="px-3 py-2">
-                        <select
-                          className="rounded border border-slate-300 px-2 py-1"
-                          value={question.sectionId || ""}
-                          onChange={(e) =>
-                            setQuestions((prev) =>
-                              prev.map((item) =>
-                                item.id === question.id
-                                  ? {
-                                    ...item,
-                                    sectionId: e.target.value,
-                                    section: sections.find((section) => section.id === e.target.value)
-                                      ? { id: e.target.value, title: sections.find((section) => section.id === e.target.value)?.title || "" }
-                                      : null,
-                                  }
-                                  : item,
-                              ),
-                            )
-                          }
-                        >
-                          {sections.map((section) => (
-                            <option key={section.id} value={section.id}>
-                              {section.title}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-3 py-2">
                         <input
-                          type="checkbox"
-                          checked={question.reverse}
-                          onChange={(e) =>
-                            setQuestions((prev) =>
-                              prev.map((item) =>
-                                item.id === question.id ? { ...item, reverse: e.target.checked } : item,
-                              ),
-                            )
-                          }
+                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          placeholder="Image caption"
+                          value={question.imageCaption || ""}
+                          onChange={(e) => updateQuestion(question.id, { imageCaption: e.target.value })}
                         />
-                      </td>
-                      <td className="px-3 py-2">
-                        <div className="flex gap-1">
-                          <button
-                            className="rounded border border-slate-300 bg-white px-2 py-1"
-                            onClick={() => saveQuestion(question)}
-                            disabled={busy || uploadingQuestionId === question.id}
-                          >
-                            Save
-                          </button>
-                          <button
-                            className="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-rose-700"
-                            onClick={() => removeQuestion(question.id)}
-                            disabled={busy || uploadingQuestionId === question.id}
-                          >
-                            Delete
-                          </button>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+                          Internal ID: {question.id}
                         </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+                        <div>
+                          <h6 className="text-sm font-semibold text-slate-900">Options and Marks</h6>
+                          <p className="mt-1 text-xs text-slate-500">
+                            Every stored option and scoring impact for this question is shown here.
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                          {question.options.length} option{question.options.length === 1 ? "" : "s"}
+                        </span>
+                      </div>
+
+                      {question.options.length > 0 ? (
+                        <div className="overflow-auto bg-white">
+                          <table className="min-w-full text-left text-xs">
+                            <thead className="bg-slate-50 text-slate-600">
+                              <tr>
+                                <th className="px-3 py-2">Order</th>
+                                <th className="px-3 py-2">Code</th>
+                                <th className="px-3 py-2">Option Text</th>
+                                <th className="px-3 py-2">Marks / Impacts</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {question.options.map((option) => (
+                                <tr key={option.id} className="border-t border-slate-100 align-top">
+                                  <td className="px-3 py-3 font-medium text-slate-700">{option.displayOrder + 1}</td>
+                                  <td className="px-3 py-3 font-semibold text-slate-800">{option.code}</td>
+                                  <td className="px-3 py-3 text-slate-700">{option.text}</td>
+                                  <td className="px-3 py-3">
+                                    {option.impacts.length ? (
+                                      <div className="flex flex-wrap gap-2">
+                                        {option.impacts.map((impact) => (
+                                          <span
+                                            key={impact.id}
+                                            className="rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 font-medium text-cyan-900"
+                                          >
+                                            {formatImpactLabel(impact)} {formatImpactDelta(impact.delta)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <span className="text-slate-400">No marks or competency impacts stored.</span>
+                                    )}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      ) : (
+                        <div className="px-4 py-4 text-sm text-slate-600">
+                          {question.questionType === "FREE_TEXT"
+                            ? "This question stores no options because the participant enters a written response."
+                            : "This question has no stored option rows. For Likert questions, the participant uses the shared numeric scale shown above."}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                        onClick={() => saveQuestion(question)}
+                        disabled={busy || uploadingQuestionId === question.id}
+                      >
+                        Save Question
+                      </button>
+                      <button
+                        className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700"
+                        onClick={() => removeQuestion(question.id)}
+                        disabled={busy || uploadingQuestionId === question.id}
+                      >
+                        Delete Question
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           </div>
         </section>

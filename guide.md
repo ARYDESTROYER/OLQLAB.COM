@@ -402,6 +402,7 @@ Validation rules:
 - assessment detail header includes `Test Assessment`, which launches an admin-only preview session into the real participant flow without requiring enrollment
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
 - content tab manual question builder supports optional image metadata fields: `imageUrl`, `imageAlt`, `imageCaption`
+- saved question cards expose the full stored question payload inline, including question position/code, prompt, response type, category, scale, section, image metadata, all answer options, and per-option marks / competency impacts
 - saved question rows support direct image upload in addition to manual URL entry:
   - drag-and-drop upload
   - click-to-upload file picker

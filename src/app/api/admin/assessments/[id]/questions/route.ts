@@ -41,6 +41,30 @@ export async function GET(
           title: true,
         },
       },
+      options: {
+        orderBy: { displayOrder: "asc" },
+        include: {
+          impacts: {
+            orderBy: { id: "asc" },
+            include: {
+              competency: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
+              assessmentCompetency: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
     },
     orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
   });

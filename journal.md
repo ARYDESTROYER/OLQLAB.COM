@@ -961,3 +961,29 @@ This file is the append-only engineering diary for implementation work in this r
   - Solo bulk import intentionally creates participant accounts only; it does not create admin users or shared solo organisations.
 - Next step:
   - Run targeted validation, then manually test one organisation-mode import and one solo-mode import from `/admin/users`.
+
+## Entry 2026-03-09-03
+- Timestamp (UTC): 2026-03-08T22:45:56Z
+- Timestamp (Local): 2026-03-09 04:15:56 IST (+0530)
+- Task: Redesign admin assessment question management so the full question payload is visible inline.
+- Why: The assessment content table hid too much information. Admins could not comfortably review question numbering, answer modes, full prompts, option text, or per-option marks/competency impacts while managing larger assessments.
+- What changed:
+  - Updated `GET /api/admin/assessments/:id/questions` to include question options plus their linked competency/assessment-competency impacts.
+  - Expanded `AssessmentDetailClient.tsx` question typing to reflect the full stored question shape already present in the database.
+  - Replaced the cramped saved-question table with full question cards that show:
+    - question position and source code
+    - full prompt text
+    - response type, category, scale, section, trait, and reverse-scoring state
+    - image URL/alt/caption plus upload/replace/remove controls
+    - all stored answer options and their marks / competency impacts
+  - Updated `guide.md` to document that the content tab now exposes the full question payload inline.
+- How:
+  - Reused the existing canonical option/impact include pattern already used in session/report flows instead of inventing a new derived scoring view.
+  - Kept the existing save/delete/image-upload behavior intact while widening the UI to surface all stored question data.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing warnings in untouched report-format/report-editor files.
+  - `npm run build` -> passed.
+- Risks/unknowns:
+  - This pass focuses on visibility and existing edit controls; it does not yet add inline authoring for creating or changing MCQ option rows and impact mappings.
+- Next step:
+  - Browser-check the assessment content tab with an assessment that includes SJT options and scoring impacts.
