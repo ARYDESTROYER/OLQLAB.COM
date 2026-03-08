@@ -42,6 +42,56 @@ type UserRow = {
   manager?: { id: string; email: string; firstName: string; lastName: string } | null;
 };
 
+type BulkImportMode = "ORGANIZATION" | "SOLO";
+
+type BulkImportSummary = {
+  mode: BulkImportMode;
+  requestedCount: number;
+  readyCount: number;
+  skippedCount: number;
+  createdCount: number;
+  repairedCount: number;
+};
+
+type BulkPreviewRow = {
+  rowNumber: number;
+  email: string;
+  firstName: string;
+  lastName: string;
+  managerEmail: string;
+  targetName: string;
+  action: "CREATE_ORGANIZATION_USER" | "REPAIR_ORGANIZATION_USER" | "CREATE_SOLO_USER";
+};
+
+type BulkImportIssue = {
+  rowNumber: number;
+  email: string;
+  reason: string;
+  message: string;
+};
+
+function buildUserBulkCsvTemplate(mode: BulkImportMode) {
+  const header = "email,first_name,last_name,manager_email,solo_organisation_name";
+  const examples =
+    mode === "SOLO"
+      ? [
+          "alex@example.com,Alex,Rivera,,Alex Solo Organisation",
+          "jamie@example.com,Jamie,Chen,,",
+        ]
+      : [
+          "alex@example.com,Alex,Rivera,manager@company.com,",
+          "jamie@example.com,Jamie,Chen,,",
+        ];
+
+  return [header, ...examples].join("\n");
+}
+
+function formatBulkPreviewAction(action: BulkPreviewRow["action"]) {
+  if (action === "CREATE_SOLO_USER") return "Create solo user";
+  if (action === "REPAIR_ORGANIZATION_USER") return "Repair existing user";
+  return "Create organisation user";
+}
+
 export default function UsersClient() {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -86,6 +136,14 @@ export default function UsersClient() {
     lastName: "",
     managerEmail: "",
   });
+  const [bulkImportMode, setBulkImportMode] = useState<BulkImportMode>("ORGANIZATION");
+  const [bulkImportTenantId, setBulkImportTenantId] = useState("");
+  const [bulkCsvText, setBulkCsvText] = useState("");
+  const [bulkCsvFileName, setBulkCsvFileName] = useState("");
+  const [bulkImportBusy, setBulkImportBusy] = useState(false);
+  const [bulkImportSummary, setBulkImportSummary] = useState<BulkImportSummary | null>(null);
+  const [bulkPreviewRows, setBulkPreviewRows] = useState<BulkPreviewRow[]>([]);
+  const [bulkImportIssues, setBulkImportIssues] = useState<BulkImportIssue[]>([]);
 
   const [moveTenantByUser, setMoveTenantByUser] = useState<Record<string, string>>({});
   const [editingUserId, setEditingUserId] = useState("");
@@ -194,6 +252,15 @@ export default function UsersClient() {
       const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
       return { ...prev, tenantId: firstActive?.organizationId || "" };
     });
+    setBulkImportTenantId((prev) => {
+      const tenantStillValid = nextOrganizations.some(
+        (organization) => organization.organizationId === prev && !organization.isArchived,
+      );
+      if (tenantStillValid) return prev;
+
+      const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
+      return firstActive?.organizationId || "";
+    });
   }, [buildUsersQueryParams]);
 
   useEffect(() => {
@@ -253,6 +320,110 @@ export default function UsersClient() {
       await loadUsers();
     } else {
       toast(data.error || "Failed to create user.", "error");
+    }
+  }
+
+  function clearBulkImportResults() {
+    setBulkImportSummary(null);
+    setBulkPreviewRows([]);
+    setBulkImportIssues([]);
+  }
+
+  function resetBulkImport(clearCsv: boolean) {
+    clearBulkImportResults();
+    if (clearCsv) {
+      setBulkCsvText("");
+      setBulkCsvFileName("");
+    }
+  }
+
+  function downloadBulkCsvTemplate() {
+    const blob = new Blob([buildUserBulkCsvTemplate(bulkImportMode)], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download =
+      bulkImportMode === "SOLO"
+        ? "solo-user-import-template.csv"
+        : "organisation-user-import-template.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleBulkCsvFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      setBulkCsvText(text);
+      setBulkCsvFileName(file.name);
+      clearBulkImportResults();
+      toast(`Loaded ${file.name}.`, "success");
+    } catch {
+      toast("Failed to read CSV file.", "error");
+    } finally {
+      e.target.value = "";
+    }
+  }
+
+  async function runBulkImportRequest(dryRun: boolean) {
+    if (bulkImportMode === "ORGANIZATION" && !bulkImportTenantId) {
+      toast("Select an organisation for bulk import.", "error");
+      return;
+    }
+    if (!bulkCsvText.trim()) {
+      toast("Paste CSV content or load a CSV file first.", "error");
+      return;
+    }
+
+    setBulkImportBusy(true);
+    try {
+      const res = await fetch(`/api/admin/users/import-csv${dryRun ? "?dryRun=1" : ""}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: bulkImportMode,
+          tenantId: bulkImportMode === "ORGANIZATION" ? bulkImportTenantId : undefined,
+          csvText: bulkCsvText,
+        }),
+      });
+
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        summary?: BulkImportSummary;
+        previewRows?: BulkPreviewRow[];
+        issues?: BulkImportIssue[];
+      };
+
+      setBulkImportSummary(data.summary || null);
+      setBulkPreviewRows(data.previewRows || []);
+      setBulkImportIssues(data.issues || []);
+
+      if (!res.ok) {
+        toast(data.error || "Bulk import failed.", "error");
+        return;
+      }
+
+      if (dryRun) {
+        toast("CSV validated. Review the preview, then import.", "success");
+        return;
+      }
+
+      const createdCount = data.summary?.createdCount || 0;
+      const repairedCount = data.summary?.repairedCount || 0;
+      toast(
+        `Bulk import complete: ${createdCount} created, ${repairedCount} repaired, ${data.summary?.skippedCount || 0} skipped.`,
+        "success",
+      );
+      resetBulkImport(true);
+      await loadUsers();
+    } finally {
+      setBulkImportBusy(false);
     }
   }
 
@@ -707,6 +878,188 @@ export default function UsersClient() {
               value={createForm.managerEmail}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
             />
+          </div>
+        )}
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <h2 className="text-lg font-semibold">Bulk Add Users</h2>
+
+        <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+          <button
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              bulkImportMode === "ORGANIZATION"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+            onClick={() => {
+              setBulkImportMode("ORGANIZATION");
+              clearBulkImportResults();
+            }}
+          >
+            Bulk Add to Organisation
+          </button>
+          <button
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              bulkImportMode === "SOLO"
+                ? "bg-white text-slate-900 shadow-sm"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+            onClick={() => {
+              setBulkImportMode("SOLO");
+              clearBulkImportResults();
+            }}
+          >
+            Bulk Add Solo Participants
+          </button>
+        </div>
+
+        <p className="mt-2 text-xs text-slate-500">
+          {bulkImportMode === "ORGANIZATION"
+            ? "Import multiple participants into one existing organisation."
+            : "Create one solo organisation per CSV row. Use the optional solo_organisation_name column to override the default name."}
+        </p>
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {bulkImportMode === "ORGANIZATION" && (
+            <select
+              className="min-w-[240px] rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              value={bulkImportTenantId}
+              onChange={(e) => {
+                setBulkImportTenantId(e.target.value);
+                clearBulkImportResults();
+              }}
+            >
+              <option value="">Select organisation</option>
+              {activeOrganizations.map((organization) => (
+                <option key={organization.organizationId} value={organization.organizationId}>
+                  {organization.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors">
+            Load CSV File
+            <input
+              className="hidden"
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleBulkCsvFileChange}
+            />
+          </label>
+          <button
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+            onClick={downloadBulkCsvTemplate}
+          >
+            Download Template
+          </button>
+          <button
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50"
+            onClick={() => runBulkImportRequest(true)}
+            disabled={bulkImportBusy}
+          >
+            {bulkImportBusy ? "Working..." : "Validate CSV"}
+          </button>
+          <button
+            className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+            onClick={() => runBulkImportRequest(false)}
+            disabled={bulkImportBusy}
+          >
+            Import Users
+          </button>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
+            <span>
+              CSV columns: email, first_name, last_name, manager_email, solo_organisation_name
+            </span>
+            {bulkCsvFileName ? <span>Loaded file: {bulkCsvFileName}</span> : null}
+          </div>
+          <textarea
+            className="min-h-[180px] w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            placeholder="Paste CSV content here..."
+            value={bulkCsvText}
+            onChange={(e) => {
+              setBulkCsvText(e.target.value);
+              clearBulkImportResults();
+            }}
+          />
+        </div>
+
+        {bulkImportSummary && (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+              <span>Rows: {bulkImportSummary.requestedCount}</span>
+              <span>Ready: {bulkImportSummary.readyCount}</span>
+              <span>Skipped: {bulkImportSummary.skippedCount}</span>
+              <span>Created: {bulkImportSummary.createdCount}</span>
+              <span>Repaired: {bulkImportSummary.repairedCount}</span>
+            </div>
+          </div>
+        )}
+
+        {(bulkPreviewRows.length > 0 || bulkImportIssues.length > 0) && (
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl border border-slate-200">
+              <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+                Preview
+              </div>
+              {bulkPreviewRows.length === 0 ? (
+                <div className="px-3 py-4 text-xs text-slate-500">No importable rows in current CSV.</div>
+              ) : (
+                <div className="max-h-80 overflow-auto">
+                  <table className="min-w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-500">
+                      <tr>
+                        <th className="px-3 py-2">Row</th>
+                        <th className="px-3 py-2">Email</th>
+                        <th className="px-3 py-2">Action</th>
+                        <th className="px-3 py-2">Target</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bulkPreviewRows.map((row) => (
+                        <tr key={`${row.rowNumber}-${row.email}`} className="border-t border-slate-100">
+                          <td className="px-3 py-2">{row.rowNumber}</td>
+                          <td className="px-3 py-2">
+                            <div className="font-medium text-slate-700">{row.email}</div>
+                            <div className="text-[11px] text-slate-500">
+                              {[row.firstName, row.lastName].filter(Boolean).join(" ") || "No name set"}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2 text-slate-600">{formatBulkPreviewAction(row.action)}</td>
+                          <td className="px-3 py-2 text-slate-600">{row.targetName}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-xl border border-slate-200">
+              <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+                Issues
+              </div>
+              {bulkImportIssues.length === 0 ? (
+                <div className="px-3 py-4 text-xs text-slate-500">No issues found in the current preview.</div>
+              ) : (
+                <div className="max-h-80 overflow-auto px-3 py-2">
+                  <div className="space-y-2">
+                    {bulkImportIssues.map((issue) => (
+                      <div key={`${issue.rowNumber}-${issue.email}-${issue.reason}`} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
+                        <div className="text-xs font-semibold text-rose-700">
+                          Row {issue.rowNumber}
+                          {issue.email ? ` · ${issue.email}` : ""}
+                        </div>
+                        <div className="mt-1 text-xs text-rose-700">{issue.message}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </section>
