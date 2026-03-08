@@ -24,6 +24,9 @@ type Question = {
   code?: string | null;
   sectionId?: string | null;
   prompt: string;
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  imageCaption?: string | null;
   questionType: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
   category?: string | null;
   scaleMin: number;
@@ -55,6 +58,26 @@ function findInitialQuestionIndex(questions: Question[], answers: Record<string,
   const firstUnansweredIndex = questions.findIndex((question) => !isQuestionAnswered(question, answers[question.id]));
   if (firstUnansweredIndex >= 0) return firstUnansweredIndex;
   return Math.max(questions.length - 1, 0);
+}
+
+function renderQuestionImage(question: Question) {
+  if (!question.imageUrl) return null;
+
+  return (
+    <figure className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={question.imageUrl}
+        alt={question.imageAlt || "Question reference image"}
+        className="max-h-[28rem] w-full object-contain bg-white"
+      />
+      {question.imageCaption ? (
+        <figcaption className="border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+          {question.imageCaption}
+        </figcaption>
+      ) : null}
+    </figure>
+  );
 }
 
 export default function SessionPage() {
@@ -307,6 +330,8 @@ export default function SessionPage() {
             </span>
           )}
         </div>
+
+        {renderQuestionImage(question)}
 
         {question.questionType === "LIKERT_TRAIT" ? (
           <div className="mt-4 flex flex-wrap gap-2">

@@ -24,6 +24,9 @@ type OptionInput = {
 type QuestionInput = {
   code?: string;
   prompt: string;
+  imageUrl?: string;
+  imageAlt?: string;
+  imageCaption?: string;
   category?: string;
   questionType?: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
   trait?: string;
@@ -63,6 +66,33 @@ function pickQuestionType(input?: string) {
 
 function pickSectionKind(input?: string) {
   return input === "SCENARIO" ? "SCENARIO" : "PERSONALITY";
+}
+
+function normalizeOptionalText(input?: string | null) {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeQuestionImage(input: {
+  imageUrl?: string | null;
+  imageAlt?: string | null;
+  imageCaption?: string | null;
+}) {
+  const imageUrl = normalizeOptionalText(input.imageUrl);
+  if (!imageUrl) {
+    return {
+      imageUrl: null,
+      imageAlt: null,
+      imageCaption: null,
+    };
+  }
+
+  return {
+    imageUrl,
+    imageAlt: normalizeOptionalText(input.imageAlt),
+    imageCaption: normalizeOptionalText(input.imageCaption),
+  };
 }
 
 function parseLimit(raw: string | null, fallback: number, max: number) {
@@ -248,12 +278,16 @@ async function createAssessmentLegacy(input: {
 
     for (const question of section.questions) {
       const questionType = pickQuestionType(question.questionType);
+      const questionImage = normalizeQuestionImage(question);
       const savedQuestion = await db.question.create({
         data: {
           assessmentId: assessment.id,
           sectionId: savedSection.id,
           code: question.code?.trim() || null,
           prompt: question.prompt,
+          imageUrl: questionImage.imageUrl,
+          imageAlt: questionImage.imageAlt,
+          imageCaption: questionImage.imageCaption,
           questionType,
           category: question.category?.trim() || null,
           trait: question.trait?.trim().toLowerCase() || null,
@@ -781,12 +815,16 @@ export async function POST(req: NextRequest) {
 
     for (const question of section.questions) {
       const questionType = pickQuestionType(question.questionType);
+      const questionImage = normalizeQuestionImage(question);
       const savedQuestion = await db.question.create({
         data: {
           assessmentId: assessment.id,
           sectionId: savedSection.id,
           code: question.code?.trim() || null,
           prompt: question.prompt,
+          imageUrl: questionImage.imageUrl,
+          imageAlt: questionImage.imageAlt,
+          imageCaption: questionImage.imageCaption,
           questionType,
           category: question.category?.trim() || null,
           trait: question.trait?.trim().toLowerCase() || null,

@@ -2,6 +2,27 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 
+function normalizeQuestionImage(input: {
+  imageUrl?: string;
+  imageAlt?: string;
+  imageCaption?: string;
+}) {
+  const imageUrl = input.imageUrl?.trim() || null;
+  if (!imageUrl) {
+    return {
+      imageUrl: null,
+      imageAlt: null,
+      imageCaption: null,
+    };
+  }
+
+  return {
+    imageUrl,
+    imageAlt: input.imageAlt?.trim() || null,
+    imageCaption: input.imageCaption?.trim() || null,
+  };
+}
+
 export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -51,6 +72,9 @@ export async function POST(
   const body = (await req.json().catch(() => null)) as
     | {
         prompt?: string;
+        imageUrl?: string;
+        imageAlt?: string;
+        imageCaption?: string;
         trait?: string;
         reverse?: boolean;
         sectionId?: string;
@@ -82,6 +106,8 @@ export async function POST(
     );
   }
 
+  const questionImage = normalizeQuestionImage(body);
+
   const maxSort = await db.question.aggregate({
     where: { assessmentId: id },
     _max: { sortOrder: true },
@@ -92,6 +118,9 @@ export async function POST(
       assessmentId: id,
       sectionId: section.id,
       prompt: body.prompt.trim(),
+      imageUrl: questionImage.imageUrl,
+      imageAlt: questionImage.imageAlt,
+      imageCaption: questionImage.imageCaption,
       questionType: "LIKERT_TRAIT",
       trait: body.trait?.trim().toLowerCase() || null,
       reverse: Boolean(body.reverse),

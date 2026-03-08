@@ -235,6 +235,9 @@ model Question {
   sectionId    String?
   code         String?
   prompt       String
+  imageUrl     String?
+  imageAlt     String?
+  imageCaption String?
   questionType QuestionType @default(LIKERT_TRAIT)
   category     String?
   trait        String?

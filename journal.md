@@ -728,3 +728,86 @@ This file is the append-only engineering diary for implementation work in this r
   - Final rollout safety still depends on the actual Vercel environment-variable configuration, which is not fully visible in the screenshot alone.
 - Next step:
   - Update the Vercel Build Command away from `db push`, confirm the target `DATABASE_URL`, run one controlled production deployment, and verify migration success in deployment logs before relying on the new feature in production.
+
+## Entry 2026-03-08-05
+- Timestamp (UTC): 2026-03-08T13:10:13Z
+- Timestamp (Local): 2026-03-08 18:40:13 IST (+0530)
+- Task: Diagnose Neon production migration blockage and document the safe Prisma recovery path.
+- Why: After switching Vercel to the correct migration-aware build command, deployment still failed because Prisma detected an unresolved failed production migration and refused to apply newer schema changes needed by admin assessment import.
+- What changed:
+  - Investigated production runtime logs, Vercel build output, and Neon SQL state for the blocked migration chain.
+  - Confirmed `_prisma_migrations` recorded `20260306001000_manual_pdf_report_workflow` as failed with Postgres error `type "ReportWorkflow" already exists`.
+  - Confirmed the schema objects from that migration already existed in Neon:
+    - enum `ReportWorkflow`
+    - enum value `FREE_TEXT` on `QuestionType`
+    - `AssessmentPolicy.reportWorkflow`
+    - `AssessmentPolicy.randomizeQuestionOrder`
+    - `AssessmentPolicy.submissionAlertAdminIds`
+    - `Answer.textValue`
+    - table `ReportPdfAsset`
+  - Updated `guide.md` with a dedicated troubleshooting section for Prisma `P3009` on Neon, including the exact verification queries and the safe `migrate resolve --applied` recovery flow.
+- How:
+  - Matched the failed migration record against the SQL in `prisma/migrations/20260306001000_manual_pdf_report_workflow/migration.sql`.
+  - Used Neon SQL inspection to distinguish between a genuinely unapplied migration and a migration whose schema effects were already present but whose Prisma history row was unresolved.
+  - Documented the operational rule: if the schema changes already exist, mark the migration as applied in Prisma history before rerunning `migrate deploy`.
+- Validation/output:
+  - Neon inspection proved the production database was in the "schema already present, migration history unresolved" state.
+  - The recommended next commands for operators are:
+    - `npx prisma migrate resolve --applied 20260306001000_manual_pdf_report_workflow`
+    - `npx prisma migrate status`
+    - `npx prisma migrate deploy`
+  - Documentation now records both the diagnosis and the safe recovery path for future incidents.
+- Risks/unknowns:
+  - `migrate resolve --applied` is only correct because Neon verification showed the manual-PDF schema changes already existed; using it without that verification would be unsafe.
+  - If Preview and Production share one Neon database, future migration rollouts still need environment discipline to avoid accidental preview-triggered schema changes.
+- Next step:
+  - Run `migrate resolve --applied` against the production Neon database, then rerun `migrate deploy`, confirm `AssessmentPolicy.questionPresentationMode` exists, and redeploy Vercel before retrying CSV import.
+
+## Entry 2026-03-08-06
+- Timestamp (UTC): 2026-03-08T13:16:51Z
+- Timestamp (Local): 2026-03-08 18:46:51 IST (+0530)
+- Task: Implement image-backed assessment questions end to end and update the handover documentation.
+- Why: The product needed OLQ-style questions where a prompt can be followed by a reference image and then the usual MCQ or free-text answer control, without introducing a new answer mode that could destabilize scoring, submit validation, or report workflows.
+- What changed:
+  - Updated `prisma/schema.prisma` to add nullable `Question.imageUrl`, `Question.imageAlt`, and `Question.imageCaption`.
+  - Added migration `prisma/migrations/20260308153000_question_image_support/migration.sql`.
+  - Extended CSV question import support in `src/lib/assessment-question-csv.ts` with optional columns:
+    - `image_url`
+    - `image_alt`
+    - `image_caption`
+  - Updated `src/lib/assessment-csv-import-persist.ts` to persist question image metadata during `REPLACE_ALL` and `APPEND` import modes.
+  - Updated assessment creation flows in `src/app/api/admin/assessments/route.ts` so JSON-based question creation can carry image metadata while keeping existing `QuestionType` values unchanged.
+  - Updated admin question CRUD in:
+    - `src/app/api/admin/assessments/[id]/questions/route.ts`
+    - `src/app/api/admin/assessments/[id]/questions/[questionId]/route.ts`
+    so manual question editing can add, update, or clear image metadata safely.
+  - Updated admin assessment content UI in `src/app/(app)/admin/assessments/[id]/AssessmentDetailClient.tsx` to expose image URL, alt text, and caption fields in the question builder and editable question table.
+  - Updated participant session rendering in `src/app/(app)/assessment/session/[sessionId]/page.tsx` to render question images below the prompt and above the answer controls in both `ALL_AT_ONCE` and `ONE_AT_A_TIME` modes.
+  - Updated admin participant response review in:
+    - `src/app/api/admin/assessments/[id]/participants/[userId]/responses/route.ts`
+    - `src/app/(app)/admin/assessments/[id]/participants/[userId]/responses/page.tsx`
+    so admins see the same question image context the participant saw.
+  - Updated `guide.md` in depth with:
+    - schema and migration coverage
+    - question media payload contract
+    - admin content/CSV workflow updates
+    - validation checklist additions
+    - asset authoring guidance
+    - a dedicated `Image-Backed Questions` architecture section
+- How:
+  - Chose additive question media fields instead of a new `QuestionType` so answer semantics remain tied only to `LIKERT_TRAIT`, `SJT_SINGLE`, and `FREE_TEXT`.
+  - Kept image rendering presentation-only, which preserved existing score calculation and submit validation paths.
+  - Added normalization so clearing `imageUrl` also clears stale `imageAlt` and `imageCaption` values.
+  - Used plain `<img>` intentionally for question media because the feature must support both root-relative public assets and arbitrary externally hosted references without coupling the rollout to Next image-host configuration.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing warnings in unrelated files:
+    - `src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx`
+    - `src/lib/report-format.ts`
+  - `npm run build` -> passed.
+  - Touched-file editor diagnostics -> no errors.
+  - Build output still includes the participant session route, admin assessment detail routes, CSV import routes, and admin response-review route after the feature was added.
+- Risks/unknowns:
+  - Production deployment still depends on the previously documented Prisma recovery sequence if the Neon `_prisma_migrations` history remains blocked before the new migration can apply.
+  - Browser-level QA for actual image assets still depends on the referenced files or URLs being present and reachable in the target environment.
+- Next step:
+  - Push the validated change set to `main`, allow deployment to apply `20260308153000_question_image_support`, and then run production smoke checks for CSV import, participant rendering, and admin response review with at least one image-backed question.

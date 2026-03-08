@@ -5,6 +5,9 @@ export const ASSESSMENT_CSV_HEADERS = [
   "section_kind",
   "question_code",
   "prompt",
+  "image_url",
+  "image_alt",
+  "image_caption",
   "question_type",
   "category",
   "trait",
@@ -59,6 +62,9 @@ export type ImportedQuestionRow = {
   sectionKind: SectionKind;
   questionCode: string;
   prompt: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  imageCaption: string | null;
   questionType: QuestionType;
   category: string | null;
   trait: string | null;
@@ -135,6 +141,9 @@ export function buildAssessmentCsvTemplate() {
     "PERSONALITY",
     "Q1",
     "I plan my day before I start work.",
+    "",
+    "",
+    "",
     "LIKERT_TRAIT",
     "Cognitive Orientation",
     "conscientiousness",
@@ -157,6 +166,9 @@ export function buildAssessmentCsvTemplate() {
     "SCENARIO",
     "Q31",
     "A teammate misses a deadline. What do you do first?",
+    "/question-images/q31-missed-deadline.png",
+    "Illustration of a teammate missing a deadline on a project board",
+    "Use the situation shown in the image to guide your response.",
     "SJT_SINGLE",
     "Response Orientation",
     "",
@@ -179,6 +191,9 @@ export function buildAssessmentCsvTemplate() {
     "PERSONALITY",
     "Q56",
     "Write the first word that comes to mind when you read 'Leadership'.",
+    "/question-images/q56-leadership-cue.png",
+    "Leadership-themed visual prompt",
+    "Respond to both the word and the image.",
     "FREE_TEXT",
     "Word Association",
     "",
@@ -300,6 +315,9 @@ export function parseAssessmentQuestionCsv(
     const sectionKindRaw = (record.section_kind || "PERSONALITY").trim().toUpperCase();
     const questionCode = (record.question_code || "").trim();
     const prompt = (record.prompt || "").trim();
+    const imageUrl = (record.image_url || "").trim();
+    const imageAlt = (record.image_alt || "").trim();
+    const imageCaption = (record.image_caption || "").trim();
     const questionTypeRaw = (record.question_type || "LIKERT_TRAIT").trim().toUpperCase();
     const category = (record.category || "").trim();
     const trait = (record.trait || "").trim().toLowerCase();
@@ -353,6 +371,15 @@ export function parseAssessmentQuestionCsv(
         column: "prompt",
         code: "MISSING_REQUIRED",
         message: "prompt is required.",
+      });
+    }
+
+    if (!imageUrl && (imageAlt || imageCaption)) {
+      issues.push({
+        row: rowNumber,
+        column: imageAlt ? "image_alt" : "image_caption",
+        code: "INVALID_VALUE",
+        message: "image_alt and image_caption require image_url.",
       });
     }
 
@@ -467,6 +494,9 @@ export function parseAssessmentQuestionCsv(
       sectionKind,
       questionCode,
       prompt,
+      imageUrl: imageUrl || null,
+      imageAlt: imageAlt || null,
+      imageCaption: imageCaption || null,
       questionType,
       category: category || null,
       trait: trait || null,

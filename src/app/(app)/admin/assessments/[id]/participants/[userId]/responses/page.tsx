@@ -38,6 +38,9 @@ type ApiPayload = {
     id: string;
     code: string | null;
     prompt: string;
+    imageUrl: string | null;
+    imageAlt: string | null;
+    imageCaption: string | null;
     questionType: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
     section: {
       id: string;
@@ -190,6 +193,22 @@ export default function ParticipantResponsesPage() {
                 {response.questionType}
               </span>
             </div>
+
+            {response.imageUrl ? (
+              <figure className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={response.imageUrl}
+                  alt={response.imageAlt || "Question reference image"}
+                  className="max-h-[24rem] w-full object-contain bg-white"
+                />
+                {response.imageCaption ? (
+                  <figcaption className="border-t border-slate-200 px-3 py-2 text-sm text-slate-600">
+                    {response.imageCaption}
+                  </figcaption>
+                ) : null}
+              </figure>
+            ) : null}
 
             {response.questionType === "SJT_SINGLE" ? (
               <div className="mt-4 space-y-2">

@@ -46,6 +46,9 @@ type AssessmentSection = {
 type QuestionRow = {
   id: string;
   prompt: string;
+  imageUrl: string | null;
+  imageAlt: string | null;
+  imageCaption: string | null;
   trait: string | null;
   reverse: boolean;
   sectionId: string | null;
@@ -199,6 +202,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [questionForm, setQuestionForm] = useState({
     prompt: "",
+    imageUrl: "",
+    imageAlt: "",
+    imageCaption: "",
     trait: "",
     reverse: false,
     sectionId: "",
@@ -415,6 +421,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: questionForm.prompt,
+          imageUrl: questionForm.imageUrl,
+          imageAlt: questionForm.imageAlt,
+          imageCaption: questionForm.imageCaption,
           trait: questionForm.trait,
           reverse: questionForm.reverse,
           sectionId: questionForm.sectionId,
@@ -426,7 +435,15 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         return;
       }
       toast("Question added.", "success");
-      setQuestionForm((prev) => ({ ...prev, prompt: "", trait: "", reverse: false }));
+      setQuestionForm((prev) => ({
+        ...prev,
+        prompt: "",
+        imageUrl: "",
+        imageAlt: "",
+        imageCaption: "",
+        trait: "",
+        reverse: false,
+      }));
       await loadAll();
     } finally {
       setBusy(false);
@@ -443,6 +460,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             prompt: question.prompt,
+            imageUrl: question.imageUrl || "",
+            imageAlt: question.imageAlt || "",
+            imageCaption: question.imageCaption || "",
             trait: question.trait || "",
             reverse: question.reverse,
             sectionId: question.sectionId,
@@ -940,12 +960,30 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               <span className="text-xs text-slate-500">Add / Edit / Remove questions here.</span>
             </div>
 
-            <div className="mt-3 grid gap-2 md:grid-cols-5">
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
                 placeholder="Question prompt"
                 value={questionForm.prompt}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, prompt: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                placeholder="Image URL or /public path (optional)"
+                value={questionForm.imageUrl}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                placeholder="Image alt text (optional)"
+                value={questionForm.imageAlt}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageAlt: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                placeholder="Image caption (optional)"
+                value={questionForm.imageCaption}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageCaption: e.target.value }))}
               />
               <input
                 className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
@@ -987,6 +1025,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 <thead className="bg-slate-50 text-slate-600">
                   <tr>
                     <th className="px-3 py-2">Prompt</th>
+                    <th className="px-3 py-2">Image</th>
                     <th className="px-3 py-2">Trait</th>
                     <th className="px-3 py-2">Section</th>
                     <th className="px-3 py-2">Reverse</th>
@@ -1008,6 +1047,46 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             )
                           }
                         />
+                      </td>
+                      <td className="px-3 py-2">
+                        <div className="grid gap-2">
+                          <input
+                            className="w-full rounded border border-slate-300 px-2 py-1"
+                            placeholder="Image URL or /public path"
+                            value={question.imageUrl || ""}
+                            onChange={(e) =>
+                              setQuestions((prev) =>
+                                prev.map((item) =>
+                                  item.id === question.id ? { ...item, imageUrl: e.target.value } : item,
+                                ),
+                              )
+                            }
+                          />
+                          <input
+                            className="w-full rounded border border-slate-300 px-2 py-1"
+                            placeholder="Image alt text"
+                            value={question.imageAlt || ""}
+                            onChange={(e) =>
+                              setQuestions((prev) =>
+                                prev.map((item) =>
+                                  item.id === question.id ? { ...item, imageAlt: e.target.value } : item,
+                                ),
+                              )
+                            }
+                          />
+                          <input
+                            className="w-full rounded border border-slate-300 px-2 py-1"
+                            placeholder="Image caption"
+                            value={question.imageCaption || ""}
+                            onChange={(e) =>
+                              setQuestions((prev) =>
+                                prev.map((item) =>
+                                  item.id === question.id ? { ...item, imageCaption: e.target.value } : item,
+                                ),
+                              )
+                            }
+                          />
+                        </div>
                       </td>
                       <td className="px-3 py-2">
                         <input

@@ -2,6 +2,36 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 
+function normalizeQuestionImage(input: {
+  imageUrl?: string;
+  imageAlt?: string;
+  imageCaption?: string;
+}) {
+  if (typeof input.imageUrl !== "string") {
+    return {
+      imageUrl: undefined,
+      imageAlt: undefined,
+      imageCaption: undefined,
+    };
+  }
+
+  const imageUrl = input.imageUrl.trim() || null;
+  if (!imageUrl) {
+    return {
+      imageUrl: null,
+      imageAlt: null,
+      imageCaption: null,
+    };
+  }
+
+  return {
+    imageUrl,
+    imageAlt: typeof input.imageAlt === "string" ? input.imageAlt.trim() || null : undefined,
+    imageCaption:
+      typeof input.imageCaption === "string" ? input.imageCaption.trim() || null : undefined,
+  };
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; questionId: string }> },
@@ -13,6 +43,9 @@ export async function PATCH(
   const body = (await req.json().catch(() => null)) as
     | {
         prompt?: string;
+        imageUrl?: string;
+        imageAlt?: string;
+        imageCaption?: string;
         trait?: string;
         reverse?: boolean;
         sectionId?: string;
@@ -54,10 +87,15 @@ export async function PATCH(
     sectionId = section.id;
   }
 
+  const questionImage = normalizeQuestionImage(body);
+
   const question = await db.question.update({
     where: { id: questionId },
     data: {
       prompt: typeof body.prompt === "string" ? body.prompt.trim() : undefined,
+      imageUrl: questionImage.imageUrl,
+      imageAlt: questionImage.imageAlt,
+      imageCaption: questionImage.imageCaption,
       trait: typeof body.trait === "string" ? body.trait.trim().toLowerCase() : undefined,
       reverse: typeof body.reverse === "boolean" ? body.reverse : undefined,
       sectionId,

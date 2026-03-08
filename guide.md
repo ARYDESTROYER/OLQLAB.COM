@@ -99,6 +99,8 @@ Rules:
   - added relations for enrollments/jobs/overrides/tokens/assessment-competencies
 - `AssessmentPolicy`
   - added: `questionPresentationMode`
+- `Question`
+  - added optional media fields: `imageUrl`, `imageAlt`, `imageCaption`
 - `OptionImpact`
   - added `assessmentCompetencyId`
   - legacy `competencyId` made optional
@@ -116,6 +118,7 @@ Rules:
 Applied migration:
 - `prisma/migrations/20260224100000_global_assessment_enrollments/migration.sql`
 - `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`
+- `prisma/migrations/20260308153000_question_image_support/migration.sql`
 
 It adds new enums/tables/columns, makes `Assessment.tenantId` nullable, and sets `ownerTenantId` from legacy tenant linkage.
 
@@ -169,8 +172,9 @@ Recommended Vercel procedure for this repo:
 3. If Preview shares the Production database, temporarily change the build command for the production rollout only, deploy once, confirm migration success in logs, then switch the build command back to `npm run build`.
 4. Never use `db push --accept-data-loss` for this production migration flow.
 
-For the current assessment presentation-mode change, the required migration is:
+For the latest assessment content changes, the required migrations are:
 - `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`
+- `prisma/migrations/20260308153000_question_image_support/migration.sql`
 
 Practical Vercel settings check:
 - `Framework Preset`: `Next.js` -> correct
@@ -257,6 +261,34 @@ Unenroll payload (`POST /api/admin/assessments/:id/unenroll`):
 }
 ```
 
+Question content contract (used by JSON creation flows and internally by CSV import persistence):
+
+```json
+{
+  "code": "Q31",
+  "prompt": "A teammate misses a deadline. What do you do first?",
+  "imageUrl": "/question-images/q31-missed-deadline.png",
+  "imageAlt": "Illustration of a teammate missing a deadline on a project board",
+  "imageCaption": "Use the situation shown in the image to guide your response.",
+  "questionType": "SJT_SINGLE",
+  "category": "Response Orientation",
+  "trait": null,
+  "reverse": false,
+  "scaleMin": 1,
+  "scaleMax": 1,
+  "options": [
+    { "code": "A", "text": "Ask for blockers" },
+    { "code": "B", "text": "Escalate immediately" }
+  ]
+}
+```
+
+Rules for question media:
+- `imageUrl` is optional and can be either a public-path reference such as `/question-images/example.png` or another image URL the client can load directly.
+- `imageAlt` and `imageCaption` are optional, but they are only meaningful when `imageUrl` exists.
+- Media does not change answer semantics; answer behavior still depends only on `questionType`.
+- This is intentionally additive so existing LIKERT, SJT, and FREE_TEXT questions keep working without migration-time content rewrites.
+
 ## 9. Participant runtime updates
 
 Updated runtime behavior:
@@ -264,6 +296,7 @@ Updated runtime behavior:
 - `/api/assessment/sessions/start` gates via resolver (not tenant-id match).
 - `/reports/current` lists only submitted reports with app access allowed.
 - `/api/reports/me/:assessmentId` and `/pdf` enforce override/report-mode logic.
+- participant session rendering supports optional question reference images below the prompt and above the answer controls without changing scoring, submit validation, or access rules.
 
 Leader/admin visibility:
 - participant self-access restrictions do not automatically remove leader/admin-level visibility gates.
@@ -342,6 +375,12 @@ Validation rules:
   - delete selected (guarded by confirmation)
 - "Manage" button opens detail view for enrollment, policy, content editing
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
+- content tab manual question builder supports optional image metadata fields: `imageUrl`, `imageAlt`, `imageCaption`
+- content tab CSV import supports optional image columns:
+  - `image_url`
+  - `image_alt`
+  - `image_caption`
+- image-backed questions continue using the existing answer types (`LIKERT_TRAIT`, `SJT_SINGLE`, `FREE_TEXT`); the image is display metadata, not a separate scoring mode
 - policy tab includes question presentation mode:
   - `ALL_AT_ONCE`: current full-form rendering with all questions on one page
   - `ONE_AT_A_TIME`: guided participant flow with previous/next navigation
@@ -398,6 +437,14 @@ Architecture scenarios to validate manually:
   - verify at least one row action in tenants and assessments still fires correctly after the shared menu fix
   - verify clicking outside the menu still dismisses it
   - verify Escape still dismisses it
+11. question image behavior:
+  - questions without image metadata render exactly as before
+  - questions with `imageUrl` render the image in both `ALL_AT_ONCE` and `ONE_AT_A_TIME` participant flows
+  - SJT image questions still require option selection before submit
+  - FREE_TEXT image questions still require non-empty text before submit
+  - clearing an image in admin also clears stale `imageAlt` and `imageCaption`
+12. admin response-review behavior:
+  - `/admin/assessments/:id/participants/:userId/responses` shows the same question image/caption metadata that the participant saw
 
 ## 14. Operational notes
 
@@ -411,6 +458,19 @@ Architecture scenarios to validate manually:
   - move internal job execution to scheduled infrastructure (e.g., Vercel cron)
   - add background retry and alerting for failed job notifications
   - complete deprecation pass of any remaining legacy admin UI surfaces
+
+## 14.1 Question image asset guidance
+
+Recommended asset strategy:
+- Place product-owned static image assets under `public/question-images/*` and reference them with root-relative paths such as `/question-images/q31.png`.
+- If using externally hosted URLs, confirm the host is stable and publicly accessible to participant browsers.
+- Prefer compressed PNG or JPEG assets sized for assessment readability; avoid excessively large files that slow session rendering.
+
+Authoring guidance:
+- Keep prompt text self-contained; use the image as supporting context, not as the only place the user can learn what the question asks.
+- Always provide useful `imageAlt` text for accessibility and for failure cases where the image does not load.
+- Use `imageCaption` only when there is a short instruction or framing note that adds value beyond the prompt itself.
+- Do not create a separate `QuestionType` just to represent visual media. Existing answer types remain the canonical behavior contract.
 
 ## 15. Journal policy
 
@@ -501,7 +561,7 @@ Manual workflow behavior:
 1. Participant submits assessment.
 2. Report remains `DRAFT`; participant sees pending-notification message.
 3. Selected admins receive completion email with direct response-review link.
-4. Admin reviews canonical question order and participant answers.
+4. Admin reviews canonical question order, participant answers, and any question reference images/captions.
 5. Admin uploads PDF (`/api/admin/reports/:reportId/manual-pdf`) and can notify immediately or later.
 6. When published, participant can download PDF in app and via secure no-login share links.
 
@@ -511,3 +571,140 @@ New/updated API surface:
 - `POST /api/admin/reports/:reportId/send` now enforces uploaded PDF for `MANUAL_PDF_UPLOAD`
 - `GET /api/reports/me/:assessmentId` now returns manual pending/ready messaging metadata
 - `GET /api/reports/me/:assessmentId/pdf` and `GET /api/reports/shared/:token/pdf` stream uploaded manual PDFs when applicable
+
+## 19. Image-Backed Questions
+
+Feature intent:
+- Support OLQ-style questions where a prompt can be followed by an image and then the normal answer control.
+- Keep the answer model stable so no existing scoring/report/access logic needs to be rewritten.
+
+Implementation strategy:
+- store media as nullable fields on `Question`
+- keep `QuestionType` unchanged (`LIKERT_TRAIT`, `SJT_SINGLE`, `FREE_TEXT`)
+- render media as presentation-only context in participant and admin-review UIs
+
+Why this architecture is used:
+- scoring logic already branches by answer mode, not by presentation style
+- submit validation already branches by answer mode, not by presentation style
+- using media metadata avoids introducing a fourth answer contract that would have to be threaded through participant UI, submit validation, scoring, CSV parsing, and response review
+
+CSV authoring examples:
+- SJT with image:
+  - `question_type=SJT_SINGLE`
+  - `image_url=/question-images/q31-missed-deadline.png`
+  - `image_alt=Illustration of a teammate missing a deadline on a project board`
+  - `image_caption=Use the situation shown in the image to guide your response.`
+- FREE_TEXT with image:
+  - `question_type=FREE_TEXT`
+  - `image_url=/question-images/q56-leadership-cue.png`
+  - options must remain blank because FREE_TEXT answer semantics do not change
+
+Compatibility notes:
+- Existing questions remain valid because the media fields are nullable.
+- Existing CSV files remain valid because the new image columns are optional.
+- Existing reports and score generation continue to work because question images do not affect score calculation.
+- Latest deployment requires the question-image migration before any runtime path selects the new columns.
+
+## 20. Troubleshooting: Vercel deploy fails with Prisma `P3009` on Neon
+
+Symptom:
+- Vercel build runs `npx prisma migrate deploy && npm run build`.
+- Prisma stops with `Error: P3009`.
+- Error text says a previous migration failed and new migrations will not be applied.
+- In the observed production incident, the blocked migration was `20260306001000_manual_pdf_report_workflow` and the database error inside `_prisma_migrations.logs` was `ERROR: type "ReportWorkflow" already exists`.
+
+What this means:
+- Prisma checks migration history before applying new migrations.
+- If any earlier migration is marked failed in `_prisma_migrations`, Prisma blocks the chain.
+- In this incident, the database already contained the schema objects from the manual-PDF migration, but Prisma still considered that migration unresolved.
+- Because of that block, the later migration `20260308120000_assessment_question_presentation_mode` could not run, leaving production code ahead of the database schema.
+
+How to diagnose safely in Neon:
+1. Open the production Neon SQL editor.
+2. Inspect `_prisma_migrations`:
+
+```sql
+SELECT
+  migration_name,
+  started_at,
+  finished_at,
+  rolled_back_at,
+  logs
+FROM "_prisma_migrations"
+ORDER BY started_at DESC;
+```
+
+3. Check whether the supposedly failed migration's schema objects already exist. For the manual-PDF migration, verify:
+   - `AssessmentPolicy.reportWorkflow`
+   - `AssessmentPolicy.randomizeQuestionOrder`
+   - `AssessmentPolicy.submissionAlertAdminIds`
+   - `Answer.textValue`
+   - table `ReportPdfAsset`
+   - enum `ReportWorkflow`
+   - enum value `FREE_TEXT` on `QuestionType`
+
+Example verification queries:
+
+```sql
+SELECT table_name, column_name
+FROM information_schema.columns
+WHERE table_schema = 'public'
+  AND (
+    (table_name = 'AssessmentPolicy' AND column_name IN ('reportWorkflow', 'randomizeQuestionOrder', 'submissionAlertAdminIds', 'questionPresentationMode'))
+    OR
+    (table_name = 'Answer' AND column_name IN ('textValue'))
+    OR
+    (table_name = 'Question' AND column_name IN ('imageUrl', 'imageAlt', 'imageCaption'))
+  )
+ORDER BY table_name, column_name;
+```
+
+```sql
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = 'public'
+  AND table_name = 'ReportPdfAsset';
+```
+
+```sql
+SELECT
+  t.typname AS enum_name,
+  e.enumlabel AS enum_value
+FROM pg_type t
+JOIN pg_enum e ON t.oid = e.enumtypid
+WHERE t.typname IN ('QuestionType', 'ReportWorkflow')
+ORDER BY t.typname, e.enumsortorder;
+```
+
+Safe recovery rule:
+- If the schema objects from the failed migration already exist, do not try to recreate or manually delete them.
+- Instead, mark that migration as applied in Prisma history, then rerun `migrate deploy`.
+
+Recovery steps used for this repo:
+1. Point `DATABASE_URL` at the production Neon database.
+2. Mark the stuck migration as applied:
+
+```bash
+npx prisma migrate resolve --applied 20260306001000_manual_pdf_report_workflow
+```
+
+3. Confirm status:
+
+```bash
+npx prisma migrate status
+```
+
+4. Apply remaining migrations:
+
+```bash
+npx prisma migrate deploy
+```
+
+5. Recheck that `AssessmentPolicy.questionPresentationMode` and `Question.imageUrl` now exist.
+6. Redeploy Vercel and retest `/api/admin/assessments` plus CSV import.
+
+Important guardrails:
+- Do not use `prisma db push` to bypass this state.
+- Do not hand-edit `_prisma_migrations` rows in SQL.
+- Do not delete enums/tables/columns manually if they already exist from the failed migration.
+- Use `migrate resolve` only after verifying whether the schema changes from the failed migration are already present.
