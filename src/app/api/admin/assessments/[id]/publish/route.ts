@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 
 const validWorkflows = new Set(["AI_STANDARD", "MANUAL_PDF_UPLOAD"]);
+const validQuestionPresentationModes = new Set(["ALL_AT_ONCE", "ONE_AT_A_TIME"]);
 
 export async function POST(
   req: NextRequest,
@@ -18,6 +19,12 @@ export async function POST(
     typeof body.reportWorkflow === "string" && validWorkflows.has(body.reportWorkflow)
       ? body.reportWorkflow
       : "AI_STANDARD";
+
+  const requestedQuestionPresentationMode =
+    typeof body.questionPresentationMode === "string" &&
+    validQuestionPresentationModes.has(body.questionPresentationMode)
+      ? body.questionPresentationMode
+      : "ALL_AT_ONCE";
 
   const requestedAlertAdminIds = Array.isArray(body.submissionAlertAdminIds)
     ? body.submissionAlertAdminIds
@@ -49,6 +56,7 @@ export async function POST(
             postSubmitMessage: body.postSubmitMessage || "Submitted successfully.",
             leaderCanViewFullReport: Boolean(body.leaderCanViewFullReport),
             reportWorkflow: requestedWorkflow,
+            questionPresentationMode: requestedQuestionPresentationMode,
             randomizeQuestionOrder: Boolean(body.randomizeQuestionOrder),
             submissionAlertAdminIds: validAlertAdminIds,
           },
@@ -58,6 +66,7 @@ export async function POST(
             postSubmitMessage: body.postSubmitMessage || "Submitted successfully.",
             leaderCanViewFullReport: Boolean(body.leaderCanViewFullReport),
             reportWorkflow: requestedWorkflow,
+            questionPresentationMode: requestedQuestionPresentationMode,
             randomizeQuestionOrder: Boolean(body.randomizeQuestionOrder),
             submissionAlertAdminIds: validAlertAdminIds,
           },

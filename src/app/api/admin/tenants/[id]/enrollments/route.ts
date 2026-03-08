@@ -58,7 +58,7 @@ export async function POST(
   }
 
   if (!tenant) {
-    return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+    return NextResponse.json({ error: "Organisation not found." }, { status: 404 });
   }
 
   if (!assessment) {
@@ -68,7 +68,7 @@ export async function POST(
   if (action === "ENROLL") {
     if (tenant.isArchived) {
       return NextResponse.json(
-        { error: "Archived tenants cannot be enrolled." },
+        { error: "Archived organisations cannot be enrolled." },
         { status: 400 },
       );
     }

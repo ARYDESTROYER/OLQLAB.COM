@@ -11,7 +11,7 @@ export async function POST(req: NextRequest) {
   const { tenantId, csvText } = body as { tenantId: string; csvText: string };
   const tenant = await db.tenant.findUnique({ where: { id: tenantId } });
   if (!tenant) {
-    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    return NextResponse.json({ error: "Organisation not found." }, { status: 404 });
   }
 
   const records = parse(csvText, {

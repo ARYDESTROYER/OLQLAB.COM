@@ -1,21 +1,21 @@
 # OLQLAB
 
-OLQLAB is a multi-tenant workplace assessment platform with a global assessment library and explicit access control.
+OLQLAB is a multi-organisation workplace assessment platform with a global assessment library and explicit access control.
 
 ## Admin Console Re-Architecture (Implemented)
 
 Date: 2026-02-24
 
 The platform now follows a global-assessment model:
-- Assessments are created without mandatory tenant assignment.
+- Assessments are created without mandatory organisation assignment.
 - Access is granted through explicit enrollments.
 - Access is removed through explicit unenroll jobs with report-access policy control.
 
 ### Locked product decisions
-1. Access is a union: direct user enrollment OR tenant enrollment.
-2. A user belongs to exactly one tenant; a "solo" user is a dedicated `SOLO` tenant with one seat.
-3. Admins are global admins (not tenant-scoped for admin operations).
-4. Tenant enrollment always supports `includeFutureUsers` behavior.
+1. Access is a union: direct user enrollment OR organisation enrollment.
+2. A user belongs to exactly one organisation; a "solo" user is a dedicated `SOLO` organisation with one seat.
+3. Admins are global admins (not organisation-scoped for admin operations).
+4. Organisation enrollment always supports `includeFutureUsers` behavior.
 5. Unenroll uses a configurable workflow: timing + report mode + optional email.
 6. Temporary report links are signed, no-login, expiring URLs.
 7. Notification channel is email.
@@ -96,8 +96,8 @@ npm run prisma:rollback:global-assessments
 ```
 
 Backfill effects:
-- Creates active tenant enrollments for legacy assessments.
-- Sets `ownerTenantId` from legacy tenant linkage.
+- Creates active organisation enrollments for legacy assessments.
+- Sets `ownerTenantId` from legacy organisation linkage.
 - Creates `AssessmentCompetency` records and remaps `OptionImpact`.
 
 ## Runtime access semantics
@@ -148,7 +148,7 @@ Precedence rule:
 - `POST /api/admin/users/:id/enrollments`
 - `POST /api/admin/users/import-csv`
 
-### Admin: tenants
+### Admin: organisations
 - `GET /api/admin/tenants`
 - `POST /api/admin/tenants`
 - `PATCH /api/admin/tenants/:id`

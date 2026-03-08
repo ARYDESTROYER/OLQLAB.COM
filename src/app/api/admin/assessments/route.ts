@@ -165,6 +165,7 @@ async function createAssessmentLegacy(input: {
     postSubmitMessage?: string;
     leaderCanViewFullReport?: boolean;
     reportWorkflow?: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+    questionPresentationMode?: "ALL_AT_ONCE" | "ONE_AT_A_TIME";
     randomizeQuestionOrder?: boolean;
     submissionAlertAdminIds?: string[];
   };
@@ -649,6 +650,7 @@ export async function POST(req: NextRequest) {
       postSubmitMessage?: string;
       leaderCanViewFullReport?: boolean;
       reportWorkflow?: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+      questionPresentationMode?: "ALL_AT_ONCE" | "ONE_AT_A_TIME";
       randomizeQuestionOrder?: boolean;
       submissionAlertAdminIds?: string[];
     };
@@ -668,7 +670,7 @@ export async function POST(req: NextRequest) {
     const tenant = await db.tenant.findUnique({ where: { id: ownerTenantId } });
     if (!tenant) {
       return NextResponse.json(
-        { error: "ownerTenantId references an unknown tenant" },
+        { error: "ownerTenantId references an unknown organisation." },
         { status: 404 },
       );
     }
@@ -689,6 +691,7 @@ export async function POST(req: NextRequest) {
               body.policy?.postSubmitMessage || "Thanks for completing your assessment.",
             leaderCanViewFullReport: body.policy?.leaderCanViewFullReport ?? true,
             reportWorkflow: body.policy?.reportWorkflow ?? "AI_STANDARD",
+            questionPresentationMode: body.policy?.questionPresentationMode ?? "ALL_AT_ONCE",
             randomizeQuestionOrder: body.policy?.randomizeQuestionOrder ?? false,
             submissionAlertAdminIds: body.policy?.submissionAlertAdminIds ?? [],
           },
@@ -886,7 +889,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Database migration pending. In compatibility mode, please select an owner tenant when creating assessments.",
+            "Database migration pending. In compatibility mode, please select an owner organisation when creating assessments.",
         },
         { status: 409 },
       );

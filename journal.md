@@ -598,3 +598,133 @@ This file is the append-only engineering diary for implementation work in this r
   - In compatibility-mode deployments that intentionally skip latest migrations, new manual workflow fields/APIs are not expected to function.
 - Next step:
   - Run DB migration + deploy in environment with dependencies installed, then execute end-to-end QA for manual submit -> admin review -> PDF upload -> notify flow.
+
+## Entry 2026-03-08-01
+- Timestamp (UTC): 2026-03-08T09:52:01Z
+- Timestamp (Local): 2026-03-08 15:22:01 IST (+0530)
+- Task: Fix silent admin row-action menu clicks and document the regression in depth.
+- Why: User reported that `View Tests` and `View Access` in `/admin/users` appeared clickable but did nothing. Because those actions are routed through a shared dropdown component, this was a cross-admin interaction bug with risk to users, tenants, and assessments tables.
+- What changed:
+  - Updated `src/components/admin/ActionMenu.tsx` to correctly support outside-click detection for a portaled dropdown.
+  - Added `portalMenuRef` and changed the document `mousedown` handler to treat both the trigger wrapper and the portaled menu node as internal click targets.
+  - Preserved the portal-based menu rendering instead of removing it, because the portal is still the correct solution for clipping/stacking behavior inside dense admin tables.
+  - Updated `src/app/(app)/admin/users/UsersClient.tsx` to harden `openInspect(...)`:
+    - explicitly checks `res.ok`
+    - shows a toast on non-2xx responses
+    - clears inspect-panel data on failure so stale data is not left mounted
+  - Updated `guide.md` with:
+    - shared admin row-action menu behavior
+    - troubleshooting for the silent-click failure mode
+    - manual validation steps for the shared dropdown interaction
+- How:
+  - Traced the click path from `UsersClient` row actions into the shared `ActionMenu` and verified the action callbacks themselves were already wired correctly.
+  - Identified the real fault in the shared menu lifecycle:
+    - `ActionMenu` rendered the floating menu via `createPortal(...)`
+    - the outside-click listener only checked `menuRef`
+    - clicking a visible menu item was therefore misclassified as an outside click during `mousedown`
+    - the dropdown closed before the item's `onClick` callback ran
+  - Fixed the bug at the shared-component boundary rather than adding page-level workarounds.
+  - Re-ran diagnostics and repository validation after the change.
+- Validation/output:
+  - Editor diagnostics for touched files: no errors.
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing warnings in unrelated files:
+    - `src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx`
+    - `src/lib/report-format.ts`
+  - `npm run build` -> still fails, but due to pre-existing unrelated missing TipTap modules in `ReportEditorClient`:
+    - `@tiptap/react`
+    - `@tiptap/starter-kit`
+    - `@tiptap/extension-underline`
+    - `@tiptap/extension-placeholder`
+  - Conclusion: the admin row-action regression is fixed; the remaining build failure is independent and should be addressed as a separate dependency/install issue.
+- Risks/unknowns:
+  - Browser-level click QA was not executed inside an active running app session from this shell, so final confirmation of interaction behavior still depends on manual UI verification.
+  - Because `ActionMenu` is shared, any future refactor that changes portal structure or dismissal timing should be regression-tested across users, tenants, and assessments, not just one table.
+- Next step:
+  - Manually verify `Actions` menu behavior on `/admin/users`, `/admin/tenants`, and `/admin/assessments`, then separately restore missing TipTap dependencies so `npm run build` can pass end to end.
+
+## Entry 2026-03-08-02
+- Timestamp (UTC): 2026-03-08T09:54:41Z
+- Timestamp (Local): 2026-03-08 15:24:41 IST (+0530)
+- Task: Document the terminology sweep that standardizes product copy to `Organisation`.
+- Why: The codebase intentionally still uses legacy/internal `tenant` naming in schema, routes, and APIs, but product-facing language had drifted between `tenant`, `organization`, and `organisation`. That inconsistency creates UX friction and makes future edits error-prone unless the rule is written down explicitly.
+- What changed:
+  - Updated `guide.md` to define the terminology contract in plain terms.
+  - Documented that user-facing copy should say `Organisation` / `Organisations`.
+  - Documented that internal identifiers and compatibility surfaces can still say `tenant`.
+  - Added operational guidance so future contributors know when to preserve internal naming and when to translate to product language.
+- How:
+  - Reviewed the current architecture notes and admin UX guidance.
+  - Added a dedicated terminology convention near the top of the technical handover so it is visible before implementation details.
+  - Added an operational note clarifying the boundary between business language and technical/storage language.
+  - Kept the guidance explicit about examples (`tenantId`, `TenantType`, `/admin/tenants`, `AssessmentTenantEnrollment`) so there is no ambiguity during future edits.
+- Validation/output:
+  - Existing edited code files still show no diagnostics in the editor.
+  - `npm run lint` had already completed successfully in the workspace immediately before this documentation pass.
+  - Markdown-only changes in this step do not affect runtime behavior.
+- Risks/unknowns:
+  - Historical notes in old journal entries and older sections of the guide still reference `tenant` where they are describing the original technical model. Those references are not necessarily wrong; they may be historically accurate.
+  - A future full rename of internal domain terms would be substantially larger than this documentation sweep and should be treated as a dedicated migration/refactor task.
+- Next step:
+  - When future UI or API-message changes are made, keep translating business-facing language to `Organisation` while leaving internal compatibility identifiers alone unless a deeper rename is explicitly requested.
+
+## Entry 2026-03-08-03
+- Timestamp (UTC): 2026-03-08T10:05:04Z
+- Timestamp (Local): 2026-03-08 15:35:04 IST (+0530)
+- Task: Add assessment policy support for one-question-at-a-time delivery while preserving the current all-at-once mode.
+- Why: Admins need an explicit assessment-level choice between the existing full-form delivery and a guided step-by-step participant flow, without changing scoring, access, reports, or retest behavior.
+- What changed:
+  - Updated `prisma/schema.prisma` with enum `AssessmentQuestionPresentationMode` and policy field `questionPresentationMode` defaulting to `ALL_AT_ONCE`.
+  - Added migration `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`.
+  - Updated assessment policy persistence in:
+    - `src/app/api/admin/assessments/[id]/publish/route.ts`
+    - `src/app/api/admin/assessments/route.ts`
+    - `src/app/api/admin/assessments/import-csv/route.ts`
+  - Updated `src/app/(app)/admin/assessments/[id]/AssessmentDetailClient.tsx` to expose the new Policy control and helper text.
+  - Updated `src/app/api/assessment/sessions/[id]/route.ts` to return `questionPresentationMode` together with the ordered question list.
+  - Reworked `src/app/(app)/assessment/session/[sessionId]/page.tsx` to support both participant modes:
+    - preserve current all-at-once rendering
+    - add one-question-at-a-time rendering with previous/next navigation
+    - restore the first unanswered question on load/resume
+    - flush free-text answers when leaving a question and again during final submit
+    - surface answer-save failures in the participant UI instead of failing silently
+  - Updated `guide.md` to document the new policy field and validation scenarios.
+- How:
+  - Extended `AssessmentPolicy` rather than introducing a separate assessment workflow type.
+  - Reused the existing session ordering endpoint so server-side order remains canonical, including randomized sessions.
+  - Kept scoring, submit, and report generation contracts unchanged and isolated the new behavior to policy persistence plus participant rendering.
+  - Installed missing declared TipTap dependencies with `npm install` so full build validation could run against the repository's declared dependency set.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing warnings in unrelated files:
+    - `src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx`
+    - `src/lib/report-format.ts`
+  - `npm run build` -> passed after dependency sync and one follow-up fix to include `questionPresentationMode` in the session policy select.
+  - Editor diagnostics for touched files -> no errors.
+- Risks/unknowns:
+  - Latest DB migration must be applied before deployment; this feature depends on the new `AssessmentPolicy.questionPresentationMode` column.
+  - Manual browser QA is still recommended for the one-question-at-a-time flow, especially around free-text navigation and resume behavior.
+- Next step:
+  - Apply the migration in the target environment, then run browser QA for both `ALL_AT_ONCE` and `ONE_AT_A_TIME` assessments with LIKERT, SJT, and FREE_TEXT questions.
+
+## Entry 2026-03-08-04
+- Timestamp (UTC): 2026-03-08T10:13:01Z
+- Timestamp (Local): 2026-03-08 15:43:01 IST (+0530)
+- Task: Document the exact Vercel migration rollout procedure for the new assessment presentation-mode schema change.
+- Why: The current Vercel Build Command shown in user-provided settings uses `prisma db push --accept-data-loss`, which is not a safe or correct way to apply tracked Prisma migrations in production.
+- What changed:
+  - Updated `guide.md` with a dedicated Vercel migration section.
+  - Documented why `db push --accept-data-loss` is incorrect for this repo's production migration flow.
+  - Documented the correct migration-aware command: `npx prisma migrate deploy && npm run build`.
+  - Documented environment safety rules for Preview vs Production databases.
+  - Documented which parts of the user's Vercel screenshot are correct and which part must change.
+- How:
+  - Reviewed the current repository build script (`npm run build` already includes `prisma generate && next build`).
+  - Mapped that script against Prisma deployment behavior to avoid duplicate generation steps and direct-schema drift.
+  - Added explicit rollout guidance tied to the current migration `20260308120000_assessment_question_presentation_mode`.
+- Validation/output:
+  - Documentation-only update.
+  - Guidance aligns with the repository's actual Prisma migration layout and build script behavior.
+- Risks/unknowns:
+  - If Vercel Preview and Production share the same database, leaving `migrate deploy` in a global build command can cause unintended migration execution from preview deployments.
+  - Final rollout safety still depends on the actual Vercel environment-variable configuration, which is not fully visible in the screenshot alone.
+- Next step:
+  - Update the Vercel Build Command away from `db push`, confirm the target `DATABASE_URL`, run one controlled production deployment, and verify migration success in deployment logs before relying on the new feature in production.

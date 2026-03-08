@@ -98,7 +98,7 @@ export async function POST(
     });
 
     if (!tenant) {
-      return NextResponse.json({ error: "Target tenant not found." }, { status: 404 });
+      return NextResponse.json({ error: "Target organisation not found." }, { status: 404 });
     }
   }
 

@@ -7,7 +7,7 @@ import ToastContainer from "@/components/admin/Toast";
 const links = [
   { href: "/admin", label: "Overview" },
   { href: "/admin/users", label: "Users" },
-  { href: "/admin/tenants", label: "Tenants" },
+  { href: "/admin/tenants", label: "Organisations" },
   { href: "/admin/assessments", label: "Assessments" },
 ];
 
@@ -22,7 +22,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-600">Admin Console</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Operations Center</h1>
         <p className="mt-3 max-w-3xl text-sm text-slate-700">
-          Manage users, tenants, global assessments, enrollments, and access lifecycle.
+          Manage users, organisations, global assessments, enrollments, and access lifecycle.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           {links.map((item) => (

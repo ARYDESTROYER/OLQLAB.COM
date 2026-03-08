@@ -207,7 +207,7 @@ export default async function CurrentAssessmentPage() {
         <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
           <h2 className="text-lg font-semibold">No active assessment access</h2>
           <p className="mt-2 text-sm text-slate-600">
-            You currently have no published assessments assigned from your organization ({tenantLabel}).
+            You currently have no published assessments assigned from your organisation ({tenantLabel}).
           </p>
         </section>
       ) : (

@@ -19,6 +19,7 @@ type AssessmentDetail = {
     postSubmitMessage: string;
     leaderCanViewFullReport: boolean;
     reportWorkflow: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+    questionPresentationMode: "ALL_AT_ONCE" | "ONE_AT_A_TIME";
     randomizeQuestionOrder: boolean;
     submissionAlertAdminIds: string[];
   } | null;
@@ -176,6 +177,10 @@ const tabs: Array<{ key: TabKey; label: string }> = [
   { key: "JOBS", label: "Jobs" },
 ];
 
+function formatScopeLabel(scope: "USER" | "TENANT") {
+  return scope === "TENANT" ? "ORGANISATION" : "USER";
+}
+
 export default function AssessmentDetailClient({ assessmentId }: { assessmentId: string }) {
   const [tab, setTab] = useState<TabKey>("CONTENT");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -213,6 +218,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     postSubmitMessage: "Thanks for completing your assessment.",
     leaderCanViewFullReport: true,
     reportWorkflow: "AI_STANDARD" as "AI_STANDARD" | "MANUAL_PDF_UPLOAD",
+    questionPresentationMode: "ALL_AT_ONCE" as "ALL_AT_ONCE" | "ONE_AT_A_TIME",
     randomizeQuestionOrder: false,
     submissionAlertAdminIds: [] as string[],
   });
@@ -293,6 +299,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             detailData.assessment.policy?.leaderCanViewFullReport ?? true,
           reportWorkflow:
             detailData.assessment.policy?.reportWorkflow ?? "AI_STANDARD",
+          questionPresentationMode:
+            detailData.assessment.policy?.questionPresentationMode ?? "ALL_AT_ONCE",
           randomizeQuestionOrder:
             detailData.assessment.policy?.randomizeQuestionOrder ?? false,
           submissionAlertAdminIds:
@@ -828,7 +836,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           </div>
           <p className="mt-3 text-sm text-slate-600">
             Sections: {detail._count?.sections || 0} | Questions: {detail._count?.questions || 0} |
-            User enrollments: {detail._count?.userEnrollments || 0} | Tenant enrollments: {detail._count?.tenantEnrollments || 0}
+            User enrollments: {detail._count?.userEnrollments || 0} | Organisation enrollments: {detail._count?.tenantEnrollments || 0}
           </p>
           <button className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={saveContent} disabled={busy}>
             Save Content Metadata
@@ -1112,7 +1120,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 }
               >
                 <option value="USER">USER</option>
-                <option value="TENANT">TENANT</option>
+                <option value="TENANT">ORGANISATION</option>
               </select>
 
               <select
@@ -1200,7 +1208,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             </article>
 
             <article className="rounded-xl border border-slate-200 bg-white p-3">
-              <h4 className="text-sm font-semibold">Tenant Enrollments</h4>
+              <h4 className="text-sm font-semibold">Organisation Enrollments</h4>
               <ul className="mt-2 space-y-1 text-sm">
                 {access?.enrollments.tenants.length ? (
                   access.enrollments.tenants.map((enrollment) => (
@@ -1210,7 +1218,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     </li>
                   ))
                 ) : (
-                  <li className="text-slate-500">No tenant enrollments</li>
+                  <li className="text-slate-500">No organisation enrollments</li>
                 )}
               </ul>
             </article>
@@ -1232,7 +1240,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <tr key={user.userId} className="border-t border-slate-100">
                       <td className="px-3 py-2">{user.firstName} {user.lastName} ({user.email})</td>
                       <td className="px-3 py-2">{user.role}</td>
-                      <td className="px-3 py-2">{user.sources.map((source) => source.scope).join(", ")}</td>
+                      <td className="px-3 py-2">{user.sources.map((source) => formatScopeLabel(source.scope)).join(", ")}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1258,7 +1266,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     }
                   >
                     <option value="USER">USER</option>
-                    <option value="TENANT">TENANT</option>
+                    <option value="TENANT">ORGANISATION</option>
                   </select>
                   <select
                     className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
@@ -1664,6 +1672,24 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 <option value="MANUAL_PDF_UPLOAD">Manual PDF Upload</option>
               </select>
             </label>
+            <label className="text-sm">
+              <span className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+                Question presentation
+              </span>
+              <select
+                className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={policyForm.questionPresentationMode}
+                onChange={(e) =>
+                  setPolicyForm((prev) => ({
+                    ...prev,
+                    questionPresentationMode: e.target.value as "ALL_AT_ONCE" | "ONE_AT_A_TIME",
+                  }))
+                }
+              >
+                <option value="ALL_AT_ONCE">All questions at once</option>
+                <option value="ONE_AT_A_TIME">One question at a time</option>
+              </select>
+            </label>
             <input
               type="number"
               min={0}
@@ -1678,6 +1704,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               placeholder="Result delay hours"
             />
           </div>
+          <p className="mt-3 text-xs text-slate-500">
+            Question presentation changes only the participant answering flow. Access, scoring, retests, and report generation stay the same.
+          </p>
           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
               Submission Alert Recipients

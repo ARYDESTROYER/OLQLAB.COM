@@ -111,7 +111,7 @@ export default function TenantsClient() {
 
   async function createTenant() {
     if (!createForm.name.trim()) {
-      toast("Organization name is required.", "error");
+      toast("Organisation name is required.", "error");
       return;
     }
 
@@ -127,11 +127,11 @@ export default function TenantsClient() {
     const data = await res.json();
 
     if (res.ok) {
-      toast(`Organization "${createForm.name}" created.`, "success");
+      toast(`Organisation "${createForm.name}" created.`, "success");
       setCreateForm({ name: "", seatLimit: 50 });
       await loadTenants();
     } else {
-      toast(data.error || "Failed to create organization.", "error");
+      toast(data.error || "Failed to create organisation.", "error");
     }
   }
 
@@ -148,10 +148,10 @@ export default function TenantsClient() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast("Organization updated.", "success");
+        toast("Organisation updated.", "success");
         await loadTenants();
       } else {
-        toast(data.error || "Failed to update organization.", "error");
+        toast(data.error || "Failed to update organisation.", "error");
       }
     } finally {
       setBusyTenantId("");
@@ -210,7 +210,7 @@ export default function TenantsClient() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `admin-tenants-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.download = `admin-organisations-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -240,12 +240,12 @@ export default function TenantsClient() {
 
   async function runBulkArchive(targetArchived: boolean) {
     if (selectedTenantIds.length === 0) {
-      toast("Select at least one tenant.", "error");
+      toast("Select at least one organisation.", "error");
       return;
     }
 
     const confirmed = window.confirm(
-      `${targetArchived ? "Archive" : "Unarchive"} ${selectedTenantIds.length} selected tenants?`,
+      `${targetArchived ? "Archive" : "Unarchive"} ${selectedTenantIds.length} selected organisations?`,
     );
     if (!confirmed) return;
 
@@ -299,17 +299,17 @@ export default function TenantsClient() {
 
   return (
     <div className="space-y-6">
-      {/* ── Create Organization ── */}
+      {/* ── Create Organisation ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Create Organization</h2>
-        <p className="mt-1 text-xs text-slate-500">Add a new client organization to the platform.</p>
+        <h2 className="text-lg font-semibold">Create Organisation</h2>
+        <p className="mt-1 text-xs text-slate-500">Add a new client organisation to the platform.</p>
 
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[220px]">
             <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Name</label>
             <input
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              placeholder="Organization name"
+              placeholder="Organisation name"
               value={createForm.name}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
             />
@@ -337,7 +337,7 @@ export default function TenantsClient() {
         </div>
       </section>
 
-      {/* ── Organization Directory ── */}
+      {/* ── Organisation Directory ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-center gap-2">
           <input
@@ -345,7 +345,7 @@ export default function TenantsClient() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
-            placeholder="Search organizations…"
+            placeholder="Search organisations…"
           />
           <select
             className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -354,9 +354,9 @@ export default function TenantsClient() {
               setTypeFilter(e.target.value as "" | "ORGANIZATION" | "SOLO")
             }
           >
-            <option value="">All tenant types</option>
-            <option value="ORGANIZATION">Organizations</option>
-            <option value="SOLO">Solo tenants</option>
+            <option value="">All organisation types</option>
+            <option value="ORGANIZATION">Organisations</option>
+            <option value="SOLO">Solo organisations</option>
           </select>
           <select
             className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
@@ -469,10 +469,10 @@ export default function TenantsClient() {
                     type="checkbox"
                     checked={allSelected}
                     onChange={(e) => toggleAllTenants(e.target.checked)}
-                    aria-label="Select all tenants"
+                    aria-label="Select all organisations"
                   />
                 </th>
-                <th className="px-3 py-2">Organization</th>
+                <th className="px-3 py-2">Organisation</th>
                 <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2">Seat Limit</th>
                 <th className="px-3 py-2">Usage</th>
@@ -484,8 +484,8 @@ export default function TenantsClient() {
               {tenants.length === 0 ? (
                 <EmptyState
                   icon="🏢"
-                  title="No organizations found"
-                  description="Create a new organization or adjust your search."
+                  title="No organisations found"
+                  description="Create a new organisation or adjust your search."
                   colSpan={7}
                 />
               ) : (

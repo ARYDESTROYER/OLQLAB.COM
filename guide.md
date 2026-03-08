@@ -15,12 +15,19 @@ Current model (canonical):
 - report-access overrides after unenroll
 - optional secure share links
 
+Product terminology convention:
+- User-facing product copy should use `Organisation` / `Organisations`.
+- Internal schema, route, and compatibility terms still use `tenant`, for example `tenantId`, `TenantType`, `AssessmentTenantEnrollment`, and `/admin/tenants`.
+- This split is intentional. It preserves API/database compatibility while giving the UI a clearer business term.
+- If a future task wants full domain renaming, treat it as a deeper refactor spanning Prisma schema, API contracts, query parameters, auth/session types, CSV shapes, internal jobs, and route paths.
+- When editing admin UI, participant screens, reports, emails, or toast/error strings, prefer the business term `Organisation` unless the text is explicitly describing a technical field name.
+
 ## 2. Admin Information Architecture
 
 Admin console is route-sectioned:
 - `/admin`: overview dashboard, KPIs, pending unenroll jobs, recent actions
-- `/admin/users`: participant directory + add user (solo or organization) + move between orgs + tests/access inspection panel
-- `/admin/tenants`: organization directory + CRUD + seat limits + archive + roster/access inspection panel
+- `/admin/users`: participant directory + add user (solo or organisation) + move between orgs + tests/access inspection panel
+- `/admin/tenants`: organisation directory + CRUD + seat limits + archive + roster/access inspection panel
 - `/admin/assessments`: global library + create (title only) + publish/unpublish + manage via detail page
 - `/admin/assessments/:id`: detail tabs
 
@@ -80,6 +87,7 @@ Rules:
 - `TenantType`: `ORGANIZATION | SOLO`
 - `EnrollmentScope`: `USER | TENANT`
 - `ReportAccessMode`: `KEEP_APP_ACCESS | LINK_ONLY | REVOKE`
+- `AssessmentQuestionPresentationMode`: `ALL_AT_ONCE | ONE_AT_A_TIME`
 - `UnenrollJobStatus`: `PENDING | COMPLETED | FAILED | CANCELLED`
 
 ### 5.2 Updated existing models
@@ -89,6 +97,8 @@ Rules:
   - legacy `tenantId` retained but nullable
   - added: `ownerTenantId` (lineage/ownership)
   - added relations for enrollments/jobs/overrides/tokens/assessment-competencies
+- `AssessmentPolicy`
+  - added: `questionPresentationMode`
 - `OptionImpact`
   - added `assessmentCompetencyId`
   - legacy `competencyId` made optional
@@ -105,6 +115,7 @@ Rules:
 
 Applied migration:
 - `prisma/migrations/20260224100000_global_assessment_enrollments/migration.sql`
+- `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`
 
 It adds new enums/tables/columns, makes `Assessment.tenantId` nullable, and sets `ownerTenantId` from legacy tenant linkage.
 
@@ -124,6 +135,49 @@ Rollback script:
 
 Rollback behavior:
 - remove backfill-tagged enrollments/competencies and detach mapped impact links
+
+## 6.1 Vercel deployment rule for Prisma migrations
+
+Do not use this in Vercel Build Command for production schema rollout:
+- `npx prisma db push --accept-data-loss && npx prisma generate && next build`
+
+Why this is wrong:
+- `db push` does not apply tracked Prisma migrations from `prisma/migrations/*`.
+- `db push` mutates the schema directly, which can drift from migration history.
+- `--accept-data-loss` is especially unsafe in a deployed environment because it allows destructive schema changes without migration review.
+- `npm run build` already runs `prisma generate && next build`, so adding another explicit `prisma generate` is redundant.
+
+Correct command when you want Vercel to apply migrations during deploy:
+
+```bash
+npx prisma migrate deploy && npm run build
+```
+
+What this does:
+- applies all unapplied SQL migrations from `prisma/migrations/*`
+- records them in Prisma migration history
+- then runs the normal production build
+
+Important environment rule:
+- If Preview and Production deployments point at the same database, do not leave `migrate deploy` in a global Vercel Build Command.
+- Otherwise a preview deployment can attempt to run production migrations.
+- Safe setup is one database per environment, or a one-time controlled production migration followed by a normal build command.
+
+Recommended Vercel procedure for this repo:
+1. Confirm `DATABASE_URL` is set correctly for the Production environment.
+2. If Preview uses a separate database, you may keep `npx prisma migrate deploy && npm run build` as the build command.
+3. If Preview shares the Production database, temporarily change the build command for the production rollout only, deploy once, confirm migration success in logs, then switch the build command back to `npm run build`.
+4. Never use `db push --accept-data-loss` for this production migration flow.
+
+For the current assessment presentation-mode change, the required migration is:
+- `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`
+
+Practical Vercel settings check:
+- `Framework Preset`: `Next.js` -> correct
+- `Root Directory`: `/` -> correct if the repo root is the app root
+- `Install Command`: blank/default -> fine if Vercel installs from `package-lock.json`
+- `Output Directory`: default -> correct
+- `Build Command`: screenshot value is not correct for migration rollout and should be replaced as described above
 
 ## 7. Admin API redesign
 
@@ -251,28 +305,29 @@ Validation rules:
 ## 12. Admin UX behavior details
 
 ### 12.1 Users section (Participant Directory)
-- add user: toggle between "Add to Organization" (org + email) or "Add Solo Participant" (email only)
-- solo participants can be grouped into an organization later via Move
+- add user: toggle between "Add to Organisation" (org + email) or "Add Solo Participant" (email only)
+- solo participants can be grouped into an organisation later via Move
 - delete user (non-admin, with confirmation dialog)
-- move user between organizations (seat checks)
+- move user between organisations (seat checks)
 - bulk actions for selected users:
   - move selected users
   - make selected users solo
   - delete selected users
 - inspect tests: slide-over panel showing sessions table, report archives
 - inspect access: slide-over panel showing enrolled assessments and access status
+- row-level actions (`Edit`, `Make Solo`, `View Tests`, `View Access`, `Delete Everything`) are dispatched through the shared `ActionMenu` portal component; menu-item clicks must remain portal-safe so document-level outside-click handlers do not cancel the item click before the callback fires
 - enrollment/unenrollment managed from Assessment > Access tab (not on users page)
 - SOLO tenants hidden from org dropdowns but users show "(Solo)" label
 - advanced filters and sorting available in-table
 - CSV export button available for filtered result set
 
-### 12.2 Tenants section (Organization Directory)
-- create organization: name + seat limit (always ORGANIZATION type, SOLO tenants hidden from UI)
+### 12.2 Tenants section (Organisation Directory)
+- create organisation: name + seat limit (always ORGANIZATION type, SOLO tenants hidden from UI)
 - inline edit name, seat limit, archived status
 - bulk actions for selected tenants:
   - archive selected
   - unarchive selected
-- inspect organization users/access via slide-over panel
+- inspect organisation users/access via slide-over panel
 - default filter shows ORGANIZATION rows; SOLO rows can be viewed by changing tenant-type filter
 - seat-capacity state view (`HAS_ROOM | AT_CAPACITY | OVER_CAPACITY`) and utilization shown per row
 - advanced filters and sorting available in-table
@@ -287,6 +342,10 @@ Validation rules:
   - delete selected (guarded by confirmation)
 - "Manage" button opens detail view for enrollment, policy, content editing
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
+- policy tab includes question presentation mode:
+  - `ALL_AT_ONCE`: current full-form rendering with all questions on one page
+  - `ONE_AT_A_TIME`: guided participant flow with previous/next navigation
+- question presentation mode affects only participant rendering; scoring, access, retests, and report workflows stay unchanged
 - view submitted participant reports from detail page Participants tab
 - clicking "View Report" opens the Google Docs-lite Report Editor (`/admin/reports/[id]`) to review/edit AI drafts or publish them.
 - all actions display toast notifications instead of raw JSON output
@@ -294,6 +353,22 @@ Validation rules:
 - advanced filters and sorting available in-table
 - completion-rate range filtering available
 - CSV export button available for filtered result set
+
+### 12.4 Shared admin row-action menu behavior
+- users, tenants, and assessments tables all use the same shared `ActionMenu` component
+- the menu is intentionally rendered with `createPortal(...)` so dropdowns are not clipped by table containers, overflow boundaries, or stacking contexts
+- outside-click dismissal must treat both the trigger wrapper and the portaled floating menu as internal click targets
+- if outside-click logic only checks the non-portaled wrapper, clicks on visible menu items can be misclassified as outside clicks during `mousedown`
+- failure mode: the dropdown closes immediately and the intended action callback never runs, which appears in the UI as "button does nothing"
+- known affected actions before the fix included `View Tests` and `View Access` on `/admin/users`, but the same bug could suppress row actions on `/admin/tenants` and `/admin/assessments` because they share the same component
+- current fix strategy in `src/components/admin/ActionMenu.tsx`:
+  - maintain a ref for the trigger/container
+  - maintain a second ref for the portaled menu DOM node
+  - close only when the event target is outside both refs
+  - keep the portal architecture rather than removing it, because the portal solves the correct layout problem and the bug was in click-boundary detection
+- companion hardening in `src/app/(app)/admin/users/UsersClient.tsx`:
+  - `openInspect(...)` now checks `res.ok` explicitly
+  - unsuccessful responses show a toast and clear panel data instead of leaving partially loaded state
 
 ## 13. Validation checklist
 
@@ -313,11 +388,25 @@ Architecture scenarios to validate manually:
 6. scheduled job behavior before and after effective time
 7. share-link security checks (invalid/expired/revoked/download-exhausted)
 8. admin section routing and actions under `/admin/users`, `/admin/tenants`, `/admin/assessments`
+9. question presentation mode behavior:
+  - `ALL_AT_ONCE` preserves the existing full assessment flow and submit gating
+  - `ONE_AT_A_TIME` restores the first unanswered question on resume and keeps previous/next navigation stable
+  - free-text answers persist when leaving a question and again during final submit
+10. shared row-action menu click behavior:
+  - open `Actions` on a user row and confirm `View Tests` opens the inspect panel
+  - open `Actions` on a user row and confirm `View Access` opens the inspect panel
+  - verify at least one row action in tenants and assessments still fires correctly after the shared menu fix
+  - verify clicking outside the menu still dismisses it
+  - verify Escape still dismisses it
 
 ## 14. Operational notes
 
 - Legacy endpoints remain available for transition compatibility where still referenced.
 - `Assessment.tenantId` remains for compatibility/history, but is not the canonical access gate.
+- Product language is intentionally decoupled from the legacy/internal domain model:
+  - UI, docs, and surfaced API messages say `Organisation`.
+  - Internal storage/contracts may still say `tenant`.
+  - Avoid mixing both terms in the same user-facing flow unless a technical field name is being shown verbatim.
 - Future hardening:
   - move internal job execution to scheduled infrastructure (e.g., Vercel cron)
   - add background retry and alerting for failed job notifications
@@ -366,7 +455,38 @@ Prevention tips:
 - Add/keep `.gitattributes` as source of truth for line endings.
 - Avoid mixing large line-ending cleanups with product/UI changes.
 
-## 17. Manual PDF Workflow (CPR Exam Modules)
+## 17. Troubleshooting: Admin row-action menu appears clickable but does nothing
+
+Symptom:
+- In `/admin/users`, clicking `View Tests` or `View Access` from the `Actions` dropdown appears to do nothing.
+- Similar silent failures can occur for row actions in `/admin/tenants` and `/admin/assessments` because they use the same shared menu component.
+
+Root cause:
+- The shared `ActionMenu` renders the dropdown with `createPortal(...)` into `document.body`.
+- The menu also registers a document-level `mousedown` listener to close on outside click.
+- If the outside-click logic only checks the non-portaled wrapper ref, then a click on a portaled menu item is incorrectly treated as an outside click.
+- That closes the menu during `mousedown` before the menu item's `onClick` handler executes.
+
+Why the UI looks broken:
+- The menu visibly opens.
+- The item text is clickable.
+- The click closes the menu, but the actual callback never runs.
+- To the admin, this looks like the button is dead even though the row action is wired correctly.
+
+Correct fix:
+- Keep the portal rendering.
+- Track both the trigger/container ref and the portaled menu ref.
+- In the outside-click handler, bail out when the event target is inside either ref.
+- Do not patch each individual action callback; this is a shared-component boundary bug, not a Users-page business-logic bug.
+
+Companion hardening:
+- For inspect actions in `/admin/users`, handle non-2xx responses explicitly and show a toast instead of assuming every response body is a successful payload.
+
+Validation after fix:
+- `npm run lint` passes with 0 errors; only pre-existing unrelated warnings remain.
+- Full `npm run build` may still fail for unrelated missing TipTap packages in the report editor path; that build failure is separate from the admin action-menu issue and should not be conflated with it.
+
+## 18. Manual PDF Workflow (CPR Exam Modules)
 
 New assessment policy controls:
 - `reportWorkflow`: `AI_STANDARD | MANUAL_PDF_UPLOAD`

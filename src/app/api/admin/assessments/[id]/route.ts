@@ -107,7 +107,7 @@ export async function PATCH(
   if (ownerTenantId) {
     const tenant = await db.tenant.findUnique({ where: { id: ownerTenantId } });
     if (!tenant) {
-      return NextResponse.json({ error: "Owner tenant not found." }, { status: 404 });
+      return NextResponse.json({ error: "Owner organisation not found." }, { status: 404 });
     }
   }
 

@@ -215,7 +215,7 @@ export default function UsersClient() {
     }
 
     if (addMode === "org" && !createForm.tenantId) {
-      toast("Select an organization.", "error");
+      toast("Select an organisation.", "error");
       return;
     }
 
@@ -287,7 +287,7 @@ export default function UsersClient() {
   async function moveUser(userId: string) {
     const targetTenantId = moveTenantByUser[userId];
     if (!targetTenantId) {
-      toast("Select a target organization first.", "error");
+      toast("Select a target organisation first.", "error");
       return;
     }
 
@@ -317,7 +317,7 @@ export default function UsersClient() {
     }
 
     const confirmed = window.confirm(
-      `Convert ${user.email} to a solo participant tenant? This will move them out of their current organization.`,
+      `Convert ${user.email} to a solo participant organisation? This will move them out of their current organisation.`,
     );
     if (!confirmed) return;
 
@@ -514,7 +514,7 @@ export default function UsersClient() {
 
   async function bulkMoveUsers() {
     if (!bulkMoveTenantId) {
-      toast("Select a target organization for bulk move.", "error");
+      toast("Select a target organisation for bulk move.", "error");
       return;
     }
     await runBulkAction("Bulk move", async (user) => {
@@ -616,7 +616,7 @@ export default function UsersClient() {
               }`}
             onClick={() => setAddMode("org")}
           >
-            Add to Organization
+            Add to Organisation
           </button>
           <button
             className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${addMode === "solo" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
@@ -629,20 +629,20 @@ export default function UsersClient() {
 
         <p className="mt-2 text-xs text-slate-500">
           {addMode === "org"
-            ? "Add a user to an existing organization."
-            : "Create an independent participant. They can be grouped into an organization later."}
+            ? "Add a user to an existing organisation."
+            : "Create an independent participant. They can be grouped into an organisation later."}
         </p>
 
         <div className="mt-3 flex flex-wrap items-end gap-2">
           {addMode === "org" && (
             <div className="flex-1 min-w-[180px]">
-              <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Organization</label>
+              <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Organisation</label>
               <select
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                 value={createForm.tenantId}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, tenantId: e.target.value }))}
               >
-                <option value="">Select organization</option>
+                <option value="">Select organisation</option>
                 {organizations.map((organization) => (
                   <option
                     key={organization.organizationId}
@@ -655,7 +655,7 @@ export default function UsersClient() {
                 ))}
               </select>
               <p className="mt-1 text-[11px] text-slate-500">
-                Archived organizations are shown but disabled. Unarchive them from Tenants first.
+                Archived organisations are shown but disabled. Unarchive them from Organisations first.
               </p>
             </div>
           )}
@@ -741,7 +741,7 @@ export default function UsersClient() {
               value={selectedTenantId}
               onChange={(e) => setSelectedTenantId(e.target.value)}
             >
-              <option value="">All organizations</option>
+              <option value="">All organisations</option>
               {organizations.map((organization) => (
                 <option key={organization.organizationId} value={organization.organizationId}>
                   {organization.name}
@@ -800,8 +800,8 @@ export default function UsersClient() {
                     setSelectedTenantType(e.target.value as "ANY" | "ORGANIZATION" | "SOLO")
                   }
                 >
-                  <option value="ANY">All tenant types</option>
-                  <option value="ORGANIZATION">Organization</option>
+                  <option value="ANY">All organisation types</option>
+                  <option value="ORGANIZATION">Organisation</option>
                   <option value="SOLO">Solo</option>
                 </select>
                 <select
@@ -822,9 +822,9 @@ export default function UsersClient() {
                     setSelectedTenantArchived(e.target.value as "ANY" | "ACTIVE" | "ARCHIVED")
                   }
                 >
-                  <option value="ANY">Tenant status: Any</option>
-                  <option value="ACTIVE">Active tenants</option>
-                  <option value="ARCHIVED">Archived tenants</option>
+                  <option value="ANY">Organisation status: Any</option>
+                  <option value="ACTIVE">Active organisations</option>
+                  <option value="ARCHIVED">Archived organisations</option>
                 </select>
                 <select
                   className="min-w-[150px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
@@ -921,7 +921,7 @@ export default function UsersClient() {
                   />
                 </th>
                 <th className="px-3 py-2">User</th>
-                <th className="px-3 py-2">Organization</th>
+                <th className="px-3 py-2">Organisation</th>
                 <th className="px-3 py-2">Manager</th>
                 <th className="px-3 py-2 text-right">Actions</th>
               </tr>
@@ -933,7 +933,7 @@ export default function UsersClient() {
                   title="No users found"
                   description={
                     selectedTenantId && selectedOrganizationSummary
-                      ? `Organization "${selectedOrganizationSummary.name}" exists, but no users match the current scope/filter.`
+                      ? `Organisation "${selectedOrganizationSummary.name}" exists, but no users match the current scope/filter.`
                       : "Try adjusting your search or add a user above."
                   }
                   colSpan={5}
@@ -971,7 +971,7 @@ export default function UsersClient() {
                             href={`/admin/tenants?q=${encodeURIComponent(user.tenant?.name || "")}`}
                             className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
                           >
-                            Open Organization
+                            Open Organisation
                           </Link>
                         </div>
                       )}

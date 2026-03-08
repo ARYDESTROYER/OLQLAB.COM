@@ -4,7 +4,7 @@ import { MarketingChrome } from "@/components/marketing/MarketingChrome";
 const expertise = [
   "Culture Diagnostic",
   "Leadership Blindspot Coaching",
-  "Organizational Development",
+  "Organisational Development",
   "Behavioral Analysis",
   "Executive Coaching",
   "Talent Management",

@@ -710,7 +710,7 @@ export async function GET(
   const policy = session.assessment.policy;
   if (!policy?.showResultsToEmployee) {
     return NextResponse.json(
-      { error: "Organization policy does not allow individual report export." },
+      { error: "Organisation policy does not allow individual report export." },
       { status: 403 },
     );
   }

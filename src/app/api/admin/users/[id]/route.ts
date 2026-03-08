@@ -117,10 +117,10 @@ export async function PATCH(
     await ensureSeatCapacity(targetTenantId, normalizedEmail);
   } catch (error) {
     if (error instanceof Error && error.message === "TENANT_NOT_FOUND") {
-      return NextResponse.json({ error: "Target tenant not found." }, { status: 404 });
+      return NextResponse.json({ error: "Target organisation not found." }, { status: 404 });
     }
     if (error instanceof Error && error.message === "SEAT_LIMIT_REACHED") {
-      return NextResponse.json({ error: "Target tenant seat limit reached." }, { status: 400 });
+      return NextResponse.json({ error: "Target organisation seat limit reached." }, { status: 400 });
     }
     throw error;
   }

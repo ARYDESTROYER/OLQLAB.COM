@@ -69,7 +69,7 @@ export default async function DashboardPage() {
             <p className="mt-2 text-sm font-semibold text-slate-900">{roleLabel(role)}</p>
           </div>
           <div className="metric-card rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Tenant</p>
+            <p className="text-xs uppercase tracking-wide text-slate-500">Organisation</p>
             <p className="mt-2 truncate text-sm font-semibold text-slate-900">
               {userRecord?.tenant?.name || session.user.tenantId || "-"}
             </p>

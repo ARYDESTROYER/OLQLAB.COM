@@ -53,7 +53,7 @@ export async function GET(
   const reportWorkflow = policy?.reportWorkflow || "AI_STANDARD";
   if (!policy?.showResultsToEmployee) {
     return NextResponse.json({
-      message: "Your organization has chosen not to release individual results.",
+      message: "Your organisation has chosen not to release individual results.",
       reportWorkflow,
       reportStatus: null,
     });

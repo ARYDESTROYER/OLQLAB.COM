@@ -60,6 +60,11 @@ enum ReportWorkflow {
   MANUAL_PDF_UPLOAD
 }
 
+enum AssessmentQuestionPresentationMode {
+  ALL_AT_ONCE
+  ONE_AT_A_TIME
+}
+
 enum ReportDeliveryMethod {
   DASHBOARD_ONLY
   EMAIL_LINK
@@ -217,6 +222,7 @@ model AssessmentPolicy {
   postSubmitMessage       String
   leaderCanViewFullReport Boolean        @default(true)
   reportWorkflow          ReportWorkflow @default(AI_STANDARD)
+  questionPresentationMode AssessmentQuestionPresentationMode @default(ALL_AT_ONCE)
   randomizeQuestionOrder  Boolean        @default(false)
   submissionAlertAdminIds String[]       @default([])
 

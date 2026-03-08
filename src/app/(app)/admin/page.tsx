@@ -55,7 +55,7 @@ export default async function AdminOverviewPage() {
     <div className="space-y-6">
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Tenants</p>
+          <p className="text-xs uppercase tracking-wide text-slate-500">Organisations</p>
           <p className="mt-2 text-2xl font-semibold">{tenantCount}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
@@ -85,8 +85,8 @@ export default async function AdminOverviewPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2 xl:col-span-5">
           <p className="text-xs uppercase tracking-wide text-slate-500">User Mix Context</p>
           <p className="mt-2 text-sm text-slate-700">
-            {userStats.usersInSoloTenants} user(s) in solo tenants,{" "}
-            {userStats.usersInArchivedTenants} user(s) in archived tenants.
+            {userStats.usersInSoloTenants} user(s) in solo organisations,{" "}
+            {userStats.usersInArchivedTenants} user(s) in archived organisations.
           </p>
         </div>
       </section>
@@ -105,9 +105,9 @@ export default async function AdminOverviewPage() {
           href="/admin/tenants"
           className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5"
         >
-          <h2 className="text-lg font-semibold">Tenants</h2>
+          <h2 className="text-lg font-semibold">Organisations</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Manage organizations, seat limits, archive state, and tenant-level enrollments.
+            Manage organisations, seat limits, archive state, and organisation-level enrollments.
           </p>
         </Link>
         <Link

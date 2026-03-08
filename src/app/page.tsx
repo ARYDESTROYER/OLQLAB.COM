@@ -5,7 +5,7 @@ import PublicHeader from "@/components/navigation/PublicHeader";
 const expertiseAreas = [
   "Culture Diagnostic",
   "Leadership Blindspot Coaching",
-  "Organizational Development",
+  "Organisational Development",
   "Behavioral Analysis",
   "Executive Coaching",
   "Talent Management",
@@ -25,7 +25,7 @@ const humanTouchCards = [
   {
     title: "Strategic Talent and Succession Planning",
     description:
-      "Organizations thrive when they invest in people. We help you identify emerging talent, nurture leadership pipelines, and create cultures where people grow and stay.",
+      "Organisations thrive when they invest in people. We help you identify emerging talent, nurture leadership pipelines, and create cultures where people grow and stay.",
   },
 ];
 
@@ -72,7 +72,7 @@ const benefits = [
     description: "Stop performing. Start leading from your true self.",
   },
   {
-    title: "Organizational Impact",
+    title: "Organisational Impact",
     description: "Your growth ripples through your teams, culture, and results.",
   },
 ];

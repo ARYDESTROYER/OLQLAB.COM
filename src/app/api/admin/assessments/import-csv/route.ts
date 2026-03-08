@@ -10,6 +10,7 @@ import { applyAssessmentQuestionRows } from "@/lib/assessment-csv-import-persist
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
 const validWorkflows = new Set(["AI_STANDARD", "MANUAL_PDF_UPLOAD"] as const);
+const validQuestionPresentationModes = new Set(["ALL_AT_ONCE", "ONE_AT_A_TIME"] as const);
 
 function parseBoolean(input: FormDataEntryValue | null, fallback: boolean) {
   if (typeof input !== "string") return fallback;
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
   if (ownerTenantId) {
     const tenant = await db.tenant.findUnique({ where: { id: ownerTenantId }, select: { id: true } });
     if (!tenant) {
-      return NextResponse.json({ error: "ownerTenantId references an unknown tenant." }, { status: 404 });
+      return NextResponse.json({ error: "Owner organisation not found." }, { status: 404 });
     }
   }
 
@@ -109,6 +110,15 @@ export async function POST(req: NextRequest) {
     typeof requestedWorkflowRaw === "string" && validWorkflows.has(requestedWorkflowRaw as "AI_STANDARD" | "MANUAL_PDF_UPLOAD")
       ? (requestedWorkflowRaw as "AI_STANDARD" | "MANUAL_PDF_UPLOAD")
       : "AI_STANDARD";
+
+  const requestedQuestionPresentationModeRaw = formData.get("questionPresentationMode");
+  const requestedQuestionPresentationMode =
+    typeof requestedQuestionPresentationModeRaw === "string" &&
+    validQuestionPresentationModes.has(
+      requestedQuestionPresentationModeRaw as "ALL_AT_ONCE" | "ONE_AT_A_TIME",
+    )
+      ? (requestedQuestionPresentationModeRaw as "ALL_AT_ONCE" | "ONE_AT_A_TIME")
+      : "ALL_AT_ONCE";
 
   const requestedAlertAdminIds = parseAdminIds(formData);
   const validAlertAdminIds = requestedAlertAdminIds.length
@@ -159,6 +169,7 @@ export async function POST(req: NextRequest) {
               postSubmitMessage,
               leaderCanViewFullReport: parseBoolean(formData.get("leaderCanViewFullReport"), true),
               reportWorkflow: requestedWorkflow,
+              questionPresentationMode: requestedQuestionPresentationMode,
               randomizeQuestionOrder: parseBoolean(formData.get("randomizeQuestionOrder"), false),
               submissionAlertAdminIds: validAlertAdminIds,
             },

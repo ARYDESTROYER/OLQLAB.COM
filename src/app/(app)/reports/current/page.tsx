@@ -121,7 +121,7 @@ export default async function CurrentReportsPage() {
                     </p>
                     {!showResults && (
                       <p className="mt-1 text-xs text-amber-700">
-                        Result visibility is disabled by your organization.
+                        Result visibility is disabled by your organisation.
                       </p>
                     )}
                     {showResults && releaseAt && !isReleased && (

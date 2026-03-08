@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+type QuestionPresentationMode = "ALL_AT_ONCE" | "ONE_AT_A_TIME";
+
 type Section = {
   id: string;
   title: string;
@@ -42,6 +44,19 @@ type AnswerState = {
   textValue?: string;
 };
 
+function isQuestionAnswered(question: Question, answer?: AnswerState) {
+  if (!answer) return false;
+  if (question.questionType === "LIKERT_TRAIT") return typeof answer.value === "number";
+  if (question.questionType === "SJT_SINGLE") return Boolean(answer.optionId);
+  return Boolean(answer.textValue?.trim());
+}
+
+function findInitialQuestionIndex(questions: Question[], answers: Record<string, AnswerState>) {
+  const firstUnansweredIndex = questions.findIndex((question) => !isQuestionAnswered(question, answers[question.id]));
+  if (firstUnansweredIndex >= 0) return firstUnansweredIndex;
+  return Math.max(questions.length - 1, 0);
+}
+
 export default function SessionPage() {
   const router = useRouter();
   const params = useParams<{ sessionId: string }>();
@@ -51,10 +66,15 @@ export default function SessionPage() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [answers, setAnswers] = useState<Record<string, AnswerState>>({});
   const [assessmentId, setAssessmentId] = useState<string>("");
+  const [questionPresentationMode, setQuestionPresentationMode] =
+    useState<QuestionPresentationMode>("ALL_AT_ONCE");
   const [sessionStatus, setSessionStatus] = useState<"IN_PROGRESS" | "SUBMITTED">("IN_PROGRESS");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [navigating, setNavigating] = useState(false);
   const [loadError, setLoadError] = useState<string>("");
+  const [actionError, setActionError] = useState<string>("");
+  const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
 
   useEffect(() => {
     if (!sessionId) {
@@ -75,6 +95,10 @@ export default function SessionPage() {
         }
 
         setAssessmentId((data as { assessmentId: string }).assessmentId);
+        setQuestionPresentationMode(
+          (data as { questionPresentationMode?: QuestionPresentationMode }).questionPresentationMode ||
+            "ALL_AT_ONCE",
+        );
         setSections((data as { sections?: Section[] }).sections || []);
         setQuestions((data as { questions: Question[] }).questions);
         setSessionStatus(
@@ -90,6 +114,7 @@ export default function SessionPage() {
           };
         }
         setAnswers(next);
+        setActiveQuestionIndex(findInitialQuestionIndex((data as { questions: Question[] }).questions, next));
       } catch (error) {
         setLoadError(error instanceof Error ? error.message : "Could not load session.");
       } finally {
@@ -102,16 +127,11 @@ export default function SessionPage() {
 
   const answeredCount = useMemo(
     () =>
-      questions.filter((question) => {
-        const answer = answers[question.id];
-        if (!answer) return false;
-        if (question.questionType === "LIKERT_TRAIT") return typeof answer.value === "number";
-        if (question.questionType === "SJT_SINGLE") return Boolean(answer.optionId);
-        return Boolean(answer.textValue?.trim());
-      }).length,
+      questions.filter((question) => isQuestionAnswered(question, answers[question.id])).length,
     [answers, questions],
   );
   const isReadOnly = sessionStatus === "SUBMITTED";
+  const isOneQuestionAtATime = questionPresentationMode === "ONE_AT_A_TIME";
 
   const groupedSections = useMemo(() => {
     if (sections.length === 0) {
@@ -133,36 +153,101 @@ export default function SessionPage() {
     }));
   }, [questions, sections]);
 
-  async function answerLikert(questionId: string, value: number) {
-    if (isReadOnly) return;
-    setAnswers((prev) => ({ ...prev, [questionId]: { value } }));
+  const activeQuestion = questions[activeQuestionIndex] || null;
+  const activeSection = activeQuestion?.sectionId
+    ? sections.find((section) => section.id === activeQuestion.sectionId) || null
+    : null;
 
-    await fetch(`/api/assessment/sessions/${sessionId}/answer`, {
+  useEffect(() => {
+    if (questions.length === 0) {
+      setActiveQuestionIndex(0);
+      return;
+    }
+
+    setActiveQuestionIndex((prev) => Math.min(prev, questions.length - 1));
+  }, [questions.length]);
+
+  async function persistAnswer(payload: {
+    questionId: string;
+    value?: number;
+    optionId?: string;
+    textValue?: string;
+  }) {
+    const res = await fetch(`/api/assessment/sessions/${sessionId}/answer`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId, value }),
+      body: JSON.stringify(payload),
     });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error((data as { error?: string }).error || "Could not save your answer.");
+    }
+  }
+
+  async function answerLikert(questionId: string, value: number) {
+    if (isReadOnly) return;
+    setActionError("");
+    setAnswers((prev) => ({ ...prev, [questionId]: { value } }));
+    try {
+      await persistAnswer({ questionId, value });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not save your answer.");
+    }
   }
 
   async function answerScenario(questionId: string, optionId: string) {
     if (isReadOnly) return;
+    setActionError("");
     setAnswers((prev) => ({ ...prev, [questionId]: { optionId } }));
-
-    await fetch(`/api/assessment/sessions/${sessionId}/answer`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId, optionId }),
-    });
+    try {
+      await persistAnswer({ questionId, optionId });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not save your answer.");
+    }
   }
 
   async function answerText(questionId: string, textValue: string) {
     if (isReadOnly) return;
+    setActionError("");
 
-    await fetch(`/api/assessment/sessions/${sessionId}/answer`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ questionId, textValue }),
-    });
+    try {
+      await persistAnswer({ questionId, textValue });
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not save your answer.");
+      throw error;
+    }
+  }
+
+  async function flushTextAnswer(question: Question | null) {
+    if (!question || question.questionType !== "FREE_TEXT" || isReadOnly) return true;
+
+    const textValue = answers[question.id]?.textValue?.trim() || "";
+    if (!textValue) return true;
+
+    try {
+      await answerText(question.id, textValue);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function navigateToQuestion(nextIndex: number) {
+    if (!isOneQuestionAtATime || questions.length === 0) return;
+
+    const boundedIndex = Math.max(0, Math.min(nextIndex, questions.length - 1));
+    if (boundedIndex === activeQuestionIndex) return;
+
+    setNavigating(true);
+    try {
+      const didFlush = await flushTextAnswer(activeQuestion);
+      if (!didFlush) return;
+      setActionError("");
+      setActiveQuestionIndex(boundedIndex);
+    } finally {
+      setNavigating(false);
+    }
   }
 
   async function submit() {
@@ -172,6 +257,11 @@ export default function SessionPage() {
     }
     try {
       setSubmitting(true);
+      setActionError("");
+
+      const didFlush = await flushTextAnswer(activeQuestion);
+      if (!didFlush) return;
+
       const textSaves = questions
         .filter((question) => question.questionType === "FREE_TEXT")
         .map((question) =>
@@ -196,10 +286,91 @@ export default function SessionPage() {
       alert((data as { postSubmitMessage?: string }).postSubmitMessage || "Submitted");
       router.push(`/reports/me/${assessmentId}`);
     } catch (error) {
+      setActionError(error instanceof Error ? error.message : "Could not submit assessment.");
       alert(error instanceof Error ? error.message : "Could not submit assessment.");
     } finally {
       setSubmitting(false);
     }
+  }
+
+  function renderQuestionCard(question: Question, displayIndex: number) {
+    return (
+      <article key={question.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-medium text-slate-900">
+            {question.code ? `${question.code}. ` : `${displayIndex + 1}. `}
+            {question.prompt}
+          </p>
+          {question.category && (
+            <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">
+              {question.category}
+            </span>
+          )}
+        </div>
+
+        {question.questionType === "LIKERT_TRAIT" ? (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {Array.from(
+              { length: question.scaleMax - question.scaleMin + 1 },
+              (_, index) => question.scaleMin + index,
+            ).map((value) => (
+              <button
+                key={value}
+                className={`rounded-lg border px-3 py-1 text-sm ${
+                  answers[question.id]?.value === value
+                    ? "border-slate-900 bg-slate-900 text-white"
+                    : "border-slate-300 bg-white"
+                }`}
+                onClick={() => answerLikert(question.id, value)}
+                disabled={isReadOnly}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        ) : question.questionType === "SJT_SINGLE" ? (
+          <div className="mt-4 grid gap-2">
+            {question.options.map((option) => (
+              <button
+                key={option.id}
+                className={`rounded-xl border px-4 py-3 text-left text-sm ${
+                  answers[question.id]?.optionId === option.id
+                    ? "border-cyan-700 bg-cyan-50"
+                    : "border-slate-300 bg-white"
+                }`}
+                onClick={() => answerScenario(question.id, option.id)}
+                disabled={isReadOnly}
+              >
+                {option.text}
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4">
+            <textarea
+              className="min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none ring-offset-2 focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+              placeholder="Type your response"
+              value={answers[question.id]?.textValue || ""}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setAnswers((prev) => ({
+                  ...prev,
+                  [question.id]: {
+                    textValue: nextValue,
+                  },
+                }));
+              }}
+              onBlur={(event) => {
+                const nextValue = event.target.value.trim();
+                if (!nextValue) return;
+                void answerText(question.id, nextValue);
+              }}
+              disabled={isReadOnly}
+            />
+          </div>
+        )}
+      </article>
+    );
   }
 
   if (loading) {
@@ -247,6 +418,11 @@ export default function SessionPage() {
         <p className="mt-2 text-sm text-slate-700">
           Progress: {answeredCount}/{questions.length}
         </p>
+        {isOneQuestionAtATime && activeQuestion ? (
+          <p className="mt-1 text-sm text-slate-700">
+            Question {activeQuestionIndex + 1} of {questions.length}
+          </p>
+        ) : null}
         {isReadOnly && (
           <p className="mt-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800">
             This session has already been submitted. Responses are read-only.
@@ -260,101 +436,83 @@ export default function SessionPage() {
         </div>
       </header>
 
-      {groupedSections.map((section, sectionIndex) => (
-        <section key={section.id} className="space-y-4">
-          <div className="flex items-center gap-3">
+      {actionError ? (
+        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+          {actionError}
+        </section>
+      ) : null}
+
+      {isOneQuestionAtATime && activeQuestion ? (
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-slate-900 px-2 py-1 text-xs font-medium text-white">
-              Section {sectionIndex + 1}
+              Section {sections.length > 0 && activeSection ? activeSection.sortOrder + 1 : 1}
             </span>
-            <h2 className="text-lg font-semibold">{section.title}</h2>
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{section.kind}</span>
+            <h2 className="text-lg font-semibold">{activeSection?.title || "Assessment"}</h2>
+            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+              {activeSection?.kind || "QUESTION"}
+            </span>
           </div>
 
-          <div className="space-y-4">
-            {section.questions.map((question, idx) => (
-              <article key={question.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-medium text-slate-900">
-                    {question.code ? `${question.code}. ` : `${idx + 1}. `}
-                    {question.prompt}
-                  </p>
-                  {question.category && (
-                    <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">
-                      {question.category}
-                    </span>
-                  )}
-                </div>
+          {renderQuestionCard(activeQuestion, activeQuestionIndex)}
 
-                {question.questionType === "LIKERT_TRAIT" ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {Array.from(
-                      { length: question.scaleMax - question.scaleMin + 1 },
-                      (_, index) => question.scaleMin + index,
-                    ).map((value) => (
-                      <button
-                        key={value}
-                        className={`rounded-lg border px-3 py-1 text-sm ${
-                          answers[question.id]?.value === value
-                            ? "border-slate-900 bg-slate-900 text-white"
-                            : "border-slate-300 bg-white"
-                        }`}
-                        onClick={() => answerLikert(question.id, value)}
-                        disabled={isReadOnly}
-                      >
-                        {value}
-                      </button>
-                    ))}
-                  </div>
-                ) : question.questionType === "SJT_SINGLE" ? (
-                  <div className="mt-4 grid gap-2">
-                    {question.options.map((option) => (
-                      <button
-                        key={option.id}
-                        className={`rounded-xl border px-4 py-3 text-left text-sm ${
-                          answers[question.id]?.optionId === option.id
-                            ? "border-cyan-700 bg-cyan-50"
-                            : "border-slate-300 bg-white"
-                        }`}
-                        onClick={() => answerScenario(question.id, option.id)}
-                        disabled={isReadOnly}
-                      >
-                        {option.text}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="mt-4">
-                    <textarea
-                      className="min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none ring-offset-2 focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
-                      placeholder="Type your response"
-                      value={answers[question.id]?.textValue || ""}
-                      onChange={(event) => {
-                        const nextValue = event.target.value;
-                        setAnswers((prev) => ({
-                          ...prev,
-                          [question.id]: {
-                            textValue: nextValue,
-                          },
-                        }));
-                      }}
-                      onBlur={(event) => answerText(question.id, event.target.value)}
-                      disabled={isReadOnly}
-                    />
-                  </div>
-                )}
-              </article>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              className="rounded-xl border border-slate-300 bg-white px-4 py-3 font-medium text-slate-700 disabled:opacity-50"
+              disabled={navigating || activeQuestionIndex === 0}
+              onClick={() => void navigateToQuestion(activeQuestionIndex - 1)}
+            >
+              Previous
+            </button>
+
+            <div className="flex flex-wrap gap-3">
+              {activeQuestionIndex < questions.length - 1 ? (
+                <button
+                  className="rounded-xl bg-slate-900 px-4 py-3 font-medium text-white disabled:opacity-50"
+                  disabled={navigating || submitting}
+                  onClick={() => void navigateToQuestion(activeQuestionIndex + 1)}
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  className="rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white disabled:opacity-50"
+                  disabled={submitting || navigating || (!isReadOnly && answeredCount !== questions.length)}
+                  onClick={submit}
+                >
+                  {submitting ? "Submitting..." : isReadOnly ? "Go To Report" : "Submit Assessment"}
+                </button>
+              )}
+            </div>
           </div>
         </section>
-      ))}
+      ) : (
+        <>
+          {groupedSections.map((section, sectionIndex) => (
+            <section key={section.id} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-slate-900 px-2 py-1 text-xs font-medium text-white">
+                  Section {sectionIndex + 1}
+                </span>
+                <h2 className="text-lg font-semibold">{section.title}</h2>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{section.kind}</span>
+              </div>
 
-      <button
-        className="w-full rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white disabled:opacity-50"
-        disabled={submitting || (!isReadOnly && answeredCount !== questions.length)}
-        onClick={submit}
-      >
-        {submitting ? "Submitting..." : isReadOnly ? "Go To Report" : "Submit Assessment"}
-      </button>
+              <div className="space-y-4">
+                {section.questions.map((question, idx) => renderQuestionCard(question, idx))}
+              </div>
+            </section>
+          ))}
+
+          <button
+            className="w-full rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white disabled:opacity-50"
+            disabled={submitting || (!isReadOnly && answeredCount !== questions.length)}
+            onClick={submit}
+          >
+            {submitting ? "Submitting..." : isReadOnly ? "Go To Report" : "Submit Assessment"}
+          </button>
+        </>
+      )}
     </main>
   );
 }

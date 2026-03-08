@@ -43,6 +43,7 @@ export async function GET(
         include: {
           policy: {
             select: {
+              questionPresentationMode: true,
               randomizeQuestionOrder: true,
             },
           },
@@ -83,6 +84,8 @@ export async function GET(
     sessionId: session.id,
     assessmentId: session.assessmentId,
     randomized: shouldRandomize,
+    questionPresentationMode:
+      session.assessment.policy?.questionPresentationMode || "ALL_AT_ONCE",
     sections: shouldRandomize ? [] : session.assessment.sections,
     questions: orderedQuestions,
     answers: session.answers,

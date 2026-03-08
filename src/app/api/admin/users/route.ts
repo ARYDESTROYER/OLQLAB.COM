@@ -384,7 +384,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "This email already belongs to an existing client. Use Add Individual Participant under that client instead of creating a new solo client.",
+            "This email already belongs to an existing organisation. Use Add Individual Participant under that organisation instead of creating a new solo organisation.",
           existingTenantId: existingUser.tenant.id,
           existingTenantName: existingUser.tenant.name,
         },
@@ -415,14 +415,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (!tenantId) {
-    return NextResponse.json({ error: "tenantId is required" }, { status: 400 });
+    return NextResponse.json({ error: "Organisation is required." }, { status: 400 });
   }
 
   if (existingUser && existingUser.tenantId !== tenantId) {
     return NextResponse.json(
       {
         error:
-          "This email already belongs to a different client. Move/transfer is blocked to prevent accidental reassignment.",
+          "This email already belongs to a different organisation. Move/transfer is blocked to prevent accidental reassignment.",
         existingTenantId: existingUser.tenant.id,
         existingTenantName: existingUser.tenant.name,
       },
@@ -451,11 +451,11 @@ export async function POST(req: NextRequest) {
       : null;
   }
   if (!tenant) {
-    return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
+    return NextResponse.json({ error: "Organisation not found." }, { status: 404 });
   }
   if (tenant.isArchived) {
     return NextResponse.json(
-      { error: "Tenant is archived. Restore it before adding users." },
+      { error: "Organisation is archived. Restore it before adding users." },
       { status: 400 },
     );
   }

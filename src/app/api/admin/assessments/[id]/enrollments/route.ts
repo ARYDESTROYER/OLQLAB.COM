@@ -126,12 +126,12 @@ export async function POST(
   }
 
   if (!tenant) {
-    return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+    return NextResponse.json({ error: "Organisation not found." }, { status: 404 });
   }
 
   if (tenant.isArchived) {
     return NextResponse.json(
-      { error: "Cannot enroll an archived tenant." },
+      { error: "Cannot enroll an archived organisation." },
       { status: 400 },
     );
   }

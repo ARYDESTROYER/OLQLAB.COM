@@ -206,7 +206,7 @@ export async function POST(
         return NextResponse.json(
           {
             error:
-              "This assessment has no owner tenant. Create the user first from Users admin and enroll by userId.",
+              "This assessment has no owner organisation. Create the user first from Users admin and enroll by userId.",
           },
           { status: 400 },
         );
@@ -221,7 +221,7 @@ export async function POST(
       });
 
       if (!tenant) {
-        return NextResponse.json({ error: "Tenant not found." }, { status: 404 });
+        return NextResponse.json({ error: "Organisation not found." }, { status: 404 });
       }
 
       const seatCount = await db.seat.count({ where: { tenantId } });
