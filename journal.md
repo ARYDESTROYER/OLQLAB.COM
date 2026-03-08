@@ -832,3 +832,24 @@ This file is the append-only engineering diary for implementation work in this r
   - If production Neon still has the previously documented Prisma `P3009` blockage, operators must clear that history issue before `20260308153000_question_image_support` can apply.
 - Next step:
   - Watch the deployment logs, confirm the question-image migration applies, and run post-deploy smoke checks using one SJT image question and one FREE_TEXT image question.
+
+## Entry 2026-03-08-08
+- Timestamp (UTC): 2026-03-08T13:20:40Z
+- Timestamp (Local): 2026-03-08 18:50:40 IST (+0530)
+- Task: Add Neon-specific Prisma direct-connection guidance after Vercel deploy failed with advisory-lock timeout.
+- Why: The deployment log showed `prisma migrate deploy` connecting to a Neon `-pooler` host and failing with `P1002` while waiting on the Postgres advisory lock. That is a deployment-configuration problem for this stack, not an application-code regression.
+- What changed:
+  - Updated `prisma/schema.prisma` to configure `directUrl = env("DIRECT_DATABASE_URL")` for the datasource.
+  - Updated `.env.example` and `README.md` to document both `DATABASE_URL` and `DIRECT_DATABASE_URL`.
+  - Updated `guide.md` with a dedicated Neon/Vercel troubleshooting section for Prisma `P1002` advisory-lock timeouts.
+- How:
+  - Preserved pooled runtime access through `DATABASE_URL`.
+  - Added the direct connection path Prisma Migrate should use for schema operations.
+  - Documented the operational rule that Neon `-pooler` URLs are for app traffic, while migrations should use the non-pooler direct URL.
+- Validation/output:
+  - Repo configuration now supports the correct Neon + Prisma split connection model.
+  - Final successful deployment still requires adding `DIRECT_DATABASE_URL` in Vercel before rerunning the build.
+- Risks/unknowns:
+  - If multiple Vercel deployments keep running migrations concurrently against the same Neon database, advisory-lock contention can still occur even with the direct URL configured correctly.
+- Next step:
+  - Add `DIRECT_DATABASE_URL` in Vercel Production, ensure only one deployment is running migrations, and redeploy.

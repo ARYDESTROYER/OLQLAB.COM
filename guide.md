@@ -168,9 +168,11 @@ Important environment rule:
 
 Recommended Vercel procedure for this repo:
 1. Confirm `DATABASE_URL` is set correctly for the Production environment.
-2. If Preview uses a separate database, you may keep `npx prisma migrate deploy && npm run build` as the build command.
-3. If Preview shares the Production database, temporarily change the build command for the production rollout only, deploy once, confirm migration success in logs, then switch the build command back to `npm run build`.
-4. Never use `db push --accept-data-loss` for this production migration flow.
+2. For Neon, set `DIRECT_DATABASE_URL` to the non-pooler/direct connection string and keep `DATABASE_URL` as the pooled runtime URL.
+3. Prisma Migrate should use the direct connection, not the `-pooler` host, because schema operations and advisory locks are more fragile through the pooler.
+4. If Preview uses a separate database, you may keep `npx prisma migrate deploy && npm run build` as the build command.
+5. If Preview shares the Production database, temporarily change the build command for the production rollout only, deploy once, confirm migration success in logs, then switch the build command back to `npm run build`.
+6. Never use `db push --accept-data-loss` for this production migration flow.
 
 For the latest assessment content changes, the required migrations are:
 - `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`
@@ -182,6 +184,11 @@ Practical Vercel settings check:
 - `Install Command`: blank/default -> fine if Vercel installs from `package-lock.json`
 - `Output Directory`: default -> correct
 - `Build Command`: screenshot value is not correct for migration rollout and should be replaced as described above
+
+Neon environment-variable layout:
+- `DATABASE_URL`: pooled connection string used by the running app
+- `DIRECT_DATABASE_URL`: direct/non-pooling connection string used by Prisma Migrate via `directUrl` in `prisma/schema.prisma`
+- If your log shows Prisma migrate connecting to a `-pooler` host, the deployment is still misconfigured for migrations
 
 ## 7. Admin API redesign
 
@@ -708,3 +715,44 @@ Important guardrails:
 - Do not hand-edit `_prisma_migrations` rows in SQL.
 - Do not delete enums/tables/columns manually if they already exist from the failed migration.
 - Use `migrate resolve` only after verifying whether the schema changes from the failed migration are already present.
+
+## 21. Troubleshooting: Vercel deploy fails with Prisma `P1002` advisory-lock timeout on Neon
+
+Symptom:
+- Vercel build runs `npx prisma migrate deploy && npm run build`.
+- Prisma reaches the database, but fails with `P1002` while trying to acquire the advisory lock.
+- Error text includes:
+  - `Timed out trying to acquire a postgres advisory lock`
+  - `SELECT pg_advisory_lock(72707369)`
+  - timeout around `10000ms`
+- In the reported case, the datasource log showed Prisma connecting to a Neon `-pooler` host during migrate.
+
+What this usually means:
+- another migration process is already running against the same database, or
+- Prisma Migrate is being run through the Neon pooler instead of a direct connection, or
+- both of the above are happening because multiple Vercel deployments are trying to migrate the same Neon database at once
+
+Highest-probability fix for this stack:
+1. In `prisma/schema.prisma`, configure Prisma datasource `directUrl = env("DIRECT_DATABASE_URL")`.
+2. In Vercel, keep `DATABASE_URL` on the pooled Neon connection string.
+3. In Vercel, add `DIRECT_DATABASE_URL` using Neon's direct/non-pooler connection string.
+4. Redeploy.
+
+How to recognize the wrong Neon URL:
+- pooled host example: contains `-pooler.`
+- direct host example: the standard Neon endpoint without `-pooler`
+
+Operational recovery steps:
+1. Cancel any in-progress or duplicate Vercel deployments that might also be trying to run `migrate deploy`.
+2. Confirm Preview and Production are not both running migrations against the same Neon database at the same time.
+3. Set `DIRECT_DATABASE_URL` in Vercel Production.
+4. Retry the deployment.
+
+If the timeout persists after moving Prisma Migrate to `DIRECT_DATABASE_URL`:
+1. Check Neon connection/activity dashboards for another session holding the migration lock.
+2. Wait for the other migration to finish or stop the competing deployment.
+3. Retry `migrate deploy` once only one migrator is active.
+
+Practical recommendation for this repo:
+- Keep `migrate deploy` only on controlled production rollouts unless Preview has its own database.
+- If Preview and Production share one Neon database, use `npm run build` for normal Preview deploys and run migrations only in the environment you explicitly intend to promote.

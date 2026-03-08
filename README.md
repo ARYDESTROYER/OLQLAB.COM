@@ -63,6 +63,7 @@ Copy `.env.example` to `.env.local`:
 
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require"
+DIRECT_DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require"
 NEXTAUTH_SECRET="replace-with-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
 RESEND_API_KEY="re_xxx"
@@ -84,6 +85,11 @@ npm run dev
 ```
 
 ## Migration and backfill
+
+Neon + Prisma note:
+- Use `DATABASE_URL` for the pooled runtime connection.
+- Use `DIRECT_DATABASE_URL` for Prisma Migrate and other schema operations.
+- On Neon, `DIRECT_DATABASE_URL` should be the non-pooler endpoint, not the `-pooler` host.
 
 Schema migration added:
 - `prisma/migrations/20260224100000_global_assessment_enrollments`
