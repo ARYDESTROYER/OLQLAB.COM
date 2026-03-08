@@ -8,12 +8,23 @@ import { buildReportHtmlTemplate } from "@/lib/report-format";
 import { sendManualSubmissionAlertEmails } from "@/lib/report-delivery";
 
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const check = await requireSession();
   if ("error" in check) return check.error;
   const { id } = await params;
+
+  let requestedPreviewMode = false;
+  try {
+    const rawBody = await req.text();
+    if (rawBody) {
+      const parsed = JSON.parse(rawBody) as { previewMode?: boolean };
+      requestedPreviewMode = parsed.previewMode === true;
+    }
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
 
   const session = await db.quizSession.findUnique({
     where: { id },
@@ -46,13 +57,20 @@ export async function POST(
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const isAdminPreview = requestedPreviewMode && check.session.user.role === "ADMIN";
+  const previewRedirectTo = `/admin/assessments/${session.assessmentId}`;
+
   if (session.status === "SUBMITTED") {
     return NextResponse.json({
       submitted: true,
       alreadySubmitted: true,
+      previewMode: isAdminPreview,
+      redirectTo: isAdminPreview ? previewRedirectTo : undefined,
       postSubmitMessage:
-        session.assessment.policy?.postSubmitMessage ||
-        "Thanks for completing your assessment.",
+        isAdminPreview
+          ? "Preview already submitted. No participant report was generated."
+          : session.assessment.policy?.postSubmitMessage ||
+            "Thanks for completing your assessment.",
     });
   }
 
@@ -94,6 +112,21 @@ export async function POST(
 
   const submittedAt = new Date();
   const reportWorkflow = session.assessment.policy?.reportWorkflow || "AI_STANDARD";
+
+  if (isAdminPreview) {
+    await db.quizSession.update({
+      where: { id },
+      data: { status: "SUBMITTED", submittedAt },
+    });
+
+    return NextResponse.json({
+      submitted: true,
+      previewMode: true,
+      redirectTo: previewRedirectTo,
+      postSubmitMessage:
+        "Preview completed. No participant score or report was generated.",
+    });
+  }
 
   if (reportWorkflow === "MANUAL_PDF_UPLOAD") {
     const participantName =

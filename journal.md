@@ -908,3 +908,56 @@ This file is the append-only engineering diary for implementation work in this r
   - Browser-level confirmation of drag-and-drop behavior was not executed from this shell because no running interactive browser session against the deployed app was available here.
 - Next step:
   - Verify one direct upload, one drag-and-drop upload, one replace flow, and one remove flow in `/admin/assessments/:id` after the deployment completes.
+
+## Entry 2026-03-09-01
+- Timestamp (UTC): 2026-03-09T00:00:00Z
+- Timestamp (Local): 2026-03-09 (local timezone)
+- Task: Add admin-only assessment preview sessions from the assessment detail page.
+- Why: Admins could manage assessments but could not test the real participant experience unless they were separately enrolled, which made it awkward to verify look-and-feel, guided question flow, and image-backed content before release.
+- What changed:
+  - Added `POST /api/admin/assessments/:id/preview-session` to create or reset an admin-owned preview session for the selected assessment.
+  - Updated the assessment session submit flow so admin preview submissions do not generate participant scores or reports and instead return to the admin assessment detail page.
+  - Updated `src/app/(app)/assessment/session/[sessionId]/page.tsx` to recognize preview mode, show preview-specific messaging, and use admin return navigation instead of participant report navigation.
+  - Updated `src/app/(app)/admin/assessments/[id]/AssessmentDetailClient.tsx` to expose a `Test Assessment` button in the detail header.
+  - Updated `guide.md` to document the new admin preview route and UX behavior.
+- How:
+  - Kept the participant UI as the single rendering path and introduced a narrow admin-only entry route instead of building a separate mock preview surface.
+  - Reset the admin's existing session state on each preview launch so the same assessment can be tested repeatedly.
+  - Preserved normal participant submit/report behavior for all non-preview sessions.
+- Validation/output:
+  - Pending lint/build validation after implementation.
+- Risks/unknowns:
+  - Preview mode is intentionally admin-only and UI-driven; final browser QA is still needed to confirm the exact click-through experience and return path.
+  - Re-launching preview resets the admin's prior preview answers for that assessment by design.
+- Next step:
+  - Run lint/build, then manually verify `Test Assessment` on both draft and published assessments, including one-question-at-a-time mode and image-backed questions.
+
+## Entry 2026-03-09-02
+- Timestamp (UTC): 2026-03-08T22:19:25Z
+- Timestamp (Local): 2026-03-09 03:49:25 IST (+0530)
+- Task: Add admin bulk user import for organisation and solo participant creation.
+- Why: Admins could add one user at a time, but there was no first-class bulk workflow on the Users page for onboarding many participants either into an existing organisation or as standalone solo accounts.
+- What changed:
+  - Extended `POST /api/admin/users/import-csv` to support:
+    - organisation-targeted bulk import
+    - solo bulk import (one solo organisation per row)
+    - dry-run validation/preview via `?dryRun=1`
+    - clearer per-row skip reasons such as invalid email, duplicate-in-file, seat-limit reached, already exists, and belongs to another organisation
+  - Updated `src/app/(app)/admin/users/UsersClient.tsx` with a new `Bulk Add Users` panel that includes:
+    - mode toggle for organisation vs solo import
+    - organisation picker for organisation-mode imports
+    - CSV template download
+    - CSV file load and paste-in textarea workflow
+    - preview summary, importable-row preview, and issue list
+  - Updated `guide.md` to document the new API route, admin UX, and validation expectations.
+- How:
+  - Built on the existing users CSV import route rather than inventing a second parallel bulk-create path.
+  - Added a dry-run response contract so the client can show admins what will happen before mutating data.
+  - Preserved existing seat-capacity rules and single-user constraints, including blocking solo creation for emails that already belong to an existing user.
+- Validation/output:
+  - Pending targeted lint/build validation for the touched API and admin client files.
+- Risks/unknowns:
+  - Manager lookup in bulk organisation import still depends on the manager already existing in the selected organisation.
+  - Solo bulk import intentionally creates participant accounts only; it does not create admin users or shared solo organisations.
+- Next step:
+  - Run targeted validation, then manually test one organisation-mode import and one solo-mode import from `/admin/users`.

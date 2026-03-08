@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import { buildAssessmentCsvTemplate } from "@/lib/assessment-question-csv";
@@ -187,6 +188,7 @@ function formatScopeLabel(scope: "USER" | "TENANT") {
 }
 
 export default function AssessmentDetailClient({ assessmentId }: { assessmentId: string }) {
+  const router = useRouter();
   const [tab, setTab] = useState<TabKey>("CONTENT");
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [output, setOutput] = useState("");
@@ -256,6 +258,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [participantStatusFilter, setParticipantStatusFilter] = useState<
     "ALL" | "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED"
   >("ALL");
+  const [previewBusy, setPreviewBusy] = useState(false);
   const [uploadingQuestionId, setUploadingQuestionId] = useState<string | null>(null);
   const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null);
 
@@ -774,6 +777,29 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     await loadAll();
   }
 
+  async function startAssessmentPreview() {
+    setPreviewBusy(true);
+    try {
+      const res = await fetch(`/api/admin/assessments/${assessmentId}/preview-session`, {
+        method: "POST",
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || !(data as { sessionId?: string }).sessionId) {
+        toast((data as { error?: string }).error || "Failed to start preview session.", "error");
+        return;
+      }
+
+      router.push(
+        `/assessment/session/${(data as { sessionId: string }).sessionId}?preview=1&returnTo=${encodeURIComponent(
+          `/admin/assessments/${assessmentId}`,
+        )}`,
+      );
+    } finally {
+      setPreviewBusy(false);
+    }
+  }
+
   async function uploadManualPdf(participant: Participant, file: File) {
     if (!participant.reportId) {
       toast("No report exists yet for this participant.", "error");
@@ -916,13 +942,25 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             <h2 className="text-xl font-semibold">{detail.title}</h2>
             <p className="mt-1 text-xs text-slate-500">{detail.id}</p>
           </div>
-          <Link
-            href="/admin/assessments"
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
-          >
-            Back to Assessments
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              onClick={() => void startAssessmentPreview()}
+              disabled={previewBusy}
+            >
+              {previewBusy ? "Starting Preview..." : "Test Assessment"}
+            </button>
+            <Link
+              href="/admin/assessments"
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+            >
+              Back to Assessments
+            </Link>
+          </div>
         </div>
+        <p className="mt-3 text-sm text-slate-600">
+          Test Assessment opens the live participant flow in admin preview mode without requiring enrollment or generating a participant report.
+        </p>
 
         <div className="mt-4 flex flex-wrap gap-2">
           {tabs.map((item) => (

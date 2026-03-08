@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 type QuestionPresentationMode = "ALL_AT_ONCE" | "ONE_AT_A_TIME";
 
@@ -82,8 +82,11 @@ function renderQuestionImage(question: Question) {
 
 export default function SessionPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const params = useParams<{ sessionId: string }>();
   const sessionId = typeof params?.sessionId === "string" ? params.sessionId : "";
+  const isPreviewMode = searchParams.get("preview") === "1";
+  const previewReturnTo = searchParams.get("returnTo") || "/admin/assessments";
 
   const [sections, setSections] = useState<Section[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -155,6 +158,12 @@ export default function SessionPage() {
   );
   const isReadOnly = sessionStatus === "SUBMITTED";
   const isOneQuestionAtATime = questionPresentationMode === "ONE_AT_A_TIME";
+  const defaultBackHref = isPreviewMode ? previewReturnTo : "/assessment/current";
+  const readOnlyTarget = isPreviewMode
+    ? previewReturnTo
+    : assessmentId
+      ? `/reports/me/${assessmentId}`
+      : "/assessment/current";
 
   const groupedSections = useMemo(() => {
     if (sections.length === 0) {
@@ -275,7 +284,7 @@ export default function SessionPage() {
 
   async function submit() {
     if (isReadOnly) {
-      router.push(`/reports/me/${assessmentId}`);
+      router.push(readOnlyTarget);
       return;
     }
     try {
@@ -301,13 +310,18 @@ export default function SessionPage() {
 
       const res = await fetch(`/api/assessment/sessions/${sessionId}/submit`, {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ previewMode: isPreviewMode }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error((data as { error?: string }).error || "Could not submit assessment.");
       }
       alert((data as { postSubmitMessage?: string }).postSubmitMessage || "Submitted");
-      router.push(`/reports/me/${assessmentId}`);
+      router.push(
+        (data as { redirectTo?: string }).redirectTo ||
+          (isPreviewMode ? previewReturnTo : `/reports/me/${assessmentId}`),
+      );
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not submit assessment.");
       alert(error instanceof Error ? error.message : "Could not submit assessment.");
@@ -419,10 +433,10 @@ export default function SessionPage() {
           <p className="mt-2 text-sm text-rose-800">{loadError}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
-              href="/assessment/current"
+              href={defaultBackHref}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
             >
-              Back to Assessment Center
+              {isPreviewMode ? "Back to Assessment Settings" : "Back to Assessment Center"}
             </Link>
             <Link
               href="/dashboard"
@@ -439,10 +453,28 @@ export default function SessionPage() {
   return (
     <main className="mx-auto max-w-4xl space-y-6 p-6 md:p-10">
       <header className="rounded-3xl bg-gradient-to-r from-cyan-100 via-sky-50 to-amber-100 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <Link
+            href={defaultBackHref}
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            {isPreviewMode ? "Back to Assessment Settings" : "Back to Assessment Center"}
+          </Link>
+          {isPreviewMode ? (
+            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+              Admin Preview
+            </span>
+          ) : null}
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">Personality & Behavior Assessment</h1>
         <p className="mt-2 text-sm text-slate-700">
           Progress: {answeredCount}/{questions.length}
         </p>
+        {isPreviewMode ? (
+          <p className="mt-2 rounded-lg bg-white/80 px-3 py-2 text-sm text-slate-700">
+            You are testing the live participant experience. Submitting this preview will not generate a participant score or report.
+          </p>
+        ) : null}
         {isOneQuestionAtATime && activeQuestion ? (
           <p className="mt-1 text-sm text-slate-700">
             Question {activeQuestionIndex + 1} of {questions.length}
@@ -505,7 +537,15 @@ export default function SessionPage() {
                   disabled={submitting || navigating || (!isReadOnly && answeredCount !== questions.length)}
                   onClick={submit}
                 >
-                  {submitting ? "Submitting..." : isReadOnly ? "Go To Report" : "Submit Assessment"}
+                  {submitting
+                    ? "Submitting..."
+                    : isReadOnly
+                      ? isPreviewMode
+                        ? "Return to Settings"
+                        : "Go To Report"
+                      : isPreviewMode
+                        ? "Finish Preview"
+                        : "Submit Assessment"}
                 </button>
               )}
             </div>
@@ -534,7 +574,15 @@ export default function SessionPage() {
             disabled={submitting || (!isReadOnly && answeredCount !== questions.length)}
             onClick={submit}
           >
-            {submitting ? "Submitting..." : isReadOnly ? "Go To Report" : "Submit Assessment"}
+            {submitting
+              ? "Submitting..."
+              : isReadOnly
+                ? isPreviewMode
+                  ? "Return to Settings"
+                  : "Go To Report"
+                : isPreviewMode
+                  ? "Finish Preview"
+                  : "Submit Assessment"}
           </button>
         </>
       )}

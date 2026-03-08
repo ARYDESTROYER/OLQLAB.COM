@@ -204,6 +204,7 @@ Neon environment-variable layout:
 - `PATCH /api/admin/assessments/:id`
 - `DELETE /api/admin/assessments/:id`
 - `POST /api/admin/assessments/:id/publish`
+- `POST /api/admin/assessments/:id/preview-session`
 - `GET /api/admin/assessments/:id/access`
 - `POST /api/admin/assessments/:id/enrollments`
 - `POST /api/admin/assessments/:id/unenroll`
@@ -216,6 +217,11 @@ Neon environment-variable layout:
     - `sortBy` (`createdAt|updatedAt|name|email`), `sortOrder`, `limit`
   - supports CSV export via `format=csv`
 - `POST /api/admin/users`
+- `POST /api/admin/users/import-csv`
+  - supports bulk user import via CSV for either:
+    - one selected organisation
+    - per-row solo participant creation
+  - supports dry-run preview via `?dryRun=1`
 - `PATCH /api/admin/users/:id`
 - `DELETE /api/admin/users/:id`
 - `GET /api/admin/users/:id/tests`
@@ -309,6 +315,12 @@ Updated runtime behavior:
 Leader/admin visibility:
 - participant self-access restrictions do not automatically remove leader/admin-level visibility gates.
 
+Admin preview/testing:
+- admins can launch a preview session for any assessment directly from the assessment detail page
+- preview sessions reuse the live participant answering UI so admins can inspect real look-and-feel, question presentation mode, navigation, and image rendering
+- preview launch does not require enrollment and can be used on draft assessments
+- preview submission does not generate participant scores or reports and returns the admin to the assessment detail page
+
 Retest/reset/regeneration:
 - existing behaviors remain, but participant validity checks now rely on enrollment/participation logic rather than legacy tenant coupling.
 
@@ -347,6 +359,11 @@ Validation rules:
 
 ### 12.1 Users section (Participant Directory)
 - add user: toggle between "Add to Organisation" (org + email) or "Add Solo Participant" (email only)
+- bulk add users: CSV-driven import supports either:
+  - bulk add into one selected organisation
+  - bulk create solo participants (one solo organisation per row)
+  - dry-run preview with importable rows and per-row issues before commit
+  - template download and CSV file load/paste workflow in the users admin page
 - solo participants can be grouped into an organisation later via Move
 - delete user (non-admin, with confirmation dialog)
 - move user between organisations (seat checks)
@@ -382,6 +399,7 @@ Validation rules:
   - unpublish selected
   - delete selected (guarded by confirmation)
 - "Manage" button opens detail view for enrollment, policy, content editing
+- assessment detail header includes `Test Assessment`, which launches an admin-only preview session into the real participant flow without requiring enrollment
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
 - content tab manual question builder supports optional image metadata fields: `imageUrl`, `imageAlt`, `imageCaption`
 - saved question rows support direct image upload in addition to manual URL entry:
@@ -440,23 +458,28 @@ Architecture scenarios to validate manually:
 6. scheduled job behavior before and after effective time
 7. share-link security checks (invalid/expired/revoked/download-exhausted)
 8. admin section routing and actions under `/admin/users`, `/admin/tenants`, `/admin/assessments`
-9. question presentation mode behavior:
+9. bulk user CSV import behavior:
+  - organisation mode respects seat limits and archived-organisation guards
+  - solo mode creates one solo organisation per valid row
+  - duplicate emails in the same file are skipped clearly
+  - emails already attached to other organisations are skipped clearly
+10. question presentation mode behavior:
   - `ALL_AT_ONCE` preserves the existing full assessment flow and submit gating
   - `ONE_AT_A_TIME` restores the first unanswered question on resume and keeps previous/next navigation stable
   - free-text answers persist when leaving a question and again during final submit
-10. shared row-action menu click behavior:
+11. shared row-action menu click behavior:
   - open `Actions` on a user row and confirm `View Tests` opens the inspect panel
   - open `Actions` on a user row and confirm `View Access` opens the inspect panel
   - verify at least one row action in tenants and assessments still fires correctly after the shared menu fix
   - verify clicking outside the menu still dismisses it
   - verify Escape still dismisses it
-11. question image behavior:
+12. question image behavior:
   - questions without image metadata render exactly as before
   - questions with `imageUrl` render the image in both `ALL_AT_ONCE` and `ONE_AT_A_TIME` participant flows
   - SJT image questions still require option selection before submit
   - FREE_TEXT image questions still require non-empty text before submit
   - clearing an image in admin also clears stale `imageAlt` and `imageCaption`
-12. admin response-review behavior:
+13. admin response-review behavior:
   - `/admin/assessments/:id/participants/:userId/responses` shows the same question image/caption metadata that the participant saw
 
 ## 14. Operational notes
