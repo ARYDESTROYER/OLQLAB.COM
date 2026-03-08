@@ -28,6 +28,7 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
     const [menuTop, setMenuTop] = useState(0);
     const [menuLeft, setMenuLeft] = useState(0);
     const menuRef = useRef<HTMLDivElement>(null);
+    const portalMenuRef = useRef<HTMLDivElement>(null);
     const triggerRef = useRef<HTMLButtonElement>(null);
     const estimatedMenuHeight = 180;
     const menuWidth = 180;
@@ -37,9 +38,11 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
     useEffect(() => {
         if (!open) return;
         function handleClick(e: MouseEvent) {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-                setOpen(false);
-            }
+            const target = e.target as Node;
+            const clickedTrigger = menuRef.current?.contains(target);
+            const clickedPortalMenu = portalMenuRef.current?.contains(target);
+            if (clickedTrigger || clickedPortalMenu) return;
+            setOpen(false);
         }
         document.addEventListener("mousedown", handleClick);
         return () => document.removeEventListener("mousedown", handleClick);
@@ -116,6 +119,7 @@ export default function ActionMenu({ actions, triggerLabel }: ActionMenuProps) {
 
             {open && typeof document !== "undefined" && createPortal(
                 <div
+                    ref={portalMenuRef}
                     className="fixed z-[10000] min-w-[160px] rounded-xl border border-slate-200 bg-white py-1 shadow-xl animate-slide-in-menu"
                     style={{ top: menuTop, left: menuLeft, width: menuWidth }}
                 >

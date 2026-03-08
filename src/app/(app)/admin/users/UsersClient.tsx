@@ -401,11 +401,19 @@ export default function UsersClient() {
 
     try {
       const res = await fetch(`/api/admin/users/${user.id}/${type}`);
-      const data = await res.json();
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        toast(
+          (data as { error?: string } | null)?.error || "Failed to load data.",
+          "error",
+        );
+        setInspectPanel((prev) => ({ ...prev, data: null, loading: false }));
+        return;
+      }
       setInspectPanel((prev) => ({ ...prev, data, loading: false }));
     } catch {
       toast("Failed to load data.", "error");
-      setInspectPanel((prev) => ({ ...prev, loading: false }));
+      setInspectPanel((prev) => ({ ...prev, data: null, loading: false }));
     }
   }
 
