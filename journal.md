@@ -811,3 +811,24 @@ This file is the append-only engineering diary for implementation work in this r
   - Browser-level QA for actual image assets still depends on the referenced files or URLs being present and reachable in the target environment.
 - Next step:
   - Push the validated change set to `main`, allow deployment to apply `20260308153000_question_image_support`, and then run production smoke checks for CSV import, participant rendering, and admin response review with at least one image-backed question.
+
+## Entry 2026-03-08-07
+- Timestamp (UTC): 2026-03-08T13:20:40Z
+- Timestamp (Local): 2026-03-08 18:50:40 IST (+0530)
+- Task: Push the image-backed question release to `main` to trigger deployment.
+- Why: The feature had already passed repository lint/build validation locally, and the requested rollout path from this environment was a repository push on the deployment branch.
+- What changed:
+  - Created release commit `136a276` with message: `feat: support image-backed assessment questions`.
+  - Pushed `main` to `origin`, updating the remote from `6b8f57b` to `136a276`.
+- How:
+  - Staged the validated feature files and migration.
+  - Created one release commit on `main`.
+  - Executed `git push origin main` successfully.
+- Validation/output:
+  - Push completed successfully to `https://github.com/ARYDESTROYER/OLQLAB.COM.git`.
+  - The remote accepted commit `136a276`, which is now the deployment candidate.
+- Risks/unknowns:
+  - Actual production availability still depends on the deployment platform applying Prisma migrations successfully.
+  - If production Neon still has the previously documented Prisma `P3009` blockage, operators must clear that history issue before `20260308153000_question_image_support` can apply.
+- Next step:
+  - Watch the deployment logs, confirm the question-image migration applies, and run post-deploy smoke checks using one SJT image question and one FREE_TEXT image question.
