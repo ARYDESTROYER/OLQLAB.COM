@@ -22,6 +22,13 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
     "@prisma/client": "^6.8.2",
+    "@tiptap/core": "^2.11.5",
+    "@tiptap/extension-placeholder": "^2.11.5",
+    "@tiptap/extension-underline": "^2.11.5",
+    "@tiptap/pm": "^2.11.5",
+    "@tiptap/react": "^2.11.5",
+    "@tiptap/starter-kit": "^2.11.5",
+    "@vercel/blob": "^2.3.1",
     "csv-parse": "^6.1.0",
     "date-fns": "^4.1.0",
     "next": "16.1.6",
@@ -33,12 +40,6 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "resend": "^6.9.2",
-    "@tiptap/core": "^2.11.5",
-    "@tiptap/extension-placeholder": "^2.11.5",
-    "@tiptap/extension-underline": "^2.11.5",
-    "@tiptap/pm": "^2.11.5",
-    "@tiptap/react": "^2.11.5",
-    "@tiptap/starter-kit": "^2.11.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

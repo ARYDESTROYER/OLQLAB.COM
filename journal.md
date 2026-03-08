@@ -853,3 +853,38 @@ This file is the append-only engineering diary for implementation work in this r
   - If multiple Vercel deployments keep running migrations concurrently against the same Neon database, advisory-lock contention can still occur even with the direct URL configured correctly.
 - Next step:
   - Add `DIRECT_DATABASE_URL` in Vercel Production, ensure only one deployment is running migrations, and redeploy.
+
+## Entry 2026-03-08-09
+- Timestamp (UTC): 2026-03-08T14:27:07Z
+- Timestamp (Local): 2026-03-08 19:57:07 IST (+0530)
+- Task: Implement direct admin image upload for question media while preserving manual URL entry.
+- Why: The image-backed question feature worked, but authoring still required manual URL entry or CSV import. Admins needed a faster path to drag-and-drop or click-upload images directly from the assessment content screen.
+- What changed:
+  - Added Blob-backed storage helper `src/lib/question-image-storage.ts` for validating, uploading, and deleting managed question images.
+  - Added question image API routes at `src/app/api/admin/assessments/[id]/questions/[questionId]/image/route.ts`.
+  - Updated `AssessmentDetailClient.tsx` question rows to support:
+    - drag-and-drop image upload
+    - click-to-upload file selection
+    - inline preview
+    - replace image
+    - remove image
+  - Kept manual `imageUrl` entry in place for compatibility with direct URL and CSV workflows.
+  - Updated `.env.example`, `README.md`, and `guide.md` to document `BLOB_READ_WRITE_TOKEN` and the managed upload workflow.
+- How:
+  - Reused the repository's existing multipart-upload pattern from manual report PDF upload, but stored question images in Vercel Blob instead of Postgres bytes.
+  - Bound uploads only to saved question rows so the flow can use a stable `questionId` without temporary object lifecycle complexity.
+  - Returned updated image metadata directly from the upload/delete routes so the admin table can update in place without reloading the entire assessment detail page.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing unrelated warnings in untouched files:
+    - `src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx`
+    - `src/lib/report-format.ts`
+  - `export DIRECT_DATABASE_URL="$DATABASE_URL" && npm run build` -> passed.
+  - Lightweight helper runtime smoke test via `tsx` confirmed:
+    - PNG validation success
+    - managed Blob URL detection returns true for Vercel Blob question-image URLs
+    - non-Blob local path detection returns false
+- Risks/unknowns:
+  - Upload runtime requires `BLOB_READ_WRITE_TOKEN` to be configured in the environment where admin uploads run.
+  - Replacing an image only deletes the previous asset automatically when the old URL is recognized as a managed Vercel Blob question image.
+- Next step:
+  - Push the upload feature to `main` and verify one drag-and-drop upload plus one remove-image flow in the deployed admin UI.

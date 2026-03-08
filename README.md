@@ -64,6 +64,7 @@ Copy `.env.example` to `.env.local`:
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require"
 DIRECT_DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB?sslmode=require"
+BLOB_READ_WRITE_TOKEN="vercel_blob_rw_xxx"
 NEXTAUTH_SECRET="replace-with-random-secret"
 NEXTAUTH_URL="http://localhost:3000"
 RESEND_API_KEY="re_xxx"
@@ -90,6 +91,10 @@ Neon + Prisma note:
 - Use `DATABASE_URL` for the pooled runtime connection.
 - Use `DIRECT_DATABASE_URL` for Prisma Migrate and other schema operations.
 - On Neon, `DIRECT_DATABASE_URL` should be the non-pooler endpoint, not the `-pooler` host.
+
+Question image upload note:
+- Use `BLOB_READ_WRITE_TOKEN` for Vercel Blob uploads.
+- Question images are stored in Blob and their public URL is saved into `Question.imageUrl`.
 
 Schema migration added:
 - `prisma/migrations/20260224100000_global_assessment_enrollments`

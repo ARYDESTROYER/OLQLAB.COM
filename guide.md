@@ -188,6 +188,7 @@ Practical Vercel settings check:
 Neon environment-variable layout:
 - `DATABASE_URL`: pooled connection string used by the running app
 - `DIRECT_DATABASE_URL`: direct/non-pooling connection string used by Prisma Migrate via `directUrl` in `prisma/schema.prisma`
+- `BLOB_READ_WRITE_TOKEN`: Vercel Blob token used by admin question-image upload routes
 - If your log shows Prisma migrate connecting to a `-pooler` host, the deployment is still misconfigured for migrations
 
 ## 7. Admin API redesign
@@ -383,6 +384,11 @@ Validation rules:
 - "Manage" button opens detail view for enrollment, policy, content editing
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
 - content tab manual question builder supports optional image metadata fields: `imageUrl`, `imageAlt`, `imageCaption`
+- saved question rows support direct image upload in addition to manual URL entry:
+  - drag-and-drop upload
+  - click-to-upload file picker
+  - replace uploaded image
+  - remove uploaded image
 - content tab CSV import supports optional image columns:
   - `image_url`
   - `image_alt`
@@ -472,12 +478,19 @@ Recommended asset strategy:
 - Place product-owned static image assets under `public/question-images/*` and reference them with root-relative paths such as `/question-images/q31.png`.
 - If using externally hosted URLs, confirm the host is stable and publicly accessible to participant browsers.
 - Prefer compressed PNG or JPEG assets sized for assessment readability; avoid excessively large files that slow session rendering.
+- For admin uploads in this repo, the preferred managed storage target is Vercel Blob rather than database bytes.
 
 Authoring guidance:
 - Keep prompt text self-contained; use the image as supporting context, not as the only place the user can learn what the question asks.
 - Always provide useful `imageAlt` text for accessibility and for failure cases where the image does not load.
 - Use `imageCaption` only when there is a short instruction or framing note that adds value beyond the prompt itself.
 - Do not create a separate `QuestionType` just to represent visual media. Existing answer types remain the canonical behavior contract.
+
+Admin upload guidance:
+- Manual `imageUrl` entry remains supported for copy-paste workflows and CSV-driven content.
+- Saved question rows can upload images directly via drag-and-drop or file picker.
+- Upload validation currently allows `jpg`, `png`, and `webp` up to 5 MB.
+- Removing an uploaded image clears `imageUrl`, `imageAlt`, and `imageCaption` together.
 
 ## 15. Journal policy
 
@@ -589,6 +602,7 @@ Implementation strategy:
 - store media as nullable fields on `Question`
 - keep `QuestionType` unchanged (`LIKERT_TRAIT`, `SJT_SINGLE`, `FREE_TEXT`)
 - render media as presentation-only context in participant and admin-review UIs
+- allow media authoring through both direct URL entry and managed Blob upload from the admin content UI
 
 Why this architecture is used:
 - scoring logic already branches by answer mode, not by presentation style
@@ -611,6 +625,17 @@ Compatibility notes:
 - Existing CSV files remain valid because the new image columns are optional.
 - Existing reports and score generation continue to work because question images do not affect score calculation.
 - Latest deployment requires the question-image migration before any runtime path selects the new columns.
+
+Managed upload flow:
+1. Admin creates or opens an existing saved question row in Assessment Content.
+2. Admin either pastes a URL manually or drops/selects an image file.
+3. Upload route stores the image in Vercel Blob under a question-scoped path.
+4. Blob public URL is written back to `Question.imageUrl`.
+5. Participant and admin-review UIs consume the same `imageUrl` field as before.
+
+API surface for managed uploads:
+- `POST /api/admin/assessments/:id/questions/:questionId/image`
+- `DELETE /api/admin/assessments/:id/questions/:questionId/image`
 
 ## 20. Troubleshooting: Vercel deploy fails with Prisma `P3009` on Neon
 

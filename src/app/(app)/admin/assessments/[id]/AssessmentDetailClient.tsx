@@ -5,6 +5,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import { buildAssessmentCsvTemplate } from "@/lib/assessment-question-csv";
 
+const QUESTION_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
+
 type TabKey = "CONTENT" | "ACCESS" | "PARTICIPANTS" | "POLICY" | "JOBS";
 
 type AssessmentDetail = {
@@ -254,6 +256,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [participantStatusFilter, setParticipantStatusFilter] = useState<
     "ALL" | "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED"
   >("ALL");
+  const [uploadingQuestionId, setUploadingQuestionId] = useState<string | null>(null);
+  const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null);
 
   const filteredParticipants = useMemo(
     () =>
@@ -499,6 +503,99 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       await loadAll();
     } finally {
       setBusy(false);
+    }
+  }
+
+  function patchQuestionImageState(
+    questionId: string,
+    next: {
+      imageUrl: string | null;
+      imageAlt: string | null;
+      imageCaption: string | null;
+    },
+  ) {
+    setQuestions((prev) =>
+      prev.map((item) =>
+        item.id === questionId
+          ? {
+              ...item,
+              imageUrl: next.imageUrl,
+              imageAlt: next.imageAlt,
+              imageCaption: next.imageCaption,
+            }
+          : item,
+      ),
+    );
+  }
+
+  async function uploadQuestionImage(question: QuestionRow, file: File) {
+    setUploadingQuestionId(question.id);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("imageAlt", question.imageAlt || "");
+      formData.append("imageCaption", question.imageCaption || "");
+
+      const res = await fetch(
+        `/api/admin/assessments/${assessmentId}/questions/${question.id}/image`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        toast((data as { error?: string }).error || "Failed to upload image.", "error");
+        return;
+      }
+
+      const updatedQuestion = (data as {
+        question?: { imageUrl: string | null; imageAlt: string | null; imageCaption: string | null };
+      }).question;
+      if (updatedQuestion) {
+        patchQuestionImageState(question.id, updatedQuestion);
+      }
+      toast("Question image uploaded.", "success");
+    } finally {
+      setUploadingQuestionId(null);
+      setDragOverQuestionId((current) => (current === question.id ? null : current));
+    }
+  }
+
+  async function removeQuestionImage(question: QuestionRow) {
+    if (!question.imageUrl) {
+      toast("No image is attached to this question.", "error");
+      return;
+    }
+
+    const confirmed = window.confirm("Remove this question image?");
+    if (!confirmed) return;
+
+    setUploadingQuestionId(question.id);
+    try {
+      const res = await fetch(
+        `/api/admin/assessments/${assessmentId}/questions/${question.id}/image`,
+        {
+          method: "DELETE",
+        },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast((data as { error?: string }).error || "Failed to remove image.", "error");
+        return;
+      }
+
+      const updatedQuestion = (data as {
+        question?: { imageUrl: string | null; imageAlt: string | null; imageCaption: string | null };
+      }).question;
+      if (updatedQuestion) {
+        patchQuestionImageState(question.id, updatedQuestion);
+      }
+      toast("Question image removed.", "success");
+    } finally {
+      setUploadingQuestionId(null);
+      setDragOverQuestionId((current) => (current === question.id ? null : current));
     }
   }
 
@@ -1063,6 +1160,93 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             }
                           />
                           <input
+                            id={`question-image-upload-${question.id}`}
+                            type="file"
+                            accept={QUESTION_IMAGE_ACCEPT}
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                void uploadQuestionImage(question, file);
+                              }
+                              e.target.value = "";
+                            }}
+                          />
+                          <div
+                            className={`rounded-lg border border-dashed px-3 py-3 text-xs transition-colors ${
+                              dragOverQuestionId === question.id
+                                ? "border-cyan-500 bg-cyan-50 text-cyan-900"
+                                : "border-slate-300 bg-slate-50 text-slate-600"
+                            }`}
+                            onDragOver={(event) => {
+                              event.preventDefault();
+                              if (uploadingQuestionId !== question.id) {
+                                setDragOverQuestionId(question.id);
+                              }
+                            }}
+                            onDragLeave={(event) => {
+                              event.preventDefault();
+                              if (dragOverQuestionId === question.id) {
+                                setDragOverQuestionId(null);
+                              }
+                            }}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              setDragOverQuestionId(null);
+                              const file = event.dataTransfer.files?.[0];
+                              if (file) {
+                                void uploadQuestionImage(question, file);
+                              }
+                            }}
+                          >
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <p className="font-semibold text-slate-700">
+                                  {uploadingQuestionId === question.id
+                                    ? "Uploading image..."
+                                    : "Drag and drop JPG, PNG, or WebP here"}
+                                </p>
+                                <p className="mt-1 text-slate-500">
+                                  Or upload directly while keeping the manual URL field available.
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700"
+                                  onClick={() =>
+                                    document
+                                      .getElementById(`question-image-upload-${question.id}`)
+                                      ?.click()
+                                  }
+                                  disabled={uploadingQuestionId === question.id}
+                                >
+                                  {question.imageUrl ? "Replace Image" : "Upload Image"}
+                                </button>
+                                {question.imageUrl ? (
+                                  <button
+                                    type="button"
+                                    className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-700"
+                                    onClick={() => void removeQuestionImage(question)}
+                                    disabled={uploadingQuestionId === question.id}
+                                  >
+                                    Remove Image
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          </div>
+                          {question.imageUrl ? (
+                            <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={question.imageUrl}
+                                alt={question.imageAlt || "Question image preview"}
+                                className="max-h-48 w-full object-contain bg-slate-50"
+                              />
+                            </div>
+                          ) : null}
+                          <input
                             className="w-full rounded border border-slate-300 px-2 py-1"
                             placeholder="Image alt text"
                             value={question.imageAlt || ""}
@@ -1146,14 +1330,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           <button
                             className="rounded border border-slate-300 bg-white px-2 py-1"
                             onClick={() => saveQuestion(question)}
-                            disabled={busy}
+                            disabled={busy || uploadingQuestionId === question.id}
                           >
                             Save
                           </button>
                           <button
                             className="rounded border border-rose-300 bg-rose-50 px-2 py-1 text-rose-700"
                             onClick={() => removeQuestion(question.id)}
-                            disabled={busy}
+                            disabled={busy || uploadingQuestionId === question.id}
                           >
                             Delete
                           </button>
