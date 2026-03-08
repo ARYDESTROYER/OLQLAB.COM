@@ -888,3 +888,23 @@ This file is the append-only engineering diary for implementation work in this r
   - Replacing an image only deletes the previous asset automatically when the old URL is recognized as a managed Vercel Blob question image.
 - Next step:
   - Push the upload feature to `main` and verify one drag-and-drop upload plus one remove-image flow in the deployed admin UI.
+
+## Entry 2026-03-08-10
+- Timestamp (UTC): 2026-03-08T14:41:38Z
+- Timestamp (Local): 2026-03-08 20:11:38 IST (+0530)
+- Task: Push the question-image upload feature to `main` after validation.
+- Why: The feature had already passed lint/build validation locally and the remaining step was making it available on the deployment branch for real admin-side verification.
+- What changed:
+  - Created release commit `c5df378` with message: `feat: add question image upload flow`.
+  - Pushed `main` to `origin`, updating the remote deployment branch to include drag-and-drop upload, file-picker upload, preview, replace, and remove flows for saved question rows.
+- How:
+  - Staged the upload route, Blob storage helper, admin UI updates, dependency updates, and documentation changes.
+  - Committed and pushed in one release step.
+- Validation/output:
+  - Push completed successfully to `https://github.com/ARYDESTROYER/OLQLAB.COM.git`.
+  - Remote branch `main` now includes commit `c5df378`.
+- Risks/unknowns:
+  - Live upload verification still depends on `BLOB_READ_WRITE_TOKEN` being present in the deployed environment.
+  - Browser-level confirmation of drag-and-drop behavior was not executed from this shell because no running interactive browser session against the deployed app was available here.
+- Next step:
+  - Verify one direct upload, one drag-and-drop upload, one replace flow, and one remove flow in `/admin/assessments/:id` after the deployment completes.
