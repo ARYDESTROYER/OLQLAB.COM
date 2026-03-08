@@ -987,3 +987,40 @@ This file is the append-only engineering diary for implementation work in this r
   - This pass focuses on visibility and existing edit controls; it does not yet add inline authoring for creating or changing MCQ option rows and impact mappings.
 - Next step:
   - Browser-check the assessment content tab with an assessment that includes SJT options and scoring impacts.
+
+## Entry 2026-03-09-04
+- Timestamp (UTC): 2026-03-08T22:45:56Z
+- Timestamp (Local): 2026-03-09 04:15:56 IST (+0530)
+- Task: Make the full admin assessment question payload editable inline, including option rows and marks.
+- Why: After the visibility pass, the remaining workflow gap was persistence. Admins still could not edit every stored question field directly from the content screen, especially SJT options and per-option scoring impacts.
+- What changed:
+  - Expanded `POST /api/admin/assessments/:id/questions` to accept full question payloads:
+    - code
+    - prompt
+    - image metadata
+    - question type
+    - category
+    - trait
+    - reverse flag
+    - scale bounds
+    - SJT options with per-option competency deltas
+  - Expanded `PATCH /api/admin/assessments/:id/questions/:questionId` to persist the same full question payload and rewrite option/impact rows when needed.
+  - Updated `AssessmentDetailClient.tsx` so both the new-question builder and saved question cards support inline editing for:
+    - question code, prompt, type, category, scale, trait, reverse, and section
+    - image URL, alt text, caption, upload, replace, and removal
+    - SJT option codes and texts
+    - per-option competency code and delta rows with add/remove controls
+  - Preserved the earlier full-detail visibility improvements so admins can still review all stored option and impact data while editing.
+  - Updated `guide.md` to record that the content tab now supports inline editing across the full stored question surface exposed there.
+- How:
+  - Reused the assessment-scoped competency persistence model already used by CSV/import flows.
+  - Normalized SJT option rewrites server-side so saves are deterministic when question type changes or options are reordered/removed.
+  - Kept image upload behavior and question-card layout intact while widening the editable state and save payload.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing warnings in untouched report-editor/report-format files.
+  - `npm run build` -> passed.
+- Risks/unknowns:
+  - This screen now edits the full stored question surface exposed here, but it still does not provide a separate dedicated management UI for assessment-competency names themselves; impact rows edit the competency code and delta mapping used by the question.
+  - Browser QA is still recommended for long SJT assessments to confirm the expanded editing layout remains comfortable at production data sizes.
+- Next step:
+  - Browser-smoke one assessment containing SJT, Likert, and Free Text questions and verify save behavior for added/removed options and updated impact deltas.

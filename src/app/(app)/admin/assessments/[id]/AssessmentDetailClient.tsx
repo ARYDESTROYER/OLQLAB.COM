@@ -48,17 +48,9 @@ type AssessmentSection = {
 
 type QuestionOptionImpactRow = {
   id: string;
+  competencyCode: string;
+  competencyName: string | null;
   delta: number;
-  competency?: {
-    id: string;
-    code: string;
-    name: string;
-  } | null;
-  assessmentCompetency?: {
-    id: string;
-    code: string;
-    name: string;
-  } | null;
 };
 
 type QuestionOptionRow = {
@@ -86,6 +78,62 @@ type QuestionRow = {
   sectionId: string | null;
   section?: { id: string; title: string } | null;
   options: QuestionOptionRow[];
+};
+
+type QuestionFormOptionImpact = {
+  id: string;
+  competencyCode: string;
+  delta: string;
+};
+
+type QuestionFormOption = {
+  id: string;
+  code: string;
+  text: string;
+  impacts: QuestionFormOptionImpact[];
+};
+
+type QuestionFormState = {
+  code: string;
+  prompt: string;
+  imageUrl: string;
+  imageAlt: string;
+  imageCaption: string;
+  questionType: "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT";
+  category: string;
+  trait: string;
+  reverse: boolean;
+  scaleMin: number;
+  scaleMax: number;
+  sectionId: string;
+  options: QuestionFormOption[];
+};
+
+type RawQuestionImpactRow = {
+  id: string;
+  competencyCode?: string;
+  competencyName?: string | null;
+  delta: number;
+  competency?: {
+    code: string;
+    name: string;
+  } | null;
+  assessmentCompetency?: {
+    code: string;
+    name: string;
+  } | null;
+};
+
+type RawQuestionOptionRow = {
+  id: string;
+  code: string;
+  text: string;
+  displayOrder: number;
+  impacts?: RawQuestionImpactRow[];
+};
+
+type RawQuestionRow = Omit<QuestionRow, "options"> & {
+  options?: RawQuestionOptionRow[];
 };
 
 type User = {
@@ -223,6 +271,98 @@ function formatQuestionTypeLabel(questionType: QuestionRow["questionType"]) {
   return "Free Text";
 }
 
+function makeClientId(prefix: string) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createEmptyImpact(): QuestionOptionImpactRow {
+  return {
+    id: makeClientId("impact"),
+    competencyCode: "",
+    competencyName: null,
+    delta: 0,
+  };
+}
+
+function createEmptyOption(index: number): QuestionOptionRow {
+  return {
+    id: makeClientId("option"),
+    code: "",
+    text: "",
+    displayOrder: index,
+    impacts: [],
+  };
+}
+
+function createEmptyFormImpact(): QuestionFormOptionImpact {
+  return {
+    id: makeClientId("impact"),
+    competencyCode: "",
+    delta: "0",
+  };
+}
+
+function createEmptyFormOption(): QuestionFormOption {
+  return {
+    id: makeClientId("option"),
+    code: "",
+    text: "",
+    impacts: [],
+  };
+}
+
+function createQuestionFormState(sectionId = ""): QuestionFormState {
+  return {
+    code: "",
+    prompt: "",
+    imageUrl: "",
+    imageAlt: "",
+    imageCaption: "",
+    questionType: "LIKERT_TRAIT",
+    category: "",
+    trait: "",
+    reverse: false,
+    scaleMin: 1,
+    scaleMax: 5,
+    sectionId,
+    options: [],
+  };
+}
+
+function renumberQuestionOptions(options: QuestionOptionRow[]) {
+  return options.map((option, index) => ({ ...option, displayOrder: index }));
+}
+
+function ensureSjtQuestionOptions(options: QuestionOptionRow[]) {
+  return options.length > 0 ? renumberQuestionOptions(options) : [createEmptyOption(0), createEmptyOption(1)];
+}
+
+function ensureSjtFormOptions(options: QuestionFormOption[]) {
+  return options.length > 0
+    ? options
+    : [createEmptyFormOption(), createEmptyFormOption()];
+}
+
+function normalizeQuestionRow(question: RawQuestionRow): QuestionRow {
+  return {
+    ...question,
+    options: renumberQuestionOptions(
+      (question.options || []).map((option, optionIndex) => ({
+        ...option,
+        displayOrder: option.displayOrder ?? optionIndex,
+        impacts: (option.impacts || []).map((impact) => ({
+          id: impact.id,
+          competencyCode:
+            impact.competencyCode || impact.assessmentCompetency?.code || impact.competency?.code || "",
+          competencyName:
+            impact.competencyName || impact.assessmentCompetency?.name || impact.competency?.name || null,
+          delta: Number(impact.delta || 0),
+        })),
+      })),
+    ),
+  };
+}
+
 function formatQuestionCode(question: QuestionRow, index: number) {
   return question.code?.trim() || `Question ${index + 1}`;
 }
@@ -237,9 +377,11 @@ function formatImpactDelta(delta: number) {
 }
 
 function formatImpactLabel(impact: QuestionOptionImpactRow) {
-  const linked = impact.assessmentCompetency || impact.competency;
-  if (!linked) return "Impact";
-  return linked.code ? `${linked.code} · ${linked.name}` : linked.name;
+  if (!impact.competencyCode && !impact.competencyName) return "Impact";
+  if (!impact.competencyName) return impact.competencyCode;
+  return impact.competencyCode
+    ? `${impact.competencyCode} · ${impact.competencyName}`
+    : impact.competencyName;
 }
 
 export default function AssessmentDetailClient({ assessmentId }: { assessmentId: string }) {
@@ -259,15 +401,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
   const [sections, setSections] = useState<AssessmentSection[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
-  const [questionForm, setQuestionForm] = useState({
-    prompt: "",
-    imageUrl: "",
-    imageAlt: "",
-    imageCaption: "",
-    trait: "",
-    reverse: false,
-    sectionId: "",
-  });
+  const [questionForm, setQuestionForm] = useState<QuestionFormState>(() => createQuestionFormState());
 
   const [contentForm, setContentForm] = useState({ title: "" });
   const [csvImportMode, setCsvImportMode] = useState<"REPLACE_ALL" | "APPEND">("REPLACE_ALL");
@@ -394,7 +528,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       if (questionsRes.ok) {
         const nextSections = questionsData.sections || [];
         setSections(nextSections);
-        setQuestions(questionsData.questions || []);
+        setQuestions(((questionsData.questions || []) as QuestionRow[]).map(normalizeQuestionRow));
         setQuestionForm((prev) => ({
           ...prev,
           sectionId: prev.sectionId || nextSections[0]?.id || "",
@@ -482,13 +616,26 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          code: questionForm.code,
           prompt: questionForm.prompt,
           imageUrl: questionForm.imageUrl,
           imageAlt: questionForm.imageAlt,
           imageCaption: questionForm.imageCaption,
+          questionType: questionForm.questionType,
+          category: questionForm.category,
           trait: questionForm.trait,
           reverse: questionForm.reverse,
+          scaleMin: questionForm.scaleMin,
+          scaleMax: questionForm.scaleMax,
           sectionId: questionForm.sectionId,
+          options: questionForm.options.map((option) => ({
+            code: option.code,
+            text: option.text,
+            impacts: option.impacts.map((impact) => ({
+              competencyCode: impact.competencyCode,
+              delta: Number(impact.delta) || 0,
+            })),
+          })),
         }),
       });
       const data = await res.json();
@@ -497,15 +644,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         return;
       }
       toast("Question added.", "success");
-      setQuestionForm((prev) => ({
-        ...prev,
-        prompt: "",
-        imageUrl: "",
-        imageAlt: "",
-        imageCaption: "",
-        trait: "",
-        reverse: false,
-      }));
+      setQuestionForm(createQuestionFormState(questionForm.sectionId));
       await loadAll();
     } finally {
       setBusy(false);
@@ -521,13 +660,26 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            code: question.code || "",
             prompt: question.prompt,
             imageUrl: question.imageUrl || "",
             imageAlt: question.imageAlt || "",
             imageCaption: question.imageCaption || "",
+            questionType: question.questionType,
+            category: question.category || "",
             trait: question.trait || "",
             reverse: question.reverse,
+            scaleMin: question.scaleMin,
+            scaleMax: question.scaleMax,
             sectionId: question.sectionId,
+            options: question.options.map((option) => ({
+              code: option.code,
+              text: option.text,
+              impacts: option.impacts.map((impact) => ({
+                competencyCode: impact.competencyCode,
+                delta: impact.delta,
+              })),
+            })),
           }),
         },
       );
@@ -568,6 +720,189 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     setQuestions((prev) =>
       prev.map((item) => (item.id === questionId ? { ...item, ...patch } : item)),
     );
+  }
+
+  function updateQuestionType(questionId: string, questionType: QuestionRow["questionType"]) {
+    setQuestions((prev) =>
+      prev.map((item) => {
+        if (item.id !== questionId) return item;
+        return {
+          ...item,
+          questionType,
+          scaleMin: questionType === "FREE_TEXT" ? 1 : item.scaleMin,
+          scaleMax: questionType === "FREE_TEXT" ? 1 : item.scaleMax,
+          options: questionType === "SJT_SINGLE" ? ensureSjtQuestionOptions(item.options) : item.options,
+        };
+      }),
+    );
+  }
+
+  function updateQuestionFormType(questionType: QuestionFormState["questionType"]) {
+    setQuestionForm((prev) => ({
+      ...prev,
+      questionType,
+      scaleMin: questionType === "FREE_TEXT" ? 1 : prev.scaleMin,
+      scaleMax: questionType === "FREE_TEXT" ? 1 : prev.scaleMax,
+      options: questionType === "SJT_SINGLE" ? ensureSjtFormOptions(prev.options) : prev.options,
+    }));
+  }
+
+  function addQuestionOption(questionId: string) {
+    setQuestions((prev) =>
+      prev.map((item) =>
+        item.id === questionId
+          ? { ...item, options: renumberQuestionOptions([...item.options, createEmptyOption(item.options.length)]) }
+          : item,
+      ),
+    );
+  }
+
+  function removeQuestionOption(questionId: string, optionId: string) {
+    setQuestions((prev) =>
+      prev.map((item) =>
+        item.id === questionId
+          ? {
+              ...item,
+              options: renumberQuestionOptions(item.options.filter((option) => option.id !== optionId)),
+            }
+          : item,
+      ),
+    );
+  }
+
+  function updateQuestionOption(questionId: string, optionId: string, patch: Partial<QuestionOptionRow>) {
+    setQuestions((prev) =>
+      prev.map((item) => {
+        if (item.id !== questionId) return item;
+        return {
+          ...item,
+          options: item.options.map((option) =>
+            option.id === optionId ? { ...option, ...patch } : option,
+          ),
+        };
+      }),
+    );
+  }
+
+  function addQuestionImpact(questionId: string, optionId: string) {
+    setQuestions((prev) =>
+      prev.map((item) => {
+        if (item.id !== questionId) return item;
+        return {
+          ...item,
+          options: item.options.map((option) =>
+            option.id === optionId
+              ? { ...option, impacts: [...option.impacts, createEmptyImpact()] }
+              : option,
+          ),
+        };
+      }),
+    );
+  }
+
+  function updateQuestionImpact(
+    questionId: string,
+    optionId: string,
+    impactId: string,
+    patch: Partial<QuestionOptionImpactRow>,
+  ) {
+    setQuestions((prev) =>
+      prev.map((item) => {
+        if (item.id !== questionId) return item;
+        return {
+          ...item,
+          options: item.options.map((option) =>
+            option.id === optionId
+              ? {
+                  ...option,
+                  impacts: option.impacts.map((impact) =>
+                    impact.id === impactId ? { ...impact, ...patch } : impact,
+                  ),
+                }
+              : option,
+          ),
+        };
+      }),
+    );
+  }
+
+  function removeQuestionImpact(questionId: string, optionId: string, impactId: string) {
+    setQuestions((prev) =>
+      prev.map((item) => {
+        if (item.id !== questionId) return item;
+        return {
+          ...item,
+          options: item.options.map((option) =>
+            option.id === optionId
+              ? { ...option, impacts: option.impacts.filter((impact) => impact.id !== impactId) }
+              : option,
+          ),
+        };
+      }),
+    );
+  }
+
+  function addQuestionFormOption() {
+    setQuestionForm((prev) => ({
+      ...prev,
+      options: [...prev.options, createEmptyFormOption()],
+    }));
+  }
+
+  function updateQuestionFormOption(optionId: string, patch: Partial<QuestionFormOption>) {
+    setQuestionForm((prev) => ({
+      ...prev,
+      options: prev.options.map((option) => (option.id === optionId ? { ...option, ...patch } : option)),
+    }));
+  }
+
+  function removeQuestionFormOption(optionId: string) {
+    setQuestionForm((prev) => ({
+      ...prev,
+      options: prev.options.filter((option) => option.id !== optionId),
+    }));
+  }
+
+  function addQuestionFormImpact(optionId: string) {
+    setQuestionForm((prev) => ({
+      ...prev,
+      options: prev.options.map((option) =>
+        option.id === optionId
+          ? { ...option, impacts: [...option.impacts, createEmptyFormImpact()] }
+          : option,
+      ),
+    }));
+  }
+
+  function updateQuestionFormImpact(
+    optionId: string,
+    impactId: string,
+    patch: Partial<QuestionFormOptionImpact>,
+  ) {
+    setQuestionForm((prev) => ({
+      ...prev,
+      options: prev.options.map((option) =>
+        option.id === optionId
+          ? {
+              ...option,
+              impacts: option.impacts.map((impact) =>
+                impact.id === impactId ? { ...impact, ...patch } : impact,
+              ),
+            }
+          : option,
+      ),
+    }));
+  }
+
+  function removeQuestionFormImpact(optionId: string, impactId: string) {
+    setQuestionForm((prev) => ({
+      ...prev,
+      options: prev.options.map((option) =>
+        option.id === optionId
+          ? { ...option, impacts: option.impacts.filter((impact) => impact.id !== impactId) }
+          : option,
+      ),
+    }));
   }
 
   function patchQuestionImageState(
@@ -1159,9 +1494,34 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               <input
                 className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                placeholder="Source question code (optional)"
+                value={questionForm.code}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, code: e.target.value }))}
+              />
+              <select
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                value={questionForm.questionType}
+                onChange={(e) =>
+                  updateQuestionFormType(
+                    e.target.value as "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT",
+                  )
+                }
+              >
+                <option value="LIKERT_TRAIT">Likert Trait</option>
+                <option value="SJT_SINGLE">Single-Select MCQ</option>
+                <option value="FREE_TEXT">Free Text</option>
+              </select>
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
                 placeholder="Question prompt"
                 value={questionForm.prompt}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, prompt: e.target.value }))}
+              />
+              <input
+                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                placeholder="Category (optional)"
+                value={questionForm.category}
+                onChange={(e) => setQuestionForm((prev) => ({ ...prev, category: e.target.value }))}
               />
               <input
                 className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
@@ -1187,6 +1547,28 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 value={questionForm.trait}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, trait: e.target.value }))}
               />
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="number"
+                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                  placeholder="Scale min"
+                  value={questionForm.scaleMin}
+                  onChange={(e) =>
+                    setQuestionForm((prev) => ({ ...prev, scaleMin: parseInt(e.target.value, 10) || 0 }))
+                  }
+                  disabled={questionForm.questionType === "FREE_TEXT"}
+                />
+                <input
+                  type="number"
+                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                  placeholder="Scale max"
+                  value={questionForm.scaleMax}
+                  onChange={(e) =>
+                    setQuestionForm((prev) => ({ ...prev, scaleMax: parseInt(e.target.value, 10) || 0 }))
+                  }
+                  disabled={questionForm.questionType === "FREE_TEXT"}
+                />
+              </div>
               <select
                 className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
                 value={questionForm.sectionId}
@@ -1207,6 +1589,96 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 Reverse
               </label>
             </div>
+
+            {questionForm.questionType === "SJT_SINGLE" && (
+              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <h5 className="text-sm font-semibold text-slate-900">MCQ Options and Marks</h5>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Add every option and each stored competency mark before creating the question.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                    onClick={addQuestionFormOption}
+                  >
+                    Add Option
+                  </button>
+                </div>
+
+                <div className="mt-3 space-y-3">
+                  {questionForm.options.map((option, optionIndex) => (
+                    <div key={option.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="grid gap-2 md:grid-cols-[120px_minmax(0,1fr)_auto]">
+                        <input
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          placeholder="Code"
+                          value={option.code}
+                          onChange={(e) => updateQuestionFormOption(option.id, { code: e.target.value })}
+                        />
+                        <input
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          placeholder={`Option ${optionIndex + 1} text`}
+                          value={option.text}
+                          onChange={(e) => updateQuestionFormOption(option.id, { text: e.target.value })}
+                        />
+                        <button
+                          type="button"
+                          className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"
+                          onClick={() => removeQuestionFormOption(option.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <div className="mt-3 space-y-2">
+                        {option.impacts.map((impact) => (
+                          <div key={impact.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_120px_auto]">
+                            <input
+                              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              placeholder="Competency code"
+                              value={impact.competencyCode}
+                              onChange={(e) =>
+                                updateQuestionFormImpact(option.id, impact.id, {
+                                  competencyCode: e.target.value,
+                                })
+                              }
+                            />
+                            <input
+                              type="number"
+                              step="0.1"
+                              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              placeholder="Delta"
+                              value={impact.delta}
+                              onChange={(e) =>
+                                updateQuestionFormImpact(option.id, impact.id, { delta: e.target.value })
+                              }
+                            />
+                            <button
+                              type="button"
+                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                              onClick={() => removeQuestionFormImpact(option.id, impact.id)}
+                            >
+                              Remove Mark
+                            </button>
+                          </div>
+                        ))}
+
+                        <button
+                          type="button"
+                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                          onClick={() => addQuestionFormImpact(option.id)}
+                        >
+                          Add Mark / Impact
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <button
               className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
@@ -1274,25 +1746,42 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                               Source Code
                             </p>
-                            <p className="mt-1 text-sm font-medium text-slate-800">
-                              {question.code || "Not set"}
-                            </p>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              value={question.code || ""}
+                              placeholder="Not set"
+                              onChange={(e) => updateQuestion(question.id, { code: e.target.value })}
+                            />
                           </div>
                           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                               Response Type
                             </p>
-                            <p className="mt-1 text-sm font-medium text-slate-800">
-                              {formatQuestionTypeLabel(question.questionType)}
-                            </p>
+                            <select
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              value={question.questionType}
+                              onChange={(e) =>
+                                updateQuestionType(
+                                  question.id,
+                                  e.target.value as "LIKERT_TRAIT" | "SJT_SINGLE" | "FREE_TEXT",
+                                )
+                              }
+                            >
+                              <option value="LIKERT_TRAIT">Likert Trait</option>
+                              <option value="SJT_SINGLE">Single-Select MCQ</option>
+                              <option value="FREE_TEXT">Free Text</option>
+                            </select>
                           </div>
                           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                               Category
                             </p>
-                            <p className="mt-1 text-sm font-medium text-slate-800">
-                              {question.category || "Not set"}
-                            </p>
+                            <input
+                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              value={question.category || ""}
+                              placeholder="Not set"
+                              onChange={(e) => updateQuestion(question.id, { category: e.target.value })}
+                            />
                           </div>
                           <div>
                             <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
@@ -1332,9 +1821,30 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                               Stored Scale
                             </p>
-                            <p className="mt-1 text-sm font-medium text-slate-800">
-                              {formatScaleLabel(question)}
-                            </p>
+                            <div className="mt-1 grid grid-cols-2 gap-2">
+                              <input
+                                type="number"
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                                value={question.scaleMin}
+                                disabled={question.questionType === "FREE_TEXT"}
+                                onChange={(e) =>
+                                  updateQuestion(question.id, {
+                                    scaleMin: parseInt(e.target.value, 10) || 0,
+                                  })
+                                }
+                              />
+                              <input
+                                type="number"
+                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                                value={question.scaleMax}
+                                disabled={question.questionType === "FREE_TEXT"}
+                                onChange={(e) =>
+                                  updateQuestion(question.id, {
+                                    scaleMax: parseInt(e.target.value, 10) || 0,
+                                  })
+                                }
+                              />
+                            </div>
                           </div>
                         </div>
 
@@ -1479,7 +1989,107 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         </span>
                       </div>
 
-                      {question.options.length > 0 ? (
+                      {question.questionType === "SJT_SINGLE" ? (
+                        <div className="space-y-3 bg-white p-4">
+                          {question.options.map((option, optionIndex) => (
+                            <div key={option.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                              <div className="grid gap-2 lg:grid-cols-[80px_minmax(0,1fr)_auto]">
+                                <input
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                  value={option.code}
+                                  placeholder={`O${optionIndex + 1}`}
+                                  onChange={(e) =>
+                                    updateQuestionOption(question.id, option.id, { code: e.target.value })
+                                  }
+                                />
+                                <input
+                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                  value={option.text}
+                                  placeholder={`Option ${optionIndex + 1} text`}
+                                  onChange={(e) =>
+                                    updateQuestionOption(question.id, option.id, { text: e.target.value })
+                                  }
+                                />
+                                <button
+                                  type="button"
+                                  className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"
+                                  onClick={() => removeQuestionOption(question.id, option.id)}
+                                >
+                                  Remove Option
+                                </button>
+                              </div>
+
+                              <div className="mt-3 space-y-2">
+                                {option.impacts.map((impact) => (
+                                  <div key={impact.id} className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_120px_auto]">
+                                    <div>
+                                      <input
+                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                        value={impact.competencyCode}
+                                        placeholder="Competency code"
+                                        onChange={(e) =>
+                                          updateQuestionImpact(question.id, option.id, impact.id, {
+                                            competencyCode: e.target.value,
+                                            competencyName: null,
+                                          })
+                                        }
+                                      />
+                                      {impact.competencyName ? (
+                                        <p className="mt-1 text-[11px] text-slate-500">Current name: {impact.competencyName}</p>
+                                      ) : null}
+                                    </div>
+                                    <input
+                                      type="number"
+                                      step="0.1"
+                                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                      value={impact.delta}
+                                      onChange={(e) =>
+                                        updateQuestionImpact(question.id, option.id, impact.id, {
+                                          delta: Number(e.target.value) || 0,
+                                        })
+                                      }
+                                    />
+                                    <button
+                                      type="button"
+                                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                                      onClick={() => removeQuestionImpact(question.id, option.id, impact.id)}
+                                    >
+                                      Remove Mark
+                                    </button>
+                                  </div>
+                                ))}
+
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                                    onClick={() => addQuestionImpact(question.id, option.id)}
+                                  >
+                                    Add Mark / Impact
+                                  </button>
+                                  {option.impacts.length > 0 ? (
+                                    <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+                                      {option.impacts.map((impact) => (
+                                        <span key={`${option.id}-${impact.id}`} className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-900">
+                                          {formatImpactLabel(impact)} {formatImpactDelta(impact.delta)}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          <button
+                            type="button"
+                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                            onClick={() => addQuestionOption(question.id)}
+                          >
+                            Add Option
+                          </button>
+                        </div>
+                      ) : question.options.length > 0 ? (
                         <div className="overflow-auto bg-white">
                           <table className="min-w-full text-left text-xs">
                             <thead className="bg-slate-50 text-slate-600">

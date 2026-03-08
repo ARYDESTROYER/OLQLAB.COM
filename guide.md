@@ -403,6 +403,7 @@ Validation rules:
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
 - content tab manual question builder supports optional image metadata fields: `imageUrl`, `imageAlt`, `imageCaption`
 - saved question cards expose the full stored question payload inline, including question position/code, prompt, response type, category, scale, section, image metadata, all answer options, and per-option marks / competency impacts
+- saved question cards support inline editing for all stored question content fields available on this screen, including question code, prompt, type, category, scale, trait, reverse scoring, section, image metadata, SJT option rows, and per-option competency delta values
 - saved question rows support direct image upload in addition to manual URL entry:
   - drag-and-drop upload
   - click-to-upload file picker
