@@ -2,15 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import PublicHeader from "@/components/navigation/PublicHeader";
 
-const expertiseAreas = [
-  "Culture Diagnostic",
-  "Leadership Blindspot Coaching",
-  "Organisational Development",
-  "Behavioral Analysis",
-  "Executive Coaching",
-  "Talent Management",
-];
-
 const humanTouchCards = [
   {
     title: "Transformational Leadership Development",
@@ -181,14 +172,16 @@ export default function HomePage() {
               </blockquote>
             </div>
 
-            <article className="feature-card rounded-2xl p-6">
-              <h3 className="text-lg font-semibold text-slate-900">Expertise Areas</h3>
-              <ul className="detail-list mt-4 text-sm leading-relaxed">
-                {expertiseAreas.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
-            </article>
+            <div className="flex items-center justify-center">
+              <div className="relative h-64 w-64 overflow-hidden rounded-full shadow-lg ring-4 ring-white/60 md:h-80 md:w-80">
+                <Image
+                  src="/pratap-pawar.png"
+                  alt="Commander (Dr.) Pratap Pawar"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </section>
