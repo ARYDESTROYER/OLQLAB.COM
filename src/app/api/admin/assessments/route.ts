@@ -3,6 +3,10 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { buildCsv } from "@/lib/csv";
+import {
+  DEFAULT_ASSESSMENT_INTRO_BULLETS,
+  DEFAULT_ASSESSMENT_INTRO_DESCRIPTION,
+} from "@/lib/assessment-intro";
 
 type CompetencyInput = {
   code: string;
@@ -192,6 +196,8 @@ async function createAssessmentLegacy(input: {
   policy?: {
     showResultsToEmployee?: boolean;
     resultReleaseDelayHours?: number;
+    introDescription?: string;
+    introBullets?: string[];
     postSubmitMessage?: string;
     leaderCanViewFullReport?: boolean;
     reportWorkflow?: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
@@ -211,6 +217,9 @@ async function createAssessmentLegacy(input: {
         create: {
           showResultsToEmployee: input.policy?.showResultsToEmployee ?? true,
           resultReleaseDelayHours: input.policy?.resultReleaseDelayHours ?? 0,
+          introDescription:
+            input.policy?.introDescription || DEFAULT_ASSESSMENT_INTRO_DESCRIPTION,
+          introBullets: input.policy?.introBullets ?? DEFAULT_ASSESSMENT_INTRO_BULLETS,
           postSubmitMessage:
             input.policy?.postSubmitMessage || "Thanks for completing your assessment.",
           leaderCanViewFullReport: input.policy?.leaderCanViewFullReport ?? true,
@@ -681,6 +690,8 @@ export async function POST(req: NextRequest) {
     policy?: {
       showResultsToEmployee?: boolean;
       resultReleaseDelayHours?: number;
+      introDescription?: string;
+      introBullets?: string[];
       postSubmitMessage?: string;
       leaderCanViewFullReport?: boolean;
       reportWorkflow?: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
@@ -721,6 +732,9 @@ export async function POST(req: NextRequest) {
           create: {
             showResultsToEmployee: body.policy?.showResultsToEmployee ?? true,
             resultReleaseDelayHours: body.policy?.resultReleaseDelayHours ?? 0,
+            introDescription:
+              body.policy?.introDescription || DEFAULT_ASSESSMENT_INTRO_DESCRIPTION,
+            introBullets: body.policy?.introBullets ?? DEFAULT_ASSESSMENT_INTRO_BULLETS,
             postSubmitMessage:
               body.policy?.postSubmitMessage || "Thanks for completing your assessment.",
             leaderCanViewFullReport: body.policy?.leaderCanViewFullReport ?? true,

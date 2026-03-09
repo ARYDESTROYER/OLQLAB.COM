@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
+import {
+  normalizeAssessmentIntroBullets,
+  normalizeAssessmentIntroDescription,
+} from "@/lib/assessment-intro";
 
 const validWorkflows = new Set(["AI_STANDARD", "MANUAL_PDF_UPLOAD"]);
 const validQuestionPresentationModes = new Set(["ALL_AT_ONCE", "ONE_AT_A_TIME"]);
@@ -44,6 +48,9 @@ export async function POST(
       ).map((row) => row.id)
     : [];
 
+  const introDescription = normalizeAssessmentIntroDescription(body.introDescription);
+  const introBullets = normalizeAssessmentIntroBullets(body.introBullets);
+
   const updated = await db.assessment.update({
     where: { id },
     data: {
@@ -53,6 +60,8 @@ export async function POST(
           create: {
             showResultsToEmployee: Boolean(body.showResultsToEmployee),
             resultReleaseDelayHours: Number(body.resultReleaseDelayHours || 0),
+            introDescription,
+            introBullets,
             postSubmitMessage: body.postSubmitMessage || "Submitted successfully.",
             leaderCanViewFullReport: Boolean(body.leaderCanViewFullReport),
             reportWorkflow: requestedWorkflow,
@@ -63,6 +72,8 @@ export async function POST(
           update: {
             showResultsToEmployee: Boolean(body.showResultsToEmployee),
             resultReleaseDelayHours: Number(body.resultReleaseDelayHours || 0),
+            introDescription,
+            introBullets,
             postSubmitMessage: body.postSubmitMessage || "Submitted successfully.",
             leaderCanViewFullReport: Boolean(body.leaderCanViewFullReport),
             reportWorkflow: requestedWorkflow,

@@ -58,6 +58,22 @@ type CsvPreviewQuestion = {
   section: string;
 };
 
+type ResultsExportLayout = "WIDE" | "LONG";
+type ResultsExportAttemptStatus = "ALL" | "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED";
+type ResultsExportReportStatus =
+  | "ALL"
+  | "NOT_UPLOADED_YET"
+  | "UPLOADED"
+  | "AWAITING_DELIVERY_TIMER"
+  | "DELIVERED_TO_USER";
+
+type ResultsExportInclude = {
+  participant: boolean;
+  attempt: boolean;
+  report: boolean;
+  answers: boolean;
+};
+
 export default function AssessmentsClient() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [query, setQuery] = useState("");
@@ -83,6 +99,19 @@ export default function AssessmentsClient() {
   const [csvPreviewSummary, setCsvPreviewSummary] = useState<CsvPreviewSummary | null>(null);
   const [csvPreviewQuestions, setCsvPreviewQuestions] = useState<CsvPreviewQuestion[]>([]);
   const [csvIssues, setCsvIssues] = useState<CsvIssue[]>([]);
+  const [resultsExportOpen, setResultsExportOpen] = useState(false);
+  const [resultsExportBusy, setResultsExportBusy] = useState(false);
+  const [resultsExportLayout, setResultsExportLayout] = useState<ResultsExportLayout>("WIDE");
+  const [resultsExportAttemptStatus, setResultsExportAttemptStatus] =
+    useState<ResultsExportAttemptStatus>("ALL");
+  const [resultsExportReportStatus, setResultsExportReportStatus] =
+    useState<ResultsExportReportStatus>("ALL");
+  const [resultsExportInclude, setResultsExportInclude] = useState<ResultsExportInclude>({
+    participant: true,
+    attempt: true,
+    report: true,
+    answers: true,
+  });
 
   // Confirm dialog state
   const [confirmState, setConfirmState] = useState<{
@@ -94,23 +123,31 @@ export default function AssessmentsClient() {
     busy: boolean;
   }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
 
-  const loadAssessments = useCallback(async () => {
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (statusFilter) params.set("status", statusFilter);
-    if (minCompletionRate.trim()) params.set("minCompletionRate", minCompletionRate.trim());
-    if (maxCompletionRate.trim()) params.set("maxCompletionRate", maxCompletionRate.trim());
-    params.set("sortBy", sortBy);
-    params.set("sortOrder", sortOrder);
+  const buildAssessmentQueryParams = useCallback(
+    (options?: { format?: "csv"; limit?: number }) => {
+      const params = new URLSearchParams();
+      if (query.trim()) params.set("q", query.trim());
+      if (statusFilter) params.set("status", statusFilter);
+      if (minCompletionRate.trim()) params.set("minCompletionRate", minCompletionRate.trim());
+      if (maxCompletionRate.trim()) params.set("maxCompletionRate", maxCompletionRate.trim());
+      params.set("sortBy", sortBy);
+      params.set("sortOrder", sortOrder);
+      if (options?.format) params.set("format", options.format);
+      if (typeof options?.limit === "number") params.set("limit", String(options.limit));
+      return params;
+    },
+    [maxCompletionRate, minCompletionRate, query, sortBy, sortOrder, statusFilter],
+  );
 
-    const res = await fetch(`/api/admin/assessments?${params.toString()}`);
+  const loadAssessments = useCallback(async () => {
+    const res = await fetch(`/api/admin/assessments?${buildAssessmentQueryParams().toString()}`);
     const data = await res.json();
     const rows = data.assessments || [];
     setAssessments(rows);
     setSelectedAssessmentIds((prev) =>
       prev.filter((id) => rows.some((row: Assessment) => row.id === id)),
     );
-  }, [maxCompletionRate, minCompletionRate, query, sortBy, sortOrder, statusFilter]);
+  }, [buildAssessmentQueryParams]);
 
   useEffect(() => {
     loadAssessments();
@@ -131,15 +168,7 @@ export default function AssessmentsClient() {
 
   async function exportAssessmentsCsv() {
     try {
-      const params = new URLSearchParams();
-      if (query.trim()) params.set("q", query.trim());
-      if (statusFilter) params.set("status", statusFilter);
-      if (minCompletionRate.trim()) params.set("minCompletionRate", minCompletionRate.trim());
-      if (maxCompletionRate.trim()) params.set("maxCompletionRate", maxCompletionRate.trim());
-      params.set("sortBy", sortBy);
-      params.set("sortOrder", sortOrder);
-      params.set("format", "csv");
-      params.set("limit", "5000");
+      const params = buildAssessmentQueryParams({ format: "csv", limit: 5000 });
 
       const res = await fetch(`/api/admin/assessments?${params.toString()}`);
       if (!res.ok) {
@@ -160,6 +189,100 @@ export default function AssessmentsClient() {
       toast("CSV export started.", "success");
     } catch {
       toast("Failed to export CSV.", "error");
+    }
+  }
+
+  function resetResultsExportState() {
+    setResultsExportLayout("WIDE");
+    setResultsExportAttemptStatus("ALL");
+    setResultsExportReportStatus("ALL");
+    setResultsExportInclude({
+      participant: true,
+      attempt: true,
+      report: true,
+      answers: true,
+    });
+    setResultsExportBusy(false);
+  }
+
+  function toggleResultsExportInclude(key: keyof ResultsExportInclude) {
+    setResultsExportInclude((prev) => ({
+      ...prev,
+      [key]: !prev[key],
+    }));
+  }
+
+  async function resolveResultsAssessmentIds() {
+    if (selectedAssessmentIds.length > 0) {
+      return selectedAssessmentIds;
+    }
+
+    const params = buildAssessmentQueryParams({ limit: 5000 });
+    const res = await fetch(`/api/admin/assessments?${params.toString()}`);
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error((data as { error?: string }).error || "Failed to resolve assessments.");
+    }
+
+    const ids = ((data as { assessments?: Assessment[] }).assessments || []).map(
+      (assessment) => assessment.id,
+    );
+    return ids;
+  }
+
+  async function exportAssessmentResultsCsv() {
+    const includeValues = Object.values(resultsExportInclude);
+    if (!includeValues.some(Boolean)) {
+      toast("Select at least one field group to export.", "error");
+      return;
+    }
+
+    setResultsExportBusy(true);
+    try {
+      const assessmentIds = await resolveResultsAssessmentIds();
+      if (assessmentIds.length === 0) {
+        toast("No assessments match the current export scope.", "error");
+        return;
+      }
+
+      const res = await fetch("/api/admin/assessments/export-results", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          assessmentIds,
+          layout: resultsExportLayout,
+          attemptStatus: resultsExportAttemptStatus,
+          reportStatus: resultsExportReportStatus,
+          include: resultsExportInclude,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast((data as { error?: string }).error || "Failed to export results CSV.", "error");
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `assessment-results-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast("Results export started.", "success");
+      setResultsExportOpen(false);
+      resetResultsExportState();
+    } catch (error) {
+      toast(
+        error instanceof Error ? error.message : "Failed to export results CSV.",
+        "error",
+      );
+    } finally {
+      setResultsExportBusy(false);
     }
   }
 
@@ -567,6 +690,12 @@ export default function AssessmentsClient() {
           >
             Export CSV
           </button>
+          <button
+            className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 transition-colors"
+            onClick={() => setResultsExportOpen(true)}
+          >
+            Export Results
+          </button>
         </div>
 
         <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
@@ -824,6 +953,171 @@ export default function AssessmentsClient() {
                 </ul>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {resultsExportOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold">Export Assessment Results</h3>
+                <p className="mt-1 text-xs text-slate-500">
+                  Export enrolled participants, attempt state, report readiness, and answer data.
+                </p>
+              </div>
+              <button
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                onClick={() => {
+                  setResultsExportOpen(false);
+                  resetResultsExportState();
+                }}
+                disabled={resultsExportBusy}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                  Export Scope
+                </p>
+                <p className="mt-2 text-sm text-slate-700">
+                  {selectedAssessmentIds.length > 0
+                    ? `${selectedAssessmentIds.length} selected assessment${selectedAssessmentIds.length === 1 ? "" : "s"}`
+                    : "All assessments matching the current filters (up to 5,000 rows in the assessment list query)."}
+                </p>
+                <p className="mt-2 text-xs text-slate-500">
+                  Use row selection for a precise subset, or leave selection empty to export the current filtered set.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    Layout
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={resultsExportLayout}
+                    onChange={(e) => setResultsExportLayout(e.target.value as ResultsExportLayout)}
+                    disabled={resultsExportBusy}
+                  >
+                    <option value="WIDE">Wide: one row per participant attempt</option>
+                    <option value="LONG">Long: one row per question response</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    Attempt Status
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={resultsExportAttemptStatus}
+                    onChange={(e) =>
+                      setResultsExportAttemptStatus(
+                        e.target.value as ResultsExportAttemptStatus,
+                      )
+                    }
+                    disabled={resultsExportBusy}
+                  >
+                    <option value="ALL">All attempts</option>
+                    <option value="NOT_STARTED">Not started</option>
+                    <option value="IN_PROGRESS">In progress</option>
+                    <option value="SUBMITTED">Submitted</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                    Report Status
+                  </label>
+                  <select
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    value={resultsExportReportStatus}
+                    onChange={(e) =>
+                      setResultsExportReportStatus(
+                        e.target.value as ResultsExportReportStatus,
+                      )
+                    }
+                    disabled={resultsExportBusy}
+                  >
+                    <option value="ALL">All report states</option>
+                    <option value="NOT_UPLOADED_YET">Not uploaded yet</option>
+                    <option value="UPLOADED">Uploaded</option>
+                    <option value="AWAITING_DELIVERY_TIMER">Awaiting delivery timer</option>
+                    <option value="DELIVERED_TO_USER">Delivered to user</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-slate-200 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                Include Fields
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={resultsExportInclude.participant}
+                    onChange={() => toggleResultsExportInclude("participant")}
+                    disabled={resultsExportBusy}
+                  />
+                  <span>Participant columns: name, email, organisation, manager</span>
+                </label>
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={resultsExportInclude.attempt}
+                    onChange={() => toggleResultsExportInclude("attempt")}
+                    disabled={resultsExportBusy}
+                  />
+                  <span>Attempt columns: status, started at, submitted at, duration</span>
+                </label>
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={resultsExportInclude.report}
+                    onChange={() => toggleResultsExportInclude("report")}
+                    disabled={resultsExportBusy}
+                  />
+                  <span>Report columns: readiness label, raw report state, delivery data</span>
+                </label>
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={resultsExportInclude.answers}
+                    onChange={() => toggleResultsExportInclude("answers")}
+                    disabled={resultsExportBusy}
+                  />
+                  <span>Answer columns: selected option, scale value, or free-text response</span>
+                </label>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">
+                Wide layout produces one row per participant per assessment. Long layout expands each participant into one row per question.
+              </p>
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
+              <button
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50"
+                onClick={resetResultsExportState}
+                disabled={resultsExportBusy}
+              >
+                Reset Options
+              </button>
+              <button
+                className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                onClick={exportAssessmentResultsCsv}
+                disabled={resultsExportBusy}
+              >
+                {resultsExportBusy ? "Preparing Export..." : "Download CSV"}
+              </button>
+            </div>
           </div>
         </div>
       )}

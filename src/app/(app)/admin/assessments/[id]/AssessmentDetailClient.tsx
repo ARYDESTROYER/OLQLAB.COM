@@ -19,6 +19,8 @@ type AssessmentDetail = {
   policy?: {
     showResultsToEmployee: boolean;
     resultReleaseDelayHours: number;
+    introDescription: string;
+    introBullets: string[];
     postSubmitMessage: string;
     leaderCanViewFullReport: boolean;
     reportWorkflow: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
@@ -414,6 +416,10 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     isPublished: false,
     showResultsToEmployee: true,
     resultReleaseDelayHours: 0,
+    introDescription:
+      'You will answer personality items and practical workplace scenarios. There are no "wrong" answers. Choose what best reflects your natural style.',
+    introBulletsText:
+      "Set aside 10-15 minutes without interruption.\nRespond honestly to maximize insight quality.\nYou can complete in one sitting and submit once all questions are answered.",
     postSubmitMessage: "Thanks for completing your assessment.",
     leaderCanViewFullReport: true,
     reportWorkflow: "AI_STANDARD" as "AI_STANDARD" | "MANUAL_PDF_UPLOAD",
@@ -494,6 +500,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             detailData.assessment.policy?.showResultsToEmployee ?? true,
           resultReleaseDelayHours:
             detailData.assessment.policy?.resultReleaseDelayHours ?? 0,
+          introDescription:
+            detailData.assessment.policy?.introDescription ||
+            'You will answer personality items and practical workplace scenarios. There are no "wrong" answers. Choose what best reflects your natural style.',
+          introBulletsText:
+            detailData.assessment.policy?.introBullets?.join("\n") ||
+            "Set aside 10-15 minutes without interruption.\nRespond honestly to maximize insight quality.\nYou can complete in one sitting and submit once all questions are answered.",
           postSubmitMessage:
             detailData.assessment.policy?.postSubmitMessage ||
             "Thanks for completing your assessment.",
@@ -565,10 +577,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   async function savePolicy() {
     setBusy(true);
     try {
+      const introBullets = policyForm.introBulletsText
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
       const res = await fetch(`/api/admin/assessments/${assessmentId}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(policyForm),
+        body: JSON.stringify({
+          ...policyForm,
+          introBullets,
+        }),
       });
       const data = await res.json();
       if (res.ok) toast("Policy saved.", "success");
@@ -2778,6 +2797,30 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           <p className="mt-3 text-xs text-slate-500">
             Question presentation changes only the participant answering flow. Access, scoring, retests, and report generation stay the same.
           </p>
+          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+              Assessment Start Screen
+            </p>
+            <p className="mt-1 text-[11px] text-slate-500">
+              The assessment title is used as the main heading. Customize the intro copy and checklist shown before the participant begins.
+            </p>
+            <textarea
+              className="mt-3 min-h-[100px] w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              value={policyForm.introDescription}
+              onChange={(e) =>
+                setPolicyForm((prev) => ({ ...prev, introDescription: e.target.value }))
+              }
+              placeholder="Intro description"
+            />
+            <textarea
+              className="mt-3 min-h-[120px] w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              value={policyForm.introBulletsText}
+              onChange={(e) =>
+                setPolicyForm((prev) => ({ ...prev, introBulletsText: e.target.value }))
+              }
+              placeholder="One checklist item per line"
+            />
+          </div>
           <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
               Submission Alert Recipients

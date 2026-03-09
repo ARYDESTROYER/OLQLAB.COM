@@ -1024,3 +1024,61 @@ This file is the append-only engineering diary for implementation work in this r
   - Browser QA is still recommended for long SJT assessments to confirm the expanded editing layout remains comfortable at production data sizes.
 - Next step:
   - Browser-smoke one assessment containing SJT, Likert, and Free Text questions and verify save behavior for added/removed options and updated impact deltas.
+
+## Entry 2026-03-09-05
+- Timestamp (UTC): 2026-03-09T00:00:00Z
+- Timestamp (Local): 2026-03-09 (local timezone)
+- Task: Fix participant sign-in email copy, make assessment pre-start content configurable per assessment, and correct participant dashboard visibility metrics.
+- Why: The user requested production-ready copy changes for the magic-link email, assessment-specific intro content before Begin Assessment, removal of the unnecessary Public Landing dashboard card, and investigation of why Published Assessments stayed at 0 despite active access.
+- What changed:
+  - Updated the NextAuth email verification sender to use the requested OLQLab subject/body copy and greet the user by first + last name.
+  - Extended `AssessmentPolicy` with `introDescription` and `introBullets` so each assessment can control the pre-start participant copy.
+  - Reworked `/assessment/[assessmentId]` to use the real assessment title plus policy-backed intro copy/checklist instead of hardcoded generic text.
+  - Extended the admin Assessment Detail Policy tab to edit the participant start-screen intro copy.
+  - Fixed `/dashboard` to compute Published Assessments from active direct/organisation enrollments rather than legacy `assessment.tenantId`, updated the greeting to `Welcome back, Firstname Lastname`, and removed the Public Landing card.
+- How:
+  - Added a Prisma migration for the new policy fields.
+  - Reused the existing enrollment-resolution model to decide which published assessments count for the participant dashboard.
+  - Split the assessment start page into a server-rendered page plus a small client start button so assessment-specific intro data can be loaded safely before render.
+- Validation/output:
+  - Pending lint/build/smoke validation after implementation.
+- Risks/unknowns:
+  - The new assessment intro fields require the latest Prisma migration before production can persist customized copy.
+  - Final browser-level QA is still needed for one assessment with default intro copy and one with customized intro copy.
+- Next step:
+  - Run repository validation, then smoke-test sign-in email copy, assessment start pages, and dashboard metrics against live seeded data.
+
+## Entry 2026-03-09-06
+- Timestamp (UTC): 2026-03-09T01:00:31Z
+- Timestamp (Local): 2026-03-09 06:30:31 IST (+0530)
+- Task: Add configurable assessment-results CSV export from the admin assessments page.
+- Why: Admins needed an export focused on participant attempts and answers, not just assessment library metadata. The workflow had to cover enrolled users who have not started yet, in-progress participants, submitted attempts, and report readiness for both delayed AI and manual-PDF flows.
+- What changed:
+  - Added `POST /api/admin/assessments/export-results`.
+  - Added a results-export modal to `src/app/(app)/admin/assessments/AssessmentsClient.tsx`.
+  - Added export options for:
+    - selected assessments vs current filtered set
+    - `WIDE` vs `LONG` CSV layout
+    - attempt-status filtering
+    - report-status filtering
+    - include toggles for participant, attempt, report, and answer data
+  - Implemented dynamic question-column export for wide layout and row-per-question export for long layout.
+  - Implemented admin-facing report-readiness labels:
+    - `Not uploaded yet`
+    - `Uploaded`
+    - `Awaiting delivery timer`
+    - `Delivered to user`
+  - Updated `guide.md` API, UX, and validation sections to document the new workflow.
+- How:
+  - Reused the existing assessments list filters to resolve the export scope from the UI.
+  - Reused `listResolvedAssessmentUsers(...)` so enrolled-but-not-started participants are included in the export.
+  - Flattened current session answers and report metadata into CSV using the shared `buildCsv(...)` utility.
+  - Added a compatibility fallback for report queries when newer schema relations are unavailable.
+- Validation/output:
+  - Touched-file editor diagnostics for the new route and updated assessments client -> no errors.
+  - Full repo lint/build validation pending after documentation updates.
+- Risks/unknowns:
+  - The current data model still stores only the current live attempt per assessment/user in `QuizSession`; archived report history does not preserve per-question answers, so this export reflects the current attempt state rather than historical answer-by-answer retake history.
+  - Large multi-assessment wide exports can become sparse because question columns are unioned across the selected assessments by design.
+- Next step:
+  - Run full validation and then manually verify both wide and long exports on at least one submitted participant, one in-progress participant, and one not-started enrolled participant.

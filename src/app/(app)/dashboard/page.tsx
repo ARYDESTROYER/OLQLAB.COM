@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getServerAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
 type Role = "ADMIN" | "EMPLOYEE" | "LEADER";
 
@@ -16,13 +17,7 @@ export default async function DashboardPage() {
     return null;
   }
 
-  const [publishedAssessments, mySubmittedCount, userRecord] = await Promise.all([
-    db.assessment.count({
-      where: {
-        tenantId: session.user.tenantId,
-        isPublished: true,
-      },
-    }),
+  const [mySubmittedCount, userRecord] = await Promise.all([
     db.quizSession.count({
       where: {
         userId: session.user.id,
@@ -32,6 +27,10 @@ export default async function DashboardPage() {
     db.user.findUnique({
       where: { id: session.user.id },
       select: {
+        firstName: true,
+        lastName: true,
+        tenantId: true,
+        createdAt: true,
         tenant: {
           select: { name: true },
         },
@@ -39,7 +38,79 @@ export default async function DashboardPage() {
     }),
   ]);
 
+  let publishedAssessments = 0;
+
+  if (userRecord) {
+    try {
+      publishedAssessments = (
+        await db.assessment.findMany({
+          where: {
+            isPublished: true,
+            OR: [
+              {
+                userEnrollments: {
+                  some: {
+                    userId: session.user.id,
+                    active: true,
+                  },
+                },
+              },
+              {
+                tenantEnrollments: {
+                  some: {
+                    tenantId: userRecord.tenantId,
+                    active: true,
+                  },
+                },
+              },
+            ],
+          },
+          select: {
+            id: true,
+            userEnrollments: {
+              where: {
+                userId: session.user.id,
+                active: true,
+              },
+              select: {
+                id: true,
+              },
+            },
+            tenantEnrollments: {
+              where: {
+                tenantId: userRecord.tenantId,
+                active: true,
+              },
+              select: {
+                includeFutureUsers: true,
+                createdAt: true,
+              },
+            },
+          },
+        })
+      ).filter((assessment) => {
+        if (assessment.userEnrollments.length > 0) return true;
+        return assessment.tenantEnrollments.some(
+          (enrollment) => enrollment.includeFutureUsers || userRecord.createdAt <= enrollment.createdAt,
+        );
+      }).length;
+    } catch (error) {
+      if (!isSchemaCompatibilityError(error)) throw error;
+
+      publishedAssessments = await db.assessment.count({
+        where: {
+          tenantId: userRecord.tenantId,
+          isPublished: true,
+        },
+      });
+    }
+  }
+
   const role = session.user.role as Role;
+  const fullName =
+    `${userRecord?.firstName || session.user.firstName || ""} ${userRecord?.lastName || session.user.lastName || ""}`.trim() ||
+    session.user.email ||
+    "Participant";
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:px-10 md:py-12">
@@ -47,7 +118,7 @@ export default async function DashboardPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">OLQLAB Workspace</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Welcome back</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Welcome back, {fullName}</h1>
             <p className="mt-2 text-sm text-slate-600">{session.user.email}</p>
           </div>
           <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
@@ -108,15 +179,6 @@ export default async function DashboardPage() {
             </p>
           </Link>
         )}
-
-        <Link
-          href="/"
-          className="hover-lift rounded-2xl border border-emerald-200 bg-emerald-50/90 p-6 shadow-sm"
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700">Marketing</p>
-          <h2 className="mt-2 text-lg font-semibold text-slate-900">Public Landing</h2>
-          <p className="mt-2 text-sm text-slate-700">Review the public website experience while signed in.</p>
-        </Link>
       </section>
     </main>
   );

@@ -99,6 +99,7 @@ Rules:
   - added relations for enrollments/jobs/overrides/tokens/assessment-competencies
 - `AssessmentPolicy`
   - added: `questionPresentationMode`
+  - added: `introDescription`, `introBullets`
 - `Question`
   - added optional media fields: `imageUrl`, `imageAlt`, `imageCaption`
 - `OptionImpact`
@@ -199,6 +200,15 @@ Neon environment-variable layout:
     - `q`, `status`, `minCompletionRate`, `maxCompletionRate`
     - `sortBy` (`createdAt|updatedAt|title|completionRate|participants`), `sortOrder`, `limit`
   - supports CSV export via `format=csv`
+- `POST /api/admin/assessments/export-results`
+  - exports participant attempt data as CSV for one or more selected assessments
+  - supports layout options:
+    - `WIDE`: one row per participant attempt with dynamic question columns
+    - `LONG`: one row per question response
+  - supports export filters:
+    - `attemptStatus` (`ALL|NOT_STARTED|IN_PROGRESS|SUBMITTED`)
+    - `reportStatus` (`ALL|NOT_UPLOADED_YET|UPLOADED|AWAITING_DELIVERY_TIMER|DELIVERED_TO_USER`)
+  - supports include toggles for participant, attempt, report, and answer field groups
 - `POST /api/admin/assessments` (tenant not required)
 - `GET /api/admin/assessments/:id`
 - `PATCH /api/admin/assessments/:id`
@@ -307,6 +317,7 @@ Rules for question media:
 
 Updated runtime behavior:
 - `/assessment/current` lists only published assessments with active resolved enrollment.
+- `/assessment/:id` uses the assessment title plus policy-backed intro copy/checklist instead of one hardcoded generic pre-start message.
 - `/api/assessment/sessions/start` gates via resolver (not tenant-id match).
 - `/reports/current` lists only submitted reports with app access allowed.
 - `/api/reports/me/:assessmentId` and `/pdf` enforce override/report-mode logic.
@@ -398,6 +409,20 @@ Validation rules:
   - publish selected
   - unpublish selected
   - delete selected (guarded by confirmation)
+- assessments list page includes two export paths:
+  - `Export CSV` for the assessment library rows themselves
+  - `Export Results` for participant attempt/report/answer data
+- results export modal supports:
+  - selected assessments if rows are checked, otherwise the current filtered assessment set
+  - layout choice (`WIDE` or `LONG`)
+  - attempt-status filtering
+  - report-readiness filtering
+  - include toggles for participant fields, attempt timing, report metadata, and answers
+- exported report readiness uses the admin-facing labels:
+  - `Not uploaded yet`
+  - `Uploaded`
+  - `Awaiting delivery timer`
+  - `Delivered to user`
 - "Manage" button opens detail view for enrollment, policy, content editing
 - assessment detail header includes `Test Assessment`, which launches an admin-only preview session into the real participant flow without requiring enrollment
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
@@ -417,6 +442,7 @@ Validation rules:
 - policy tab includes question presentation mode:
   - `ALL_AT_ONCE`: current full-form rendering with all questions on one page
   - `ONE_AT_A_TIME`: guided participant flow with previous/next navigation
+- policy tab also controls the participant pre-start intro copy (`introDescription`) and checklist bullets (`introBullets`) shown before Begin Assessment
 - question presentation mode affects only participant rendering; scoring, access, retests, and report workflows stay unchanged
 - view submitted participant reports from detail page Participants tab
 - clicking "View Report" opens the Google Docs-lite Report Editor (`/admin/reports/[id]`) to review/edit AI drafts or publish them.
@@ -483,6 +509,11 @@ Architecture scenarios to validate manually:
   - clearing an image in admin also clears stale `imageAlt` and `imageCaption`
 13. admin response-review behavior:
   - `/admin/assessments/:id/participants/:userId/responses` shows the same question image/caption metadata that the participant saw
+14. assessment results export behavior:
+  - `Export Results` from `/admin/assessments` includes enrolled users without a started session as `Not started`
+  - `WIDE` layout places one participant-attempt per row and expands question answers into dynamic columns
+  - `LONG` layout places one participant-question pair per row with explicit question metadata and answer fields
+  - report status labels map correctly for manual PDF workflow, delayed auto delivery, and already delivered reports
 
 ## 14. Operational notes
 

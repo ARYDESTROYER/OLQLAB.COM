@@ -220,6 +220,8 @@ model AssessmentPolicy {
   assessmentId            String         @unique
   showResultsToEmployee   Boolean        @default(true)
   resultReleaseDelayHours Int            @default(0)
+  introDescription        String         @default("You will answer personality items and practical workplace scenarios. There are no \"wrong\" answers. Choose what best reflects your natural style.")
+  introBullets            String[]       @default(["Set aside 10-15 minutes without interruption.", "Respond honestly to maximize insight quality.", "You can complete in one sitting and submit once all questions are answered."])
   postSubmitMessage       String
   leaderCanViewFullReport Boolean        @default(true)
   reportWorkflow          ReportWorkflow @default(AI_STANDARD)
