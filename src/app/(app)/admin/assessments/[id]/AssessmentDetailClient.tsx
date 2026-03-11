@@ -146,6 +146,11 @@ type User = {
   role: "ADMIN" | "EMPLOYEE" | "LEADER";
 };
 
+function formatUserOptionLabel(user: User) {
+  const fullName = `${user.firstName} ${user.lastName}`.trim();
+  return fullName ? `${fullName} (${user.email})` : user.email;
+}
+
 type AssessmentAccessData = {
   assessment: {
     id: string;
@@ -401,6 +406,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [adminUsers, setAdminUsers] = useState<User[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userSearchBusy, setUserSearchBusy] = useState(false);
   const [sections, setSections] = useState<AssessmentSection[]>([]);
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [questionForm, setQuestionForm] = useState<QuestionFormState>(() => createQuestionFormState());
@@ -466,26 +473,54 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   );
   const isManualWorkflow = policyForm.reportWorkflow === "MANUAL_PDF_UPLOAD";
 
+  const selectedEnrollmentUser = useMemo(
+    () => users.find((user) => user.id === enrollForm.targetId) || null,
+    [enrollForm.targetId, users],
+  );
+
+  const loadEnrollmentUsers = useCallback(async (query: string) => {
+    setUserSearchBusy(true);
+    try {
+      const params = new URLSearchParams();
+      params.set("scope", "PARTICIPANTS");
+      params.set("sortBy", "name");
+      params.set("sortOrder", "asc");
+      params.set("limit", "50");
+      if (query.trim()) params.set("q", query.trim());
+
+      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast((data as { error?: string }).error || "Failed to load participant options.", "error");
+        return;
+      }
+
+      setUsers(((data as { users?: User[] }).users || []).filter((item) => item.role !== "ADMIN"));
+    } finally {
+      setUserSearchBusy(false);
+    }
+  }, []);
+
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [detailRes, accessRes, participantsRes, jobsRes, tenantsRes, usersRes, questionsRes] = await Promise.all([
+      const [detailRes, accessRes, participantsRes, jobsRes, tenantsRes, adminUsersRes, questionsRes] = await Promise.all([
         fetch(`/api/admin/assessments/${assessmentId}`),
         fetch(`/api/admin/assessments/${assessmentId}/access`),
         fetch(`/api/admin/assessments/${assessmentId}/participants`),
         fetch(`/api/admin/assessments/${assessmentId}/jobs`),
         fetch("/api/admin/tenants"),
-        fetch("/api/admin/users"),
+        fetch("/api/admin/users?role=ADMIN&limit=500&sortBy=name&sortOrder=asc"),
         fetch(`/api/admin/assessments/${assessmentId}/questions`),
       ]);
 
-      const [detailData, accessData, participantsData, jobsData, tenantsData, usersData, questionsData] = await Promise.all([
+      const [detailData, accessData, participantsData, jobsData, tenantsData, adminUsersData, questionsData] = await Promise.all([
         detailRes.json(),
         accessRes.json(),
         participantsRes.json(),
         jobsRes.json(),
         tenantsRes.json(),
-        usersRes.json(),
+        adminUsersRes.json(),
         questionsRes.json(),
       ]);
 
@@ -535,8 +570,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       }
 
       setTenants(tenantsData.tenants || []);
-      setUsers((usersData.users || []).filter((item: User) => item.role !== "ADMIN"));
-      setAdminUsers((usersData.users || []).filter((item: User) => item.role === "ADMIN"));
+      setAdminUsers((adminUsersData.users || []).filter((item: User) => item.role === "ADMIN"));
       if (questionsRes.ok) {
         const nextSections = questionsData.sections || [];
         setSections(nextSections);
@@ -554,6 +588,16 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (tab !== "ACCESS" || enrollForm.scope !== "USER") return;
+
+    const handle = window.setTimeout(() => {
+      void loadEnrollmentUsers(userSearchQuery);
+    }, 250);
+
+    return () => window.clearTimeout(handle);
+  }, [enrollForm.scope, loadEnrollmentUsers, tab, userSearchQuery]);
 
   async function saveContent() {
     setBusy(true);
@@ -2213,26 +2257,59 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 <option value="TENANT">ORGANISATION</option>
               </select>
 
-              <select
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
-                value={enrollForm.targetId}
-                onChange={(e) => setEnrollForm((prev) => ({ ...prev, targetId: e.target.value }))}
-              >
-                <option value="">Select target</option>
-                {enrollForm.scope === "USER"
-                  ? users
-                    .filter((user) => user.role !== "ADMIN")
-                    .map((user) => (
+              {enrollForm.scope === "USER" ? (
+                <div className="space-y-2 md:col-span-2">
+                  <input
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    placeholder="Search participants by name or email"
+                    value={userSearchQuery}
+                    onChange={(e) => {
+                      setUserSearchQuery(e.target.value);
+                      setEnrollForm((prev) => ({ ...prev, targetId: "" }));
+                    }}
+                  />
+                  <select
+                    className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    value={enrollForm.targetId}
+                    onChange={(e) => {
+                      const nextTargetId = e.target.value;
+                      const nextUser = users.find((user) => user.id === nextTargetId) || null;
+                      setEnrollForm((prev) => ({ ...prev, targetId: nextTargetId }));
+                      if (nextUser) setUserSearchQuery(formatUserOptionLabel(nextUser));
+                    }}
+                  >
+                    <option value="">
+                      {userSearchBusy
+                        ? "Searching participants..."
+                        : users.length > 0
+                          ? "Select participant"
+                          : "No matching participants"}
+                    </option>
+                    {users.map((user) => (
                       <option key={user.id} value={user.id}>
-                        {user.firstName} {user.lastName} ({user.email})
+                        {formatUserOptionLabel(user)}
                       </option>
-                    ))
-                  : tenants.map((tenant) => (
+                    ))}
+                  </select>
+                  <p className="text-[11px] text-slate-500">
+                    Search is required once your participant list grows. Showing up to 50 matches at a time.
+                    {selectedEnrollmentUser ? ` Selected: ${formatUserOptionLabel(selectedEnrollmentUser)}.` : ""}
+                  </p>
+                </div>
+              ) : (
+                <select
+                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+                  value={enrollForm.targetId}
+                  onChange={(e) => setEnrollForm((prev) => ({ ...prev, targetId: e.target.value }))}
+                >
+                  <option value="">Select target</option>
+                  {tenants.map((tenant) => (
                     <option key={tenant.id} value={tenant.id}>
                       {tenant.name}
                     </option>
                   ))}
-              </select>
+                </select>
+              )}
 
               <label className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm">
                 <input

@@ -369,7 +369,10 @@ Validation rules:
 ## 12. Admin UX behavior details
 
 ### 12.1 Users section (Participant Directory)
+- add account: toggle between participant and admin creation
 - add user: toggle between "Add to Organisation" (org + email) or "Add Solo Participant" (email only)
+- admin creation is organisation-only; solo creation remains participant-only
+- existing participant accounts can be promoted to admin from the row action menu or the inline edit form
 - bulk add users: CSV-driven import supports either:
   - bulk add into one selected organisation
   - bulk create solo participants (one solo organisation per row)
@@ -384,7 +387,7 @@ Validation rules:
   - delete selected users
 - inspect tests: slide-over panel showing sessions table, report archives
 - inspect access: slide-over panel showing enrolled assessments and access status
-- row-level actions (`Edit`, `Make Solo`, `View Tests`, `View Access`, `Delete Everything`) are dispatched through the shared `ActionMenu` portal component; menu-item clicks must remain portal-safe so document-level outside-click handlers do not cancel the item click before the callback fires
+- row-level actions (`Edit`, `Promote to Admin`, `Make Solo`, `View Tests`, `View Access`, `Delete Everything`) are dispatched through the shared `ActionMenu` portal component; menu-item clicks must remain portal-safe so document-level outside-click handlers do not cancel the item click before the callback fires
 - enrollment/unenrollment managed from Assessment > Access tab (not on users page)
 - SOLO tenants hidden from org dropdowns but users show "(Solo)" label
 - advanced filters and sorting available in-table
@@ -426,6 +429,7 @@ Validation rules:
 - "Manage" button opens detail view for enrollment, policy, content editing
 - assessment detail header includes `Test Assessment`, which launches an admin-only preview session into the real participant flow without requiring enrollment
 - manage explicit user/tenant enrollments from detail page Access tab (includes Report Mode toggle: AUTO/MANUAL and delay settings)
+- user enrollment target selection is search-backed so large participant directories are not limited by the default admin-list pagination window
 - content tab manual question builder supports optional image metadata fields: `imageUrl`, `imageAlt`, `imageCaption`
 - saved question cards expose the full stored question payload inline, including question position/code, prompt, response type, category, scale, section, image metadata, all answer options, and per-option marks / competency impacts
 - saved question cards support inline editing for all stored question content fields available on this screen, including question code, prompt, type, category, scale, trait, reverse scoring, section, image metadata, SJT option rows, and per-option competency delta values
@@ -486,30 +490,38 @@ Architecture scenarios to validate manually:
 6. scheduled job behavior before and after effective time
 7. share-link security checks (invalid/expired/revoked/download-exhausted)
 8. admin section routing and actions under `/admin/users`, `/admin/tenants`, `/admin/assessments`
-9. bulk user CSV import behavior:
+9. admin account workflow:
+  - create a new admin under an organisation from `/admin/users`
+  - promote an existing participant to admin from the row action menu
+  - confirm solo admin creation is blocked
+10. bulk user CSV import behavior:
   - organisation mode respects seat limits and archived-organisation guards
   - solo mode creates one solo organisation per valid row
   - duplicate emails in the same file are skipped clearly
   - emails already attached to other organisations are skipped clearly
-10. question presentation mode behavior:
+11. assessment access user search behavior:
+  - searching by participant name returns matching users beyond the first 100 records
+  - searching by email returns the correct participant quickly
+  - selecting a search result creates the enrollment successfully
+12. question presentation mode behavior:
   - `ALL_AT_ONCE` preserves the existing full assessment flow and submit gating
   - `ONE_AT_A_TIME` restores the first unanswered question on resume and keeps previous/next navigation stable
   - free-text answers persist when leaving a question and again during final submit
-11. shared row-action menu click behavior:
+13. shared row-action menu click behavior:
   - open `Actions` on a user row and confirm `View Tests` opens the inspect panel
   - open `Actions` on a user row and confirm `View Access` opens the inspect panel
   - verify at least one row action in tenants and assessments still fires correctly after the shared menu fix
   - verify clicking outside the menu still dismisses it
   - verify Escape still dismisses it
-12. question image behavior:
+14. question image behavior:
   - questions without image metadata render exactly as before
   - questions with `imageUrl` render the image in both `ALL_AT_ONCE` and `ONE_AT_A_TIME` participant flows
   - SJT image questions still require option selection before submit
   - FREE_TEXT image questions still require non-empty text before submit
   - clearing an image in admin also clears stale `imageAlt` and `imageCaption`
-13. admin response-review behavior:
+15. admin response-review behavior:
   - `/admin/assessments/:id/participants/:userId/responses` shows the same question image/caption metadata that the participant saw
-14. assessment results export behavior:
+16. assessment results export behavior:
   - `Export Results` from `/admin/assessments` includes enrolled users without a started session as `Not started`
   - `WIDE` layout places one participant-attempt per row and expands question answers into dynamic columns
   - `LONG` layout places one participant-question pair per row with explicit question metadata and answer fields

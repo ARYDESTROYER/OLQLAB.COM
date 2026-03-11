@@ -128,6 +128,7 @@ export default function UsersClient() {
 
   // "solo" or "org" mode for the Add User form
   const [addMode, setAddMode] = useState<"org" | "solo">("org");
+  const [createRole, setCreateRole] = useState<"EMPLOYEE" | "ADMIN">("EMPLOYEE");
 
   const [createForm, setCreateForm] = useState({
     tenantId: "",
@@ -281,6 +282,11 @@ export default function UsersClient() {
       return;
     }
 
+    if (addMode === "solo" && createRole === "ADMIN") {
+      toast("Admin accounts must belong to an organisation.", "error");
+      return;
+    }
+
     if (addMode === "org" && !createForm.tenantId) {
       toast("Select an organisation.", "error");
       return;
@@ -290,8 +296,8 @@ export default function UsersClient() {
       email: createForm.email,
       firstName: createForm.firstName || undefined,
       lastName: createForm.lastName || undefined,
-      role: "EMPLOYEE",
-      managerEmail: createForm.managerEmail || undefined,
+      role: createRole,
+      managerEmail: createRole === "ADMIN" ? undefined : createForm.managerEmail || undefined,
     };
 
     if (addMode === "solo") {
@@ -308,7 +314,10 @@ export default function UsersClient() {
 
     const data = await res.json();
     if (res.ok) {
-      toast(`User ${data.user?.email || createForm.email} added.`, "success");
+      toast(
+        `${createRole === "ADMIN" ? "Admin" : "User"} ${data.user?.email || createForm.email} saved.`,
+        "success",
+      );
       setCreateForm((prev) => ({
         ...prev,
         email: "",
@@ -544,7 +553,7 @@ export default function UsersClient() {
           firstName: editForm.firstName,
           lastName: editForm.lastName,
           role: editForm.role,
-          managerEmail: editForm.managerEmail.trim() || null,
+          managerEmail: editForm.role === "ADMIN" ? null : editForm.managerEmail.trim() || null,
         }),
       });
       const data = await res.json();
@@ -554,6 +563,36 @@ export default function UsersClient() {
         await loadUsers();
       } else {
         toast(data.error || "Failed to update user.", "error");
+      }
+    } finally {
+      setBusyUserId("");
+    }
+  }
+
+  async function promoteUserToAdmin(user: UserRow) {
+    if (user.role === "ADMIN") return;
+
+    const confirmed = window.confirm(
+      `Promote ${user.email} to admin? They will gain global admin access.`,
+    );
+    if (!confirmed) return;
+
+    setBusyUserId(user.id);
+    try {
+      const res = await fetch(`/api/admin/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          role: "ADMIN",
+          managerEmail: null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        toast("User promoted to admin.", "success");
+        await loadUsers();
+      } else {
+        toast(data.error || "Failed to promote user.", "error");
       }
     } finally {
       setBusyUserId("");
@@ -756,29 +795,39 @@ export default function UsersClient() {
     const isAdmin = user.role === "ADMIN";
     const isBusy = busyUserId === user.id;
 
-    return [
-      { label: "Edit", onClick: () => startEditUser(user), disabled: isBusy || isAdmin },
-      {
-        label: "Make Solo",
-        onClick: () => makeUserSolo(user),
-        disabled: isBusy || isAdmin || user.tenant?.type === "SOLO",
-      },
+    const actions: ActionItem[] = [
+      { label: "Edit", onClick: () => startEditUser(user), disabled: isBusy },
       { label: "View Tests", onClick: () => openInspect(user, "tests") },
       { label: "View Access", onClick: () => openInspect(user, "access") },
-      {
+    ];
+
+    if (!isAdmin) {
+      actions.splice(1, 0, {
+        label: "Promote to Admin",
+        onClick: () => promoteUserToAdmin(user),
+        disabled: isBusy,
+      });
+      actions.push({
+        label: "Make Solo",
+        onClick: () => makeUserSolo(user),
+        disabled: isBusy || user.tenant?.type === "SOLO",
+      });
+      actions.push({
         label: "Delete Everything",
         onClick: () => requestDeleteUser(user),
         variant: "danger",
-        disabled: isBusy || isAdmin,
-      },
-    ];
+        disabled: isBusy,
+      });
+    }
+
+    return actions;
   }
 
   return (
     <div className="space-y-6">
       {/* ── Add User ── */}
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Add User</h2>
+        <h2 className="text-lg font-semibold">Add Account</h2>
 
         {/* Mode toggle */}
         <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
@@ -800,9 +849,31 @@ export default function UsersClient() {
 
         <p className="mt-2 text-xs text-slate-500">
           {addMode === "org"
-            ? "Add a user to an existing organisation."
+            ? createRole === "ADMIN"
+              ? "Create an admin account inside an existing organisation."
+              : "Add a participant to an existing organisation."
             : "Create an independent participant. They can be grouped into an organisation later."}
         </p>
+
+        <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+          <button
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${createRole === "EMPLOYEE" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            onClick={() => setCreateRole("EMPLOYEE")}
+          >
+            Participant
+          </button>
+          <button
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${createRole === "ADMIN" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+              }`}
+            onClick={() => {
+              setCreateRole("ADMIN");
+              if (addMode === "solo") setAddMode("org");
+            }}
+          >
+            Admin
+          </button>
+        </div>
 
         <div className="mt-3 flex flex-wrap items-end gap-2">
           {addMode === "org" && (
@@ -846,7 +917,7 @@ export default function UsersClient() {
             className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
             onClick={createUser}
           >
-            Add
+            {createRole === "ADMIN" ? "Add Admin" : "Add"}
           </button>
         </div>
 
@@ -855,7 +926,9 @@ export default function UsersClient() {
           className="mt-3 text-xs text-slate-500 hover:text-slate-700 transition-colors"
           onClick={() => setShowOptionalFields(!showOptionalFields)}
         >
-          {showOptionalFields ? "▾ Hide optional fields" : "▸ More options (name, manager)"}
+          {showOptionalFields
+            ? "▾ Hide optional fields"
+            : `▸ More options (name${createRole === "ADMIN" ? "" : ", manager"})`}
         </button>
 
         {showOptionalFields && (
@@ -874,9 +947,10 @@ export default function UsersClient() {
             />
             <input
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-              placeholder="Manager email"
+              placeholder={createRole === "ADMIN" ? "Manager email not used for admins" : "Manager email"}
               value={createForm.managerEmail}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
+              disabled={createRole === "ADMIN"}
             />
           </div>
         )}
@@ -1387,9 +1461,12 @@ export default function UsersClient() {
                               setEditForm((prev) => ({
                                 ...prev,
                                 role: e.target.value as "ADMIN" | "EMPLOYEE" | "LEADER",
+                                managerEmail:
+                                  e.target.value === "ADMIN" ? "" : prev.managerEmail,
                               }))
                             }
                           >
+                            <option value="ADMIN">ADMIN</option>
                             <option value="EMPLOYEE">EMPLOYEE</option>
                             <option value="LEADER">LEADER</option>
                           </select>

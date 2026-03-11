@@ -1082,3 +1082,34 @@ This file is the append-only engineering diary for implementation work in this r
   - Large multi-assessment wide exports can become sparse because question columns are unioned across the selected assessments by design.
 - Next step:
   - Run full validation and then manually verify both wide and long exports on at least one submitted participant, one in-progress participant, and one not-started enrolled participant.
+
+## Entry 2026-03-11-01
+- Timestamp (UTC): 2026-03-11T02:47:01Z
+- Timestamp (Local): 2026-03-11 08:17:01 IST (+0530)
+- Task: Add admin-account management and search-backed participant enrollment targeting.
+- Why: The user needed two operational fixes in the admin console: the ability for an admin to create another admin or promote an existing user to admin, and a scalable way to find participants in Assessment > Access once the user directory exceeded the default 100-row list window.
+- What changed:
+  - Updated `src/app/(app)/admin/users/UsersClient.tsx`:
+    - added participant vs admin account creation toggle in the Add Account panel
+    - blocked solo-admin creation and kept solo creation participant-only
+    - added explicit `Promote to Admin` row action for non-admin users
+    - expanded inline edit role selection to include `ADMIN`
+    - kept destructive/move/solo restrictions for admin rows intact
+  - Updated `src/app/(app)/admin/assessments/[id]/AssessmentDetailClient.tsx`:
+    - removed dependence on the default paginated `/api/admin/users` response for participant enrollment
+    - added search-backed participant lookup for Access > Create Enrollment
+    - limited enrollment search results to focused participant matches while keeping admin alert-recipient loading separate
+  - Updated `guide.md` to document the new admin workflow and access-search expectations.
+- How:
+  - Reused the existing `POST /api/admin/users` and `PATCH /api/admin/users/:id` role support instead of introducing a second admin-management API.
+  - Switched the assessment access picker from preload-and-filter to query-on-search using the existing users admin list endpoint with participant scope and explicit limit/sort params.
+- Validation/output:
+  - Touched-file diagnostics (`UsersClient.tsx`, `AssessmentDetailClient.tsx`) -> no errors.
+  - Full repository validation executed after implementation:
+    - `npm run lint`
+    - `npm run build`
+- Risks/unknowns:
+  - Browser-authenticated manual QA from this shell is still constrained by the lack of an interactive signed-in session, so final click-through verification in the running admin UI remains advisable even after lint/build pass.
+  - Participant enrollment search intentionally returns a capped match set per query; admins still need to type part of the name or email when the directory is large.
+- Next step:
+  - Run one signed-in browser smoke test covering admin creation, participant promotion, and assessment enrollment search before production rollout.
