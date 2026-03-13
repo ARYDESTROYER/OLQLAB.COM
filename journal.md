@@ -1113,3 +1113,46 @@ This file is the append-only engineering diary for implementation work in this r
   - Participant enrollment search intentionally returns a capped match set per query; admins still need to type part of the name or email when the directory is large.
 - Next step:
   - Run one signed-in browser smoke test covering admin creation, participant promotion, and assessment enrollment search before production rollout.
+
+## Entry 2026-03-13-01
+- Timestamp (UTC): 2026-03-13T10:43:41Z
+- Timestamp (Local): 2026-03-13 16:13:41 IST (+0530)
+- Task: Implement admin-managed sign-in settings for magic-link expiry and sign-in email templates without database migration.
+- Why: User requested production-safe admin controls to change magic-link expiry and sign-in email content directly from the admin panel, with strict no-migration rollout requirements.
+- What changed:
+  - Added fail-safe auth settings library `src/lib/admin-auth-settings.ts`.
+    - Blob-backed JSON storage path: `admin-settings/auth-signin.json`
+    - allowed expiry options: `2 | 5 | 10 | 20 | 30 | 60 | 360` minutes
+    - strong payload validation with template placeholder checks
+    - unknown-template-token rejection
+    - default fallback settings + short in-memory cache
+  - Added admin API route `src/app/api/admin/settings/auth-signin/route.ts`.
+    - `GET` returns current settings + defaults + options + storage state
+    - `PATCH` validates and persists settings
+    - `PATCH` returns `503` when settings storage is read-only (missing `BLOB_READ_WRITE_TOKEN`)
+  - Updated auth integration in `src/lib/auth.ts`.
+    - NextAuth verification token expiry is now determined at token-creation time from admin settings
+    - sign-in email subject/text/html now render from admin-configurable templates
+    - robust fallback to defaults when storage/read fails
+  - Added admin settings UI:
+    - `src/app/(app)/admin/settings/page.tsx`
+    - `src/app/(app)/admin/settings/SettingsClient.tsx`
+    - includes expiry dropdown, current-selected display, template editors, reset-to-defaults, save/reload flows, and read-only warning state
+  - Updated admin navigation in `src/app/(app)/admin/layout.tsx` with `Settings` link.
+  - Updated `guide.md` with API, UX, validation, and operations documentation for this feature.
+- How:
+  - Reused established admin route guard pattern (`requireAdmin`) and existing toast-based admin UX style.
+  - Chose Blob JSON storage over Prisma schema changes to satisfy no-migration requirement.
+  - Implemented conservative fallback behavior so auth sign-in remains functional even if settings storage is unavailable.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing warnings in unrelated report-editor/report-format files.
+  - `npm run build` -> passed.
+  - Build route manifest includes:
+    - `/admin/settings`
+    - `/api/admin/settings/auth-signin`
+- Risks/unknowns:
+  - Writable admin settings require `BLOB_READ_WRITE_TOKEN` in target deployment environment.
+  - Existing sign-in links keep their original expiry; settings changes apply to newly generated links only.
+  - End-to-end browser validation for real email delivery and exact expiry timing remains recommended after deployment.
+- Next step:
+  - Push to `main` and run a live smoke test: save each allowed expiry value, request a fresh sign-in link, and verify template-rendered email content.

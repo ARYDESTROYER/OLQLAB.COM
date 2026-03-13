@@ -258,6 +258,18 @@ Neon environment-variable layout:
 - `PATCH /api/admin/reports/:reportId` (Save Draft)
 - `POST /api/admin/reports/:reportId/send` (Publish/Email)
 
+### 7.5 Admin Settings
+- `GET /api/admin/settings/auth-signin`
+  - returns current auth sign-in settings, defaults, allowed expiry options, supported template variables, and storage writability state
+- `PATCH /api/admin/settings/auth-signin`
+  - validates and persists sign-in settings for:
+    - magic-link expiry minutes (`2 | 5 | 10 | 20 | 30 | 60 | 360`)
+    - email subject template
+    - email text template
+    - email HTML template
+  - rejects unsupported template variables and requires `{{magicLinkUrl}}`
+  - returns `503` when settings storage is read-only (missing `BLOB_READ_WRITE_TOKEN`)
+
 ## 8. Canonical payload contracts
 
 Enrollment payload (`POST /api/admin/assessments/:id/enrollments`):
@@ -472,6 +484,35 @@ Validation rules:
   - `openInspect(...)` now checks `res.ok` explicitly
   - unsuccessful responses show a toast and clear panel data instead of leaving partially loaded state
 
+### 12.5 Admin Settings: Sign-in controls
+- admin console now includes `/admin/settings` for auth sign-in controls
+- configurable sign-in link expiry dropdown options:
+  - `2 minutes`
+  - `5 minutes`
+  - `10 minutes`
+  - `20 minutes`
+  - `30 minutes`
+  - `1 hour`
+  - `6 hours`
+- page explicitly shows the currently persisted expiry setting
+- admin can edit sign-in email templates (subject, text, HTML)
+- supported template variables:
+  - `{{firstName}}`
+  - `{{lastName}}`
+  - `{{fullName}}`
+  - `{{magicLinkUrl}}`
+  - `{{expiryLabel}}`
+- validation behavior:
+  - unknown variables are rejected
+  - templates must include `{{magicLinkUrl}}`
+- storage fail-safe behavior:
+  - if Blob settings storage is unavailable, system falls back to safe defaults
+  - settings page remains readable and clearly reports read-only mode
+  - auth sign-in and email sending continue using fallback defaults instead of failing closed
+- runtime effect note:
+  - expiry changes apply only to newly generated sign-in links
+  - already-issued links keep their original expiry
+
 ## 13. Validation checklist
 
 Primary quality gates:
@@ -526,6 +567,12 @@ Architecture scenarios to validate manually:
   - `WIDE` layout places one participant-attempt per row and expands question answers into dynamic columns
   - `LONG` layout places one participant-question pair per row with explicit question metadata and answer fields
   - report status labels map correctly for manual PDF workflow, delayed auto delivery, and already delivered reports
+17. admin sign-in settings behavior:
+  - `/admin/settings` loads current settings and displays persisted expiry value
+  - updating expiry to each allowed option affects newly generated links only
+  - updated text/HTML templates render with correct placeholder substitution
+  - invalid template variables are rejected with a validation error
+  - missing `BLOB_READ_WRITE_TOKEN` yields read-only status in UI and `503` from PATCH while sign-in still works with fallback defaults
 
 ## 14. Operational notes
 
@@ -849,3 +896,32 @@ If the timeout persists after moving Prisma Migrate to `DIRECT_DATABASE_URL`:
 Practical recommendation for this repo:
 - Keep `migrate deploy` only on controlled production rollouts unless Preview has its own database.
 - If Preview and Production share one Neon database, use `npm run build` for normal Preview deploys and run migrations only in the environment you explicitly intend to promote.
+
+## 22. Admin-managed sign-in settings (no migration path)
+
+Goal:
+- allow admins to control magic-link expiry and sign-in email copy without database schema changes
+
+Storage model:
+- settings are persisted to Vercel Blob as JSON at `admin-settings/auth-signin.json`
+- no Prisma models, no schema fields, and no migrations are required for this feature
+
+Fail-safe behavior:
+- auth token creation attempts to read settings; if storage read fails, it falls back to safe defaults
+- email template rendering attempts to read settings; if storage read fails, it falls back to safe defaults
+- settings writes require `BLOB_READ_WRITE_TOKEN`; if missing, admin page is read-only and API returns a clear `503`
+- in-memory cache (short TTL) reduces storage round-trips while keeping updates reasonably fresh
+
+Default sign-in settings:
+- expiry: `30 minutes`
+- subject: `Your OLQLab sign-in link`
+- default text and HTML templates include `{{magicLinkUrl}}` and `{{expiryLabel}}`
+
+Auth integration details:
+- NextAuth verification-token expiry is overridden at adapter token-creation time
+- sign-in email subject/text/HTML are rendered from templates using supported variables
+- template rendering supports optional whitespace inside `{{ ... }}` markers
+
+Operational notes:
+- this feature can be rolled out with a normal push and deploy; there is no migration gate
+- for writable admin settings in deployed environments, ensure `BLOB_READ_WRITE_TOKEN` is set

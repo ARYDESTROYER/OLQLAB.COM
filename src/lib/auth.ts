@@ -1,8 +1,15 @@
 import { getServerSession, type NextAuthOptions } from "next-auth";
+import type { Adapter } from "next-auth/adapters";
 import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
 import { getResend } from "@/lib/resend";
+import {
+  formatMagicLinkExpiryLabel,
+  getAuthSignInSettings,
+  getDefaultAuthSignInSettings,
+  renderSignInEmailTemplate,
+} from "@/lib/admin-auth-settings";
 
 function escapeHtml(input: string) {
   return input
@@ -13,8 +20,29 @@ function escapeHtml(input: string) {
     .replaceAll("'", "&#39;");
 }
 
+const baseAuthAdapter = PrismaAdapter(db) as Adapter;
+const createVerificationToken = baseAuthAdapter.createVerificationToken?.bind(baseAuthAdapter);
+
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(db),
+  adapter: {
+    ...baseAuthAdapter,
+    async createVerificationToken(token) {
+      if (!createVerificationToken) {
+        throw new Error("Auth adapter is missing createVerificationToken implementation.");
+      }
+
+      try {
+        const settings = await getAuthSignInSettings();
+        const expires = new Date(Date.now() + settings.magicLinkExpiryMinutes * 60_000);
+        return await createVerificationToken({ ...token, expires });
+      } catch (error) {
+        console.error("Failed to apply dynamic sign-in token expiry. Using fallback expiry.", error);
+        const fallback = getDefaultAuthSignInSettings();
+        const expires = new Date(Date.now() + fallback.magicLinkExpiryMinutes * 60_000);
+        return await createVerificationToken({ ...token, expires });
+      }
+    },
+  },
   session: { strategy: "database" },
   providers: [
     EmailProvider({
@@ -30,13 +58,47 @@ export const authOptions: NextAuthOptions = {
         const fullName =
           `${existingUser?.firstName || ""} ${existingUser?.lastName || ""}`.trim() || "there";
         const safeFullName = escapeHtml(fullName);
+        const firstName = (existingUser?.firstName || "there").trim() || "there";
+        const lastName = (existingUser?.lastName || "").trim();
+
+        const settings = await getAuthSignInSettings().catch((error) => {
+          console.error("Failed to load auth sign-in settings for email rendering.", error);
+          return getDefaultAuthSignInSettings();
+        });
+        const expiryLabel = formatMagicLinkExpiryLabel(settings.magicLinkExpiryMinutes);
+
+        const renderedSubject = renderSignInEmailTemplate({
+          template: settings.emailSubjectTemplate,
+          firstName,
+          lastName,
+          fullName,
+          magicLinkUrl: url,
+          expiryLabel,
+        });
+        const renderedText = renderSignInEmailTemplate({
+          template: settings.emailTextTemplate,
+          firstName,
+          lastName,
+          fullName,
+          magicLinkUrl: url,
+          expiryLabel,
+        });
+        const renderedHtml = renderSignInEmailTemplate({
+          template: settings.emailHtmlTemplate,
+          firstName: escapeHtml(firstName),
+          lastName: escapeHtml(lastName),
+          fullName: safeFullName,
+          magicLinkUrl: url,
+          expiryLabel: escapeHtml(expiryLabel),
+        });
+
         const resend = getResend();
         await resend.emails.send({
           from: provider.from as string,
           to: identifier,
-          subject: "Your OLQLab Sign in link",
-          text: `Hey ${fullName}, click here to sign in to your OLQLab account: ${url}\n\nIf you did not request this link, you may safely ignore this email.\n\nGood day.\n\nRegards\nOLQLab Admin.`,
-          html: `<p>Hey ${safeFullName}, <a href="${url}">click here</a> to sign in to your OLQLab account.</p><p>If you did not request this link, you may safely ignore this email.</p><p>Good day.</p><p>Regards<br />OLQLab Admin.</p>`,
+          subject: renderedSubject,
+          text: renderedText,
+          html: renderedHtml,
         });
       },
     }),
