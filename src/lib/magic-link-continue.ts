@@ -1,6 +1,23 @@
 const SIGN_IN_CONFIRM_PATH = "/signin/confirm";
 const AUTH_CALLBACK_PATH = "/api/auth/callback/email";
 
+function addOriginFamily(allowed: Set<string>, url: URL) {
+  allowed.add(url.origin);
+
+  const hostname = url.hostname.toLowerCase();
+  const candidateHosts = new Set<string>([hostname]);
+  if (hostname.startsWith("www.")) {
+    candidateHosts.add(hostname.slice(4));
+  } else {
+    candidateHosts.add(`www.${hostname}`);
+  }
+
+  for (const host of candidateHosts) {
+    const normalized = `${url.protocol}//${host}${url.port ? `:${url.port}` : ""}`;
+    allowed.add(normalized);
+  }
+}
+
 function getPublicBaseUrl() {
   const fromNextAuth = process.env.NEXTAUTH_URL?.trim();
   if (fromNextAuth) return fromNextAuth;
@@ -31,10 +48,12 @@ export function validateVerificationCallbackUrl(rawTokenUrl: string) {
   const absolute = parseUrlSafely(trimmed, publicBase);
   if (!absolute) return null;
 
-  const allowedOrigins = new Set<string>([new URL(publicBase).origin]);
+  const allowedOrigins = new Set<string>();
+  addOriginFamily(allowedOrigins, new URL(publicBase));
+
   if (process.env.NEXTAUTH_URL) {
     const maybe = parseUrlSafely(process.env.NEXTAUTH_URL);
-    if (maybe) allowedOrigins.add(maybe.origin);
+    if (maybe) addOriginFamily(allowedOrigins, maybe);
   }
 
   if (!allowedOrigins.has(absolute.origin)) return null;
