@@ -573,6 +573,11 @@ Architecture scenarios to validate manually:
   - updated text/HTML templates render with correct placeholder substitution
   - invalid template variables are rejected with a validation error
   - missing `BLOB_READ_WRITE_TOKEN` yields read-only status in UI and `503` from PATCH while sign-in still works with fallback defaults
+18. two-step magic-link sign-in behavior:
+  - newly requested magic links open `/signin/confirm` first
+  - `/signin/confirm` displays greeting + `Continue to Sign-in` CTA and does not auto-consume token
+  - submitting continue form reaches `/api/auth/continue` and then redirects to `/api/auth/callback/email`
+  - malformed `tokenUrl` values are rejected and redirected safely to `/signin?error=invalid_link`
 
 ## 14. Operational notes
 
@@ -925,3 +930,43 @@ Auth integration details:
 Operational notes:
 - this feature can be rolled out with a normal push and deploy; there is no migration gate
 - for writable admin settings in deployed environments, ensure `BLOB_READ_WRITE_TOKEN` is set
+
+## 23. Two-step magic-link confirmation flow
+
+Goal:
+- reduce enterprise email-security prefetch/scanner consumption of one-time sign-in links
+
+Flow summary:
+1. user requests a magic link from `/signin`
+2. email link opens `/signin/confirm` instead of directly opening `/api/auth/callback/email`
+3. `/signin/confirm` renders a greeting and an explicit `Continue to Sign-in` button
+4. only the explicit user submit triggers `/api/auth/continue` (POST)
+5. `/api/auth/continue` validates the embedded callback URL and then issues a `303` redirect to `/api/auth/callback/email?...`
+6. NextAuth consumes the verification token at the callback stage as before
+
+Implementation details:
+- helper library: `src/lib/magic-link-continue.ts`
+  - builds confirm URL for email templates
+  - validates callback URLs before rendering/continuing
+- confirm page: `src/app/(auth)/signin/confirm/page.tsx`
+  - performs defensive token-url validation before rendering
+  - best-effort name lookup by email for greeting
+  - never auto-redirects to the callback URL
+- continue route: `src/app/api/auth/continue/route.ts`
+  - accepts `POST` only for token consumption flow
+  - rejects malformed/unsafe callback URLs and returns user to safe sign-in error
+- email generation integration: `src/lib/auth.ts`
+  - sign-in email now injects confirm-page URL as `{{magicLinkUrl}}`
+  - token issuance and expiry remain unchanged
+
+Security/robustness notes:
+- callback URL allowlist validation enforces expected path: `/api/auth/callback/email`
+- callback URL origin must match configured public auth origin
+- invalid token-url input is handled safely and does not become an open redirect
+- this is intentionally scanner-resistance hardening, not a complete anti-automation system
+- CSRF/dwell-time/OTP fallback can be layered later if needed
+
+Known behavior:
+- already-issued links from before this rollout still follow old behavior
+- newly issued links follow the two-step confirm flow
+- if enterprise scanners can execute full browser flows including form submit, failures can still occur (less common)

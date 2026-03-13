@@ -1156,3 +1156,36 @@ This file is the append-only engineering diary for implementation work in this r
   - End-to-end browser validation for real email delivery and exact expiry timing remains recommended after deployment.
 - Next step:
   - Push to `main` and run a live smoke test: save each allowed expiry value, request a fresh sign-in link, and verify template-rendered email content.
+
+## Entry 2026-03-13-02
+- Timestamp (UTC): 2026-03-13T12:32:48Z
+- Timestamp (Local): 2026-03-13 18:02:48 IST (+0530)
+- Task: Implement two-step magic-link confirmation flow to reduce scanner-triggered verification failures.
+- Why: Production traces showed repeated `Verification` errors where callback endpoints were hit before successful sign-in, consistent with enterprise link-scanner/prefetch behavior consuming one-time links.
+- What changed:
+  - Added shared helper `src/lib/magic-link-continue.ts` for:
+    - confirm-URL generation for email links
+    - strict callback URL validation (`/api/auth/callback/email`, allowed origin, required token/email query values)
+  - Added confirm page `src/app/(auth)/signin/confirm/page.tsx`:
+    - validates token URL before rendering
+    - greets user by first/last name when available
+    - renders explicit `Continue to Sign-in` form action
+  - Added continue route `src/app/api/auth/continue/route.ts`:
+    - `POST` validates callback URL and performs `303` redirect for token consumption
+    - `GET` is rejected to safe sign-in error route
+  - Updated `src/lib/auth.ts` email rendering path so `{{magicLinkUrl}}` points to `/signin/confirm` instead of direct callback URL.
+- How:
+  - Kept NextAuth token generation and expiry semantics unchanged.
+  - Moved token-consumption step from email-link click to explicit user action on a dedicated page.
+  - Added defensive URL validation in both display and continue steps to avoid open-redirect and malformed-link risks.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors and 3 pre-existing unrelated warnings.
+  - `npm run build` -> passed.
+  - Build route output includes new routes:
+    - `/signin/confirm`
+    - `/api/auth/continue`
+- Risks/unknowns:
+  - Advanced enterprise scanners capable of full browser automation (including form submit) may still consume links in some environments.
+  - Existing links generated before rollout retain old direct-callback behavior.
+- Next step:
+  - Run browser smoke tests with one fresh sign-in link from a scanner-heavy mailbox to confirm the new confirm-step behavior reduces invalid-link incidents.

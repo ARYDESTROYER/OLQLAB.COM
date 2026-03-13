@@ -10,6 +10,7 @@ import {
   getDefaultAuthSignInSettings,
   renderSignInEmailTemplate,
 } from "@/lib/admin-auth-settings";
+import { buildMagicLinkContinueUrl } from "@/lib/magic-link-continue";
 
 function escapeHtml(input: string) {
   return input
@@ -66,13 +67,17 @@ export const authOptions: NextAuthOptions = {
           return getDefaultAuthSignInSettings();
         });
         const expiryLabel = formatMagicLinkExpiryLabel(settings.magicLinkExpiryMinutes);
+        const continueSignInUrl = buildMagicLinkContinueUrl({
+          verificationUrl: url,
+          email: identifier,
+        });
 
         const renderedSubject = renderSignInEmailTemplate({
           template: settings.emailSubjectTemplate,
           firstName,
           lastName,
           fullName,
-          magicLinkUrl: url,
+          magicLinkUrl: continueSignInUrl,
           expiryLabel,
         });
         const renderedText = renderSignInEmailTemplate({
@@ -80,7 +85,7 @@ export const authOptions: NextAuthOptions = {
           firstName,
           lastName,
           fullName,
-          magicLinkUrl: url,
+          magicLinkUrl: continueSignInUrl,
           expiryLabel,
         });
         const renderedHtml = renderSignInEmailTemplate({
@@ -88,7 +93,7 @@ export const authOptions: NextAuthOptions = {
           firstName: escapeHtml(firstName),
           lastName: escapeHtml(lastName),
           fullName: safeFullName,
-          magicLinkUrl: url,
+          magicLinkUrl: continueSignInUrl,
           expiryLabel: escapeHtml(expiryLabel),
         });
 
