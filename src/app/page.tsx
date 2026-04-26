@@ -219,13 +219,14 @@ export default function HomePage() {
       <section className="mx-auto max-w-7xl px-6 py-32 md:px-10 md:py-44">
         <div className="grid gap-16 md:grid-cols-[5fr_7fr] md:gap-24">
           <div className="md:order-1">
-            <div className="image-mask relative aspect-[4/5] w-full overflow-hidden bg-[#101114]/5">
+            <div className="reveal-on-scroll relative aspect-[4/5] w-full overflow-hidden bg-[#101114]/5">
               <Image
                 src="/pratap-pawar.png"
                 alt="Commander (Dr.) Pratap Pawar"
                 fill
                 sizes="(min-width: 768px) 40vw, 100vw"
                 className="editorial-image object-cover"
+                priority
               />
             </div>
             <div className="mt-5 flex items-center">

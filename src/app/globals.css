@@ -286,6 +286,44 @@ body {
   opacity: 1;
 }
 
+/* Hexagon Dial --------------------------------------------- */
+
+.hex-svg .hex-edge {
+  stroke-dasharray: 320;
+  stroke-dashoffset: 320;
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.2, 0.7, 0.1, 1) 0.15s;
+}
+
+.is-revealed .hex-svg .hex-edge {
+  stroke-dashoffset: 0;
+}
+
+.hex-svg .hex-spoke {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+  transition: stroke-dashoffset 0.9s cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.is-revealed .hex-svg .hex-spoke {
+  stroke-dashoffset: 0;
+}
+
+.hex-svg .hex-spoke:nth-of-type(1) { transition-delay: 0.55s; }
+.hex-svg .hex-spoke:nth-of-type(2) { transition-delay: 0.62s; }
+.hex-svg .hex-spoke:nth-of-type(3) { transition-delay: 0.69s; }
+.hex-svg .hex-spoke:nth-of-type(4) { transition-delay: 0.76s; }
+.hex-svg .hex-spoke:nth-of-type(5) { transition-delay: 0.83s; }
+.hex-svg .hex-spoke:nth-of-type(6) { transition-delay: 0.90s; }
+
+.hex-svg .hex-node {
+  opacity: 0;
+  transition: opacity 0.55s cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.is-revealed .hex-svg .hex-node {
+  opacity: 1;
+}
+
 /* Region detail panel: text fades each time the active region changes
    (React swaps the element via `key`). */
 @keyframes region-fade {
@@ -522,7 +560,10 @@ body {
   .reveal-words .reveal-word,
   .triangle-svg .triangle-edge,
   .triangle-svg .triangle-median,
-  .triangle-svg .triangle-node {
+  .triangle-svg .triangle-node,
+  .hex-svg .hex-edge,
+  .hex-svg .hex-spoke,
+  .hex-svg .hex-node {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;

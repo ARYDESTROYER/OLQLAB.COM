@@ -4,14 +4,45 @@ import {
   PrimaryCTA,
   TextLink,
 } from "@/components/marketing/Editorial";
+import HexDial from "@/components/marketing/HexDial";
 
-const expertise = [
-  "Culture Diagnostic",
-  "Leadership Blindspot Coaching",
-  "Organisational Development",
-  "Behavioral Analysis",
-  "Executive Coaching",
-  "Talent Management",
+const disciplines = [
+  {
+    code: "culture",
+    label: "Culture Diagnostic",
+    description:
+      "Surface the culture beneath the org chart — what is said versus what is actually done. We map the rituals, defaults, and unspoken rules so you can change the ones that no longer serve you.",
+  },
+  {
+    code: "blindspot",
+    label: "Leadership Blindspot Coaching",
+    description:
+      "The patterns leaders cannot see in themselves, named and worked through. Direct, uncomfortable, kind — and rooted in behavioral science rather than personality labels.",
+  },
+  {
+    code: "od",
+    label: "Organisational Development",
+    description:
+      "Structure, roles, and rituals reshaped to support how people actually work. Less re-org theatre, more operating-system clarity.",
+  },
+  {
+    code: "behavior",
+    label: "Behavioral Analysis",
+    description:
+      "Decoding what behavior signals about capability, fit, and growth potential. Evidence-based reads instead of gut calls dressed up as judgment.",
+  },
+  {
+    code: "exec",
+    label: "Executive Coaching",
+    description:
+      "One-on-one work for senior leaders carrying weight that rarely lifts on its own. Confidential, high-frequency, and aimed at change you can measure.",
+  },
+  {
+    code: "talent",
+    label: "Talent Management",
+    description:
+      "Identify, develop, and retain the people whose growth shapes the company's future. Pipelines, succession, and the patient work of building bench strength.",
+  },
 ];
 
 const principles = [
@@ -33,7 +64,8 @@ export default function AboutPage() {
         <div className="reveal-on-scroll">
           <Eyebrow>Founder story</Eyebrow>
           <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-            From command at sea to leadership in the boardroom.
+            From command at sea to leadership in the boardroom
+            <span className="brass-period">.</span>
           </h2>
         </div>
         <div>
@@ -42,36 +74,38 @@ export default function AboutPage() {
             strategy, this journey blends discipline, behavioral science, and human-centered
             leadership development.
           </p>
-          <blockquote className="reveal-on-scroll mt-10 border-l border-[#101114] pl-6 font-display text-[clamp(1.4rem,2.6vw,2.2rem)] leading-[1.22] tracking-[-0.01em]">
+          <blockquote
+            className="reveal-on-scroll mt-10 border-l-2 pl-6 font-display text-[clamp(1.4rem,2.6vw,2.2rem)] leading-[1.22] tracking-[-0.01em]"
+            style={{ borderLeftColor: "#A6824A" }}
+          >
             &ldquo;Leadership is not about volume. It is about understanding people deeply,
             including yourself.&rdquo;
           </blockquote>
         </div>
       </div>
 
-      {/* EXPERTISE */}
+      {/* EXPERTISE — interactive hex dial */}
       <div className="mt-32 md:mt-40">
         <div className="reveal-on-scroll max-w-2xl">
           <Eyebrow>Areas of practice</Eyebrow>
           <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-            Six disciplines, one practice.
+            Six disciplines, one practice
+            <span className="brass-period">.</span>
           </h2>
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
+            Six disciplines, all feeding into a single practice. Hover any vertex of the
+            hexagon to see what we work on inside it.
+          </p>
         </div>
-        <ul className="mt-14 border-y border-[#101114]/12">
-          {expertise.map((item, i) => (
-            <li
-              key={item}
-              className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-6 border-b border-[#101114]/12 py-7 last:border-b-0 md:gap-10 md:py-9"
-            >
-              <span className="font-display text-2xl text-[#101114]/35 md:text-3xl">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <h3 className="font-display text-xl leading-tight tracking-tight md:text-2xl">
-                {item}
-              </h3>
-            </li>
-          ))}
-        </ul>
+
+        <div className="mt-16 md:mt-24">
+          <HexDial
+            disciplines={disciplines}
+            defaultIndex={0}
+            centerLabel="Practice"
+            hint="Hover or tap any node."
+          />
+        </div>
       </div>
 
       {/* HOW IT WORKS */}
@@ -80,7 +114,8 @@ export default function AboutPage() {
           <div className="reveal-on-scroll">
             <Eyebrow>How OLQLAB works</Eyebrow>
             <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-              A practice, not a program.
+              A practice, not a program
+              <span className="brass-period">.</span>
             </h2>
           </div>
           <ol className="border-y border-[#101114]/12 md:border-t-0">
@@ -99,7 +134,9 @@ export default function AboutPage() {
         </div>
 
         <div className="reveal-on-scroll mt-16 flex flex-wrap items-center gap-x-8 gap-y-5">
-          <PrimaryCTA href="/signin" className="cta-shimmer">Sign in</PrimaryCTA>
+          <PrimaryCTA href="/signin" className="cta-shimmer">
+            Sign in
+          </PrimaryCTA>
           <TextLink href="/assessments">Explore assessments</TextLink>
         </div>
       </div>
