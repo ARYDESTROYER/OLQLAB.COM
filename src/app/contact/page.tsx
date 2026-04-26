@@ -22,12 +22,15 @@ export default function ContactPage() {
           </h2>
         </div>
         <div>
-          <p className="reveal-on-scroll text-base leading-relaxed text-[#0B0B0C]/82 md:text-lg">
+          <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/82 md:text-lg">
             Include cohort size, leadership levels, and the timeline you want to run.
             We will recommend the right diagnostic and coaching track.
           </p>
           <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
-            <PrimaryCTA href="mailto:hello@olqlab.com?subject=OLQLAB%20Consultation">
+            <PrimaryCTA
+              href="mailto:hello@olqlab.com?subject=OLQLAB%20Consultation"
+              className="cta-shimmer"
+            >
               Email the team
             </PrimaryCTA>
             <MailLink href="mailto:hello@olqlab.com">hello@olqlab.com</MailLink>
@@ -36,7 +39,7 @@ export default function ContactPage() {
       </div>
 
       <div className="mt-32 md:mt-40">
-        <div className="border-t border-[#0B0B0C]/12" />
+        <div className="border-t border-[#101114]/12" />
       </div>
 
       {/* EXISTING CLIENTS */}
@@ -49,7 +52,7 @@ export default function ContactPage() {
             </h2>
           </div>
           <div>
-            <p className="reveal-on-scroll text-base leading-relaxed text-[#0B0B0C]/82 md:text-lg">
+            <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/82 md:text-lg">
               Access your workspace, assessments, and reports directly.
             </p>
             <div className="reveal-on-scroll mt-12">

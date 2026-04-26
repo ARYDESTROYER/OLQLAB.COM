@@ -39,19 +39,19 @@ export default function CoachingPage() {
             Four stages, one engagement.
           </h2>
         </div>
-        <ol className="border-y border-[#0B0B0C]/12 md:border-t-0">
+        <ol className="border-y border-[#101114]/12 md:border-t-0">
           {steps.map((step, i) => (
             <li
               key={step.title}
-              className="reveal-on-scroll grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 border-b border-[#0B0B0C]/12 py-9 last:border-b-0 md:gap-x-10 md:py-10"
+              className="reveal-on-scroll grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 border-b border-[#101114]/12 py-9 last:border-b-0 md:gap-x-10 md:py-10"
             >
-              <span className="font-display text-2xl text-[#0B0B0C]/35 md:text-3xl">
+              <span className="font-display text-2xl text-[#101114]/35 md:text-3xl">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <h3 className="font-display text-2xl leading-tight tracking-tight md:text-3xl">
                 {step.title}
               </h3>
-              <p className="col-start-2 text-base leading-relaxed text-[#0B0B0C]/72">
+              <p className="col-start-2 text-base leading-relaxed text-[#101114]/72">
                 {step.body}
               </p>
             </li>
@@ -69,12 +69,12 @@ export default function CoachingPage() {
             </h2>
           </div>
           <div>
-            <p className="reveal-on-scroll text-base leading-relaxed text-[#0B0B0C]/82 md:text-lg">
+            <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/82 md:text-lg">
               Designed for senior leaders, managers, and succession-candidate cohorts where
               behavioral shift needs to be measurable and role-relevant.
             </p>
             <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
-              <PrimaryCTA href="/contact">Request a coaching plan</PrimaryCTA>
+              <PrimaryCTA href="/contact" className="cta-shimmer">Request a coaching plan</PrimaryCTA>
               <TextLink href="/assessments">View assessments</TextLink>
             </div>
           </div>

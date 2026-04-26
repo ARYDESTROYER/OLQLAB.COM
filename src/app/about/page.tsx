@@ -37,12 +37,12 @@ export default function AboutPage() {
           </h2>
         </div>
         <div>
-          <p className="reveal-on-scroll text-base leading-relaxed text-[#0B0B0C]/78 md:text-lg">
+          <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/78 md:text-lg">
             From naval operations and high-stakes command environments to multinational people
             strategy, this journey blends discipline, behavioral science, and human-centered
             leadership development.
           </p>
-          <blockquote className="reveal-on-scroll mt-10 border-l border-[#0B0B0C] pl-6 font-display text-[clamp(1.4rem,2.6vw,2.2rem)] leading-[1.22] tracking-[-0.01em]">
+          <blockquote className="reveal-on-scroll mt-10 border-l border-[#101114] pl-6 font-display text-[clamp(1.4rem,2.6vw,2.2rem)] leading-[1.22] tracking-[-0.01em]">
             &ldquo;Leadership is not about volume. It is about understanding people deeply,
             including yourself.&rdquo;
           </blockquote>
@@ -57,13 +57,13 @@ export default function AboutPage() {
             Six disciplines, one practice.
           </h2>
         </div>
-        <ul className="mt-14 border-y border-[#0B0B0C]/12">
+        <ul className="mt-14 border-y border-[#101114]/12">
           {expertise.map((item, i) => (
             <li
               key={item}
-              className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-6 border-b border-[#0B0B0C]/12 py-7 last:border-b-0 md:gap-10 md:py-9"
+              className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-6 border-b border-[#101114]/12 py-7 last:border-b-0 md:gap-10 md:py-9"
             >
-              <span className="font-display text-2xl text-[#0B0B0C]/35 md:text-3xl">
+              <span className="font-display text-2xl text-[#101114]/35 md:text-3xl">
                 {String(i + 1).padStart(2, "0")}
               </span>
               <h3 className="font-display text-xl leading-tight tracking-tight md:text-2xl">
@@ -83,23 +83,23 @@ export default function AboutPage() {
               A practice, not a program.
             </h2>
           </div>
-          <ol className="border-y border-[#0B0B0C]/12 md:border-t-0">
+          <ol className="border-y border-[#101114]/12 md:border-t-0">
             {principles.map((item, i) => (
               <li
                 key={item}
-                className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-x-6 border-b border-[#0B0B0C]/12 py-8 last:border-b-0 md:gap-x-10 md:py-10"
+                className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-x-6 border-b border-[#101114]/12 py-8 last:border-b-0 md:gap-x-10 md:py-10"
               >
-                <span className="font-display text-2xl text-[#0B0B0C]/35 md:text-3xl">
+                <span className="font-display text-2xl text-[#101114]/35 md:text-3xl">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <p className="text-base leading-relaxed text-[#0B0B0C]/82 md:text-lg">{item}</p>
+                <p className="text-base leading-relaxed text-[#101114]/82 md:text-lg">{item}</p>
               </li>
             ))}
           </ol>
         </div>
 
         <div className="reveal-on-scroll mt-16 flex flex-wrap items-center gap-x-8 gap-y-5">
-          <PrimaryCTA href="/signin">Sign in</PrimaryCTA>
+          <PrimaryCTA href="/signin" className="cta-shimmer">Sign in</PrimaryCTA>
           <TextLink href="/assessments">Explore assessments</TextLink>
         </div>
       </div>

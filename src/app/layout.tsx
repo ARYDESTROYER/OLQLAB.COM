@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Instrument_Serif, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
+import CustomCursor from "@/components/effects/CustomCursor";
+import ScrollProgress from "@/components/effects/ScrollProgress";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -31,7 +33,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${plusJakarta.variable} ${instrumentSerif.variable} ${plexMono.variable}`}
     >
-      <body className="min-h-screen bg-[#F4F1EA] text-[#0B0B0C] antialiased">{children}</body>
+      <body className="paper-grain min-h-screen bg-[#EFE8DA] text-[#101114] antialiased">
+        <ScrollProgress />
+        {children}
+        <CustomCursor />
+      </body>
     </html>
   );
 }

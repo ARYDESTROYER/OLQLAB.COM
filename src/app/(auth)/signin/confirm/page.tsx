@@ -27,21 +27,21 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
 
   if (!validated) {
     return (
-      <main className="relative flex min-h-screen flex-col bg-[#F4F1EA] text-[#0B0B0C]">
+      <main className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
         <PublicHeader />
         <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
           <div className="reveal">
             <Eyebrow>Sign-in</Eyebrow>
             <h1 className="font-display mt-8 text-balance text-[clamp(2.25rem,6vw,4.5rem)] leading-[1] tracking-[-0.03em]">
-              This sign-in link is invalid.
+              This sign-in link is invalid<span className="brass-period">.</span>
             </h1>
-            <p className="mt-8 max-w-xl text-base leading-relaxed text-[#0B0B0C]/72 md:text-lg">
+            <p className="mt-8 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
               The link can no longer be used. Request a fresh sign-in link to continue.
             </p>
             <div className="mt-12">
               <Link
                 href="/signin"
-                className="group inline-flex items-center gap-3 bg-[#0B0B0C] px-7 py-4 text-sm font-medium text-[#F4F1EA] transition-colors duration-300 hover:bg-[#1d1d20]"
+                className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20]"
               >
                 <span>Back to sign-in</span>
                 <span
@@ -71,7 +71,7 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
   const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "there";
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-[#F4F1EA] text-[#0B0B0C]">
+    <main className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
       <PublicHeader />
 
       <section className="mx-auto w-full max-w-7xl flex-1 px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
@@ -79,9 +79,9 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
           <div className="reveal">
             <Eyebrow>One last step</Eyebrow>
             <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,7vw,5.5rem)] leading-[0.96] tracking-[-0.03em]">
-              Welcome back, {fullName}.
+              Welcome back, {fullName}<span className="brass-period">.</span>
             </h1>
-            <p className="mt-8 max-w-md text-base leading-relaxed text-[#0B0B0C]/72 md:text-lg">
+            <p className="mt-8 max-w-md text-base leading-relaxed text-[#101114]/72 md:text-lg">
               Click continue below to complete your secure sign-in.
             </p>
           </div>
@@ -90,12 +90,12 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
             <form
               action="/api/auth/continue"
               method="post"
-              className="border-t border-[#0B0B0C]/15 pt-8 md:pt-10"
+              className="border-t border-[#101114]/15 pt-8 md:pt-10"
             >
               <input type="hidden" name="tokenUrl" value={validated.absoluteUrl} />
               <button
                 type="submit"
-                className="group inline-flex items-center gap-3 bg-[#0B0B0C] px-7 py-4 text-sm font-medium text-[#F4F1EA] transition-colors duration-300 hover:bg-[#1d1d20]"
+                className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20]"
               >
                 <span>Continue to sign-in</span>
                 <span
@@ -105,7 +105,7 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
                   →
                 </span>
               </button>
-              <p className="mt-8 text-sm leading-relaxed text-[#0B0B0C]/64">
+              <p className="mt-8 text-sm leading-relaxed text-[#101114]/64">
                 Sign-in is completed only after pressing continue.
               </p>
             </form>

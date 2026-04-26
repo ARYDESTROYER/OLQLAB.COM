@@ -11,7 +11,7 @@ export default async function SignInPage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-[#F4F1EA] text-[#0B0B0C]">
+    <main className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
       <PublicHeader />
       <div className="flex-1">
         <SignInForm />

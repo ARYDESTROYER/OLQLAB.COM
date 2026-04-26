@@ -1,26 +1,33 @@
 @import "tailwindcss";
 
 /* =============================================================
-   Editorial design system — ink + ivory, no accent
+   Editorial design system — warm cream + ink + brass
    ============================================================= */
 
 :root {
-  --ink: #0B0B0C;
-  --ivory: #F4F1EA;
+  --ink: #101114;
+  --ink-soft: #1b1c20;
+  --cream: #EFE8DA;
+  --cream-warm: #F4EEE0;
   --paper: #FBF8F1;
-  --rule: rgba(11, 11, 12, 0.12);
-  --rule-strong: rgba(11, 11, 12, 0.22);
-  --muted: rgba(11, 11, 12, 0.62);
-  --muted-soft: rgba(11, 11, 12, 0.42);
+  --brass: #A6824A;
+  --brass-soft: #C9A777;
+  --rule: rgba(16, 17, 20, 0.12);
+  --rule-strong: rgba(16, 17, 20, 0.22);
+  --muted: rgba(16, 17, 20, 0.62);
+  --muted-soft: rgba(16, 17, 20, 0.42);
 
-  --background: var(--ivory);
+  /* Legacy aliases (kept so the bulk of the codebase compiles unchanged) */
+  --ivory: var(--cream);
+  --background: var(--cream);
   --foreground: var(--ink);
 }
 
 @theme inline {
   --color-ink: var(--ink);
-  --color-ivory: var(--ivory);
+  --color-cream: var(--cream);
   --color-paper: var(--paper);
+  --color-brass: var(--brass);
   --color-rule: var(--rule);
   --color-muted: var(--muted);
   --color-background: var(--background);
@@ -38,7 +45,7 @@ html {
 }
 
 body {
-  background: var(--ivory);
+  background: var(--cream);
   color: var(--ink);
   font-family: var(--font-plus-jakarta), "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -49,7 +56,7 @@ body {
 
 ::selection {
   background: var(--ink);
-  color: var(--ivory);
+  color: var(--cream);
 }
 
 .font-display {
@@ -59,24 +66,55 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* Editorial utilities ---------------------------------------- */
+/* Paper grain overlay --------------------------------------- */
+
+.paper-grain::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.06;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.063 0 0 0 0 0.067 0 0 0 0 0.078 0 0 0 0.9 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  background-size: 200px 200px;
+}
+
+/* Editorial utilities --------------------------------------- */
 
 .eyebrow {
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.28em;
   text-transform: uppercase;
-  color: rgba(11, 11, 12, 0.55);
+  color: var(--muted);
+}
+
+.brass-dot {
+  display: inline-block;
+  vertical-align: middle;
+  height: 0.4rem;
+  width: 0.4rem;
+  border-radius: 9999px;
+  background: var(--brass);
+  margin-right: 0.7rem;
+  transform: translateY(-1px);
+}
+
+.brass-period {
+  color: var(--brass);
 }
 
 .editorial-image {
-  filter: grayscale(1) contrast(1.02);
-  transition: transform 1400ms cubic-bezier(0.2, 0.7, 0.1, 1);
+  filter: grayscale(1) contrast(1.04);
+  transition: transform 1600ms cubic-bezier(0.2, 0.7, 0.1, 1), filter 800ms ease;
 }
 
 .editorial-image:hover {
   transform: scale(1.025);
 }
+
+/* Animated underline ---------------------------------------- */
 
 .link-underline {
   position: relative;
@@ -93,7 +131,7 @@ body {
   background: currentColor;
   transform-origin: right;
   transform: scaleX(0);
-  transition: transform 420ms cubic-bezier(0.2, 0.7, 0.1, 1);
+  transition: transform 480ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 
 .link-underline:hover::after {
@@ -101,22 +139,47 @@ body {
   transform: scaleX(1);
 }
 
-/* Reveal animations ------------------------------------------ */
+/* CTA shimmer ------------------------------------------------ */
+/* Slow brass sheen that crosses the button on hover */
+
+.cta-shimmer {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.cta-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(201, 167, 119, 0.18) 50%, transparent 70%);
+  transform: translateX(-110%);
+  transition: transform 900ms cubic-bezier(0.2, 0.7, 0.1, 1);
+  pointer-events: none;
+}
+
+.cta-shimmer:hover::before {
+  transform: translateX(110%);
+}
+
+.cta-shimmer > * { position: relative; z-index: 1; }
+
+/* Reveal animations ----------------------------------------- */
 
 @keyframes reveal-fade-up {
-  from {
-    opacity: 0;
-    transform: translate3d(0, 1.25rem, 0);
-  }
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
+  from { opacity: 0; transform: translate3d(0, 1.5rem, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes reveal-fade {
   from { opacity: 0; }
   to   { opacity: 1; }
+}
+
+@keyframes word-rise {
+  from { opacity: 0; transform: translate3d(0, 1.1em, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 .reveal {
@@ -130,12 +193,44 @@ body {
 .reveal-delay-3 { animation-delay: 0.48s; }
 .reveal-delay-4 { animation-delay: 0.64s; }
 
+/* Word-by-word reveal for hero headlines */
+.word-rise {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+}
+.word-rise > span {
+  display: inline-block;
+  opacity: 0;
+  animation: word-rise 1.1s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+
+/* Scroll-driven reveal (modern browsers) */
 @supports (animation-timeline: view()) {
   .reveal-on-scroll {
     opacity: 0;
     animation: reveal-fade-up 1ms linear both;
     animation-timeline: view();
-    animation-range: entry 0% cover 28%;
+    animation-range: entry 0% cover 24%;
+  }
+
+  .scale-on-scroll {
+    animation: scale-in 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 35%;
+  }
+
+  .image-mask {
+    clip-path: inset(0 0 100% 0);
+    animation: mask-reveal 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 0% cover 40%;
+  }
+
+  .parallax-slow {
+    animation: parallax-up 1ms linear both;
+    animation-timeline: view();
+    animation-range: entry 0% exit 100%;
   }
 }
 
@@ -145,9 +240,29 @@ body {
     animation: reveal-fade-up 1s cubic-bezier(0.2, 0.7, 0.1, 1) both;
     animation-delay: 0.1s;
   }
+
+  .image-mask {
+    animation: mask-reveal 1.4s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+    animation-delay: 0.15s;
+  }
 }
 
-/* Hero portrait soft entry ----------------------------------- */
+@keyframes scale-in {
+  from { transform: scale(0.985); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+@keyframes mask-reveal {
+  from { clip-path: inset(0 0 100% 0); }
+  to   { clip-path: inset(0 0 0% 0); }
+}
+
+@keyframes parallax-up {
+  from { transform: translate3d(0, 4rem, 0); }
+  to   { transform: translate3d(0, -4rem, 0); }
+}
+
+/* Hero portrait soft entry ---------------------------------- */
 
 .image-rise {
   opacity: 0;
@@ -156,20 +271,202 @@ body {
 }
 
 @keyframes image-rise {
-  to {
-    opacity: 1;
-    transform: translate3d(0, 0, 0) scale(1);
-  }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
 }
 
-/* Reduced motion --------------------------------------------- */
+/* Marquee --------------------------------------------------- */
+
+.marquee {
+  overflow: hidden;
+  white-space: nowrap;
+  mask-image: linear-gradient(90deg, transparent 0, #000 10%, #000 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 10%, #000 90%, transparent 100%);
+}
+
+.marquee-track {
+  display: inline-flex;
+  gap: 4rem;
+  align-items: center;
+  animation: marquee-slide 60s linear infinite;
+  will-change: transform;
+}
+
+@keyframes marquee-slide {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(-50%, 0, 0); }
+}
+
+/* Custom cursor --------------------------------------------- */
+
+.cursor-active {
+  cursor: none;
+}
+.cursor-active a,
+.cursor-active button,
+.cursor-active [role="button"],
+.cursor-active label {
+  cursor: none;
+}
+.cursor-active input,
+.cursor-active textarea,
+.cursor-active [contenteditable="true"] {
+  cursor: text;
+}
+
+.cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: var(--cream);
+  pointer-events: none;
+  z-index: 9999;
+  mix-blend-mode: difference;
+  transform: translate3d(-50%, -50%, 0);
+  transition: width 220ms ease, height 220ms ease, opacity 220ms ease;
+}
+
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--cream);
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 9998;
+  mix-blend-mode: difference;
+  transform: translate3d(-50%, -50%, 0);
+  transition: width 320ms cubic-bezier(0.2, 0.7, 0.1, 1),
+              height 320ms cubic-bezier(0.2, 0.7, 0.1, 1),
+              border-color 320ms ease,
+              opacity 220ms ease;
+}
+
+.cursor-ring--hover {
+  width: 64px;
+  height: 64px;
+  border-color: var(--brass-soft);
+}
+
+.cursor-ring--text {
+  width: 4px;
+  height: 22px;
+  border-radius: 2px;
+  background: var(--cream);
+  border: none;
+  mix-blend-mode: difference;
+}
+
+.cursor-dot--hidden,
+.cursor-ring--hidden {
+  opacity: 0;
+}
+
+/* Scroll progress bar --------------------------------------- */
+
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 9997;
+  background: var(--rule);
+  transform-origin: left;
+  pointer-events: none;
+}
+
+.scroll-progress::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  transform-origin: left;
+  transform: scaleX(var(--scroll-progress, 0));
+  transition: transform 80ms linear;
+}
+
+/* Scroll cue (down arrow at hero bottom) -------------------- */
+
+.scroll-cue {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.scroll-cue__line {
+  position: relative;
+  display: block;
+  width: 1px;
+  height: 36px;
+  background: var(--rule-strong);
+  overflow: hidden;
+}
+
+.scroll-cue__line::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--ink);
+  animation: cue-slide 2.4s cubic-bezier(0.6, 0.05, 0.4, 0.95) infinite;
+}
+
+@keyframes cue-slide {
+  0%   { transform: translateY(-100%); }
+  60%  { transform: translateY(0); }
+  100% { transform: translateY(100%); }
+}
+
+/* Decorative oversized numerals ----------------------------- */
+
+.deco-numeral {
+  position: absolute;
+  font-family: var(--font-instrument-serif), "Times New Roman", serif;
+  letter-spacing: -0.06em;
+  color: var(--ink);
+  opacity: 0.05;
+  pointer-events: none;
+  user-select: none;
+  font-size: clamp(18rem, 36vw, 38rem);
+  line-height: 0.78;
+}
+
+/* Magnetic hover (used by cursor JS data attribute) --------- */
+
+.magnetic {
+  display: inline-block;
+  transition: transform 380ms cubic-bezier(0.2, 0.7, 0.1, 1);
+  will-change: transform;
+}
+
+/* Reduced motion -------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 
   .reveal,
   .reveal-on-scroll,
-  .image-rise {
+  .image-rise,
+  .image-mask,
+  .scale-on-scroll,
+  .parallax-slow {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+    clip-path: none !important;
+  }
+
+  .word-rise > span {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -182,9 +479,32 @@ body {
   }
 
   .link-underline::after { transition: none; }
+
+  .marquee-track,
+  .scroll-cue__line::after,
+  .cta-shimmer::before {
+    animation: none !important;
+  }
+
+  .cta-shimmer:hover::before {
+    transform: translateX(-110%) !important;
+  }
+
+  .cursor-dot,
+  .cursor-ring,
+  .scroll-progress {
+    display: none !important;
+  }
 }
 
-/* Code blocks ------------------------------------------------ */
+/* Touch / coarse pointer ------------------------------------ */
+
+@media (pointer: coarse) {
+  .cursor-active { cursor: auto; }
+  .cursor-dot, .cursor-ring { display: none !important; }
+}
+
+/* Code blocks ----------------------------------------------- */
 
 pre, code, textarea {
   font-family: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo, monospace;

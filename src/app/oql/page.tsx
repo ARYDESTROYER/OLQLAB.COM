@@ -31,13 +31,13 @@ export default function OqlPage() {
         </h2>
       </div>
 
-      <ul className="mt-16 grid gap-x-12 gap-y-0 border-y border-[#0B0B0C]/12 sm:grid-cols-2 sm:gap-x-16 lg:grid-cols-3 lg:gap-x-20">
+      <ul className="mt-16 grid gap-x-12 gap-y-0 border-y border-[#101114]/12 sm:grid-cols-2 sm:gap-x-16 lg:grid-cols-3 lg:gap-x-20">
         {olqs.map((item, i) => (
           <li
             key={item}
-            className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-6 border-b border-[#0B0B0C]/12 py-7 last:border-b-0 md:gap-8 md:py-9"
+            className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-6 border-b border-[#101114]/12 py-7 last:border-b-0 md:gap-8 md:py-9"
           >
-            <span className="font-display text-xl text-[#0B0B0C]/35 md:text-2xl">
+            <span className="font-display text-xl text-[#101114]/35 md:text-2xl">
               {String(i + 1).padStart(2, "0")}
             </span>
             <h3 className="font-display text-lg leading-tight tracking-tight md:text-xl">
@@ -57,12 +57,12 @@ export default function OqlPage() {
             </h2>
           </div>
           <div>
-            <p className="reveal-on-scroll text-base leading-relaxed text-[#0B0B0C]/82 md:text-lg">
+            <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/82 md:text-lg">
               OLQLAB applies these principles as development signals, not labels. The focus is
               to improve leadership effectiveness, team trust, and decision quality over time.
             </p>
             <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
-              <PrimaryCTA href="/framework">Read the CPR Framework</PrimaryCTA>
+              <PrimaryCTA href="/framework" className="cta-shimmer">Read the CPR Framework</PrimaryCTA>
               <TextLink href="/assessments">See assessments</TextLink>
             </div>
           </div>
