@@ -1,78 +1,50 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
 import PublicHeader from "@/components/navigation/PublicHeader";
+import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
 
 export function MarketingChrome({
   title,
   description,
+  eyebrow = "OLQLAB",
   children,
+  tail,
 }: {
   title: string;
   description: string;
+  eyebrow?: string;
   children: ReactNode;
+  /**
+   * Optional full-bleed slot rendered after the body content and before the
+   * footer. Use for dark CTA bands or any block that should span the full
+   * viewport width.
+   */
+  tail?: ReactNode;
 }) {
   return (
-    <main className="relative overflow-hidden pb-20">
-      <div className="ambient-orb animate-aurora-one -top-40 left-[-140px] h-[460px] w-[460px] bg-cyan-300/60" />
-      <div className="ambient-orb animate-aurora-two -right-24 top-24 h-[420px] w-[420px] bg-amber-200/70" />
-      <div className="ambient-orb animate-aurora-three bottom-14 left-1/3 h-[360px] w-[360px] bg-emerald-200/45" />
-
+    <main className="relative min-h-screen bg-[#F4F1EA] text-[#0B0B0C]">
       <PublicHeader />
 
-      <section className="mx-auto mt-10 max-w-7xl px-6 md:px-10">
-        <div className="section-frame glass-panel rounded-[2rem] p-8 md:p-12">
-          <p className="hero-chip">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-500" />
-            OLQLAB Resources
-          </p>
-          <h1 className="font-display mt-5 text-4xl leading-tight text-slate-900 md:text-6xl">{title}</h1>
-          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-700 md:text-base">{description}</p>
+      <section className="mx-auto max-w-7xl px-6 pt-20 pb-20 md:px-10 md:pt-28 md:pb-28">
+        <div className="reveal">
+          <Eyebrow>{eyebrow}</Eyebrow>
         </div>
+        <h1 className="font-display reveal reveal-delay-1 mt-8 max-w-5xl text-balance text-[clamp(2.5rem,7.5vw,7rem)] leading-[0.96] tracking-[-0.03em]">
+          {title}
+        </h1>
+        <p className="reveal reveal-delay-2 mt-8 max-w-2xl text-base leading-relaxed text-[#0B0B0C]/72 md:text-lg">
+          {description}
+        </p>
       </section>
 
-      <section className="mx-auto mt-10 max-w-7xl px-6 md:px-10">{children}</section>
+      <div className="mx-auto max-w-7xl px-6 md:px-10">
+        <div className="border-t border-[#0B0B0C]/12" />
+      </div>
 
-      <footer className="mx-auto mt-16 max-w-7xl px-6 md:px-10">
-        <div className="section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-          <div className="grid gap-6 md:grid-cols-4">
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">About</h4>
-              <div className="mt-3 space-y-2">
-                <Link href="/about" className="block text-sm text-slate-600 hover:text-slate-900">Our Approach</Link>
-                <Link href="/framework" className="block text-sm text-slate-600 hover:text-slate-900">CPR Framework</Link>
-                <Link href="/oql" className="block text-sm text-slate-600 hover:text-slate-900">OLQ Foundations</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Services</h4>
-              <div className="mt-3 space-y-2">
-                <Link href="/assessments" className="block text-sm text-slate-600 hover:text-slate-900">Assessments</Link>
-                <Link href="/coaching" className="block text-sm text-slate-600 hover:text-slate-900">Coaching</Link>
-                <Link href="/blindspot" className="block text-sm text-slate-600 hover:text-slate-900">Blindspot Assessment</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Resources</h4>
-              <div className="mt-3 space-y-2">
-                <Link href="/framework" className="block text-sm text-slate-600 hover:text-slate-900">Framework Notes</Link>
-                <Link href="/contact" className="block text-sm text-slate-600 hover:text-slate-900">Contact</Link>
-                <Link href="/assessments" className="block text-sm text-slate-600 hover:text-slate-900">Offerings</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Connect</h4>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Have questions? We are here to support your leadership journey.
-              </p>
-            </div>
-          </div>
+      <section className="mx-auto max-w-7xl px-6 py-20 md:px-10 md:py-28">{children}</section>
 
-          <div className="mt-7 border-t border-slate-200 pt-7">
-            <p className="text-center text-sm text-slate-600">&copy; 2026 OLQLab. All rights reserved.</p>
-            <p className="mt-2 text-center text-sm text-slate-500">Leadership begins within.</p>
-          </div>
-        </div>
-      </footer>
+      {tail}
+
+      <EditorialFooter />
     </main>
   );
 }

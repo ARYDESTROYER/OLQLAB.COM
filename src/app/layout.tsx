@@ -20,16 +20,18 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OLQLAB",
-  description: "OLQLAB enterprise personality and workstyle assessment program",
+  title: "OLQLAB — Leadership begins within",
+  description:
+    "OLQLAB is a leadership development practice grounded in behavioral science and military-tested wisdom.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className={`${plusJakarta.variable} ${instrumentSerif.variable} ${plexMono.variable} min-h-screen bg-[radial-gradient(circle_at_10%_15%,#d9f9f3_0%,transparent_40%),radial-gradient(circle_at_90%_10%,#fde7b3_0%,transparent_44%),linear-gradient(180deg,#f8fafc,#e2e8f0)] text-slate-900`}>
-        {children}
-      </body>
+    <html
+      lang="en"
+      className={`${plusJakarta.variable} ${instrumentSerif.variable} ${plexMono.variable}`}
+    >
+      <body className="min-h-screen bg-[#F4F1EA] text-[#0B0B0C] antialiased">{children}</body>
     </html>
   );
 }

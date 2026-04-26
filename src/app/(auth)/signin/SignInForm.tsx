@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 
@@ -20,51 +19,78 @@ export default function SignInForm() {
   }
 
   return (
-    <main className="mx-auto max-w-xl space-y-6 p-6 md:p-10">
-      <section className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-8">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div>
-            <h1 className="text-3xl font-semibold tracking-tight">OLQLAB Secure Sign-in</h1>
-            <p className="mt-2 text-sm text-slate-700">Enter your work email. We will send a one-time magic link.</p>
-          </div>
-          <Link
-            href="/"
-            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
-          >
-            Back to Landing
-          </Link>
+    <section className="mx-auto max-w-7xl px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
+      <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
+        <div className="reveal">
+          <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[#0B0B0C]/55">
+            Sign in
+          </p>
+          <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,7vw,5.5rem)] leading-[0.96] tracking-[-0.03em]">
+            Welcome back.
+          </h1>
+          <p className="mt-8 max-w-md text-base leading-relaxed text-[#0B0B0C]/72 md:text-lg">
+            Enter your work email. We&rsquo;ll send a one-time link to sign you in safely.
+          </p>
         </div>
-      </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <input
-            className="w-full rounded-xl border border-slate-300 px-3 py-3"
-            type="email"
-            required
-            placeholder="you@company.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <button
-            className="w-full rounded-xl bg-slate-900 px-4 py-3 font-medium text-white disabled:opacity-50"
-            disabled={state === "sending"}
-          >
-            {state === "sending" ? "Sending..." : "Send Magic Link"}
-          </button>
-        </form>
+        <div className="reveal reveal-delay-1">
+          <form onSubmit={onSubmit} className="border-t border-[#0B0B0C]/15 pt-8 md:pt-10">
+            <label
+              htmlFor="email"
+              className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#0B0B0C]/55"
+            >
+              Work email
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              placeholder="you@company.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={state === "sending" || state === "sent"}
+              className="font-display mt-3 w-full border-b border-[#0B0B0C]/30 bg-transparent pb-3 text-2xl tracking-tight text-[#0B0B0C] placeholder:text-[#0B0B0C]/30 outline-none transition-colors duration-300 focus:border-[#0B0B0C] disabled:opacity-60 md:text-3xl"
+            />
 
-        {state === "sent" && (
-          <p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-800">
-            Check your inbox for the sign-in link.
-          </p>
-        )}
-        {state === "error" && (
-          <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-800">
-            Could not send sign-in link. Confirm your email is invited.
-          </p>
-        )}
-      </section>
-    </main>
+            <button
+              type="submit"
+              disabled={state === "sending" || state === "sent"}
+              className="group mt-10 inline-flex items-center gap-3 bg-[#0B0B0C] px-7 py-4 text-sm font-medium text-[#F4F1EA] transition-colors duration-300 hover:bg-[#1d1d20] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span>{state === "sending" ? "Sending..." : "Send sign-in link"}</span>
+              <span
+                aria-hidden
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              >
+                →
+              </span>
+            </button>
+
+            {state === "sent" && (
+              <p className="mt-8 border-l border-[#0B0B0C] pl-5 font-display text-xl leading-snug tracking-tight">
+                Check your inbox. A sign-in link is on its way.
+              </p>
+            )}
+            {state === "error" && (
+              <p className="mt-8 border-l border-[#0B0B0C] pl-5 text-base leading-relaxed text-[#0B0B0C]/82">
+                We couldn&rsquo;t send the sign-in link. Confirm your email is invited and try
+                again.
+              </p>
+            )}
+
+            <p className="mt-12 text-sm leading-relaxed text-[#0B0B0C]/64">
+              Not invited yet?{" "}
+              <a
+                href="/contact"
+                className="link-underline text-[#0B0B0C] transition-colors hover:text-[#0B0B0C]"
+              >
+                Get in touch
+              </a>
+              .
+            </p>
+          </form>
+        </div>
+      </div>
+    </section>
   );
 }

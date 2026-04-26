@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { MarketingChrome } from "@/components/marketing/MarketingChrome";
+import { Eyebrow, PrimaryCTA, TextLink } from "@/components/marketing/Editorial";
 
 const olqs = [
   "Effective Intelligence",
@@ -19,33 +19,54 @@ const olqs = [
 export default function OqlPage() {
   return (
     <MarketingChrome
-      title="Officer-Like Qualities Foundations"
+      eyebrow="Foundations"
+      title="Officer-like qualities, translated."
       description="Military-tested leadership qualities translated for modern corporate leadership and people development."
     >
-      <div className="space-y-6">
-        <article className="section-frame glass-panel rounded-[2rem] p-7 md:p-9">
-          <h2 className="font-display text-3xl leading-tight text-slate-900 md:text-4xl">Core Quality Set</h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {olqs.map((item) => (
-              <div key={item} className="rounded-xl border border-slate-200 bg-white/80 p-3 text-sm text-slate-700">
-                {item}
-              </div>
-            ))}
-          </div>
-        </article>
+      {/* QUALITIES */}
+      <div className="reveal-on-scroll max-w-2xl">
+        <Eyebrow>The core quality set</Eyebrow>
+        <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.75rem)] leading-[1.02] tracking-[-0.025em]">
+          Twelve qualities. One leader.
+        </h2>
+      </div>
 
-        <article className="section-frame glass-panel rounded-[2rem] p-7 md:p-9">
-          <p className="text-sm leading-relaxed text-slate-700 md:text-base">
-            OLQLAB applies these principles as development signals, not labels. The focus is to improve leadership
-            effectiveness, team trust, and decision quality over time.
-          </p>
-          <Link
-            href="/framework"
-            className="mt-5 inline-block rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
+      <ul className="mt-16 grid gap-x-12 gap-y-0 border-y border-[#0B0B0C]/12 sm:grid-cols-2 sm:gap-x-16 lg:grid-cols-3 lg:gap-x-20">
+        {olqs.map((item, i) => (
+          <li
+            key={item}
+            className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-6 border-b border-[#0B0B0C]/12 py-7 last:border-b-0 md:gap-8 md:py-9"
           >
-            Read CPR Framework
-          </Link>
-        </article>
+            <span className="font-display text-xl text-[#0B0B0C]/35 md:text-2xl">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <h3 className="font-display text-lg leading-tight tracking-tight md:text-xl">
+              {item}
+            </h3>
+          </li>
+        ))}
+      </ul>
+
+      {/* APPLICATION */}
+      <div className="mt-32 md:mt-40">
+        <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
+          <div className="reveal-on-scroll">
+            <Eyebrow>In application</Eyebrow>
+            <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
+              Signals, not labels.
+            </h2>
+          </div>
+          <div>
+            <p className="reveal-on-scroll text-base leading-relaxed text-[#0B0B0C]/82 md:text-lg">
+              OLQLAB applies these principles as development signals, not labels. The focus is
+              to improve leadership effectiveness, team trust, and decision quality over time.
+            </p>
+            <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
+              <PrimaryCTA href="/framework">Read the CPR Framework</PrimaryCTA>
+              <TextLink href="/assessments">See assessments</TextLink>
+            </div>
+          </div>
+        </div>
       </div>
     </MarketingChrome>
   );

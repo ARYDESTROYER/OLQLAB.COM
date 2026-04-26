@@ -1,33 +1,45 @@
-import Link from "next/link";
 import { MarketingChrome } from "@/components/marketing/MarketingChrome";
+import {
+  Eyebrow,
+  PrimaryCTA,
+  GhostCTA,
+  TextLink,
+} from "@/components/marketing/Editorial";
 
 const assessments = [
   {
-    title: "C Assessment",
+    code: "C",
+    title: "Cognitive",
     text: "Understand strategic thinking, decision discipline, and pattern recognition under complexity.",
   },
   {
-    title: "P Assessment",
+    code: "P",
+    title: "Personality",
     text: "Map communication style, relational impact, and leadership presence across stakeholders.",
   },
   {
-    title: "R Assessment",
+    code: "R",
+    title: "Response",
     text: "Measure resilience, adaptability, and pressure-response behavior in practical work scenarios.",
   },
   {
-    title: "CP Assessment",
+    code: "CP",
+    title: "Visionary",
     text: "Combine strategy and influence to evaluate visionary leadership potential.",
   },
   {
-    title: "PR Assessment",
+    code: "PR",
+    title: "Empathetic Strategist",
     text: "Blend empathy and resilience to understand team-centered leadership under pressure.",
   },
   {
-    title: "CR Assessment",
+    code: "CR",
+    title: "Steady Navigator",
     text: "Evaluate analytical consistency and adaptability for high-uncertainty operating environments.",
   },
   {
-    title: "CPR Comprehensive",
+    code: "CPR",
+    title: "Comprehensive",
     text: "Full-spectrum leadership profile with integrated development priorities and coaching actions.",
   },
 ];
@@ -35,43 +47,61 @@ const assessments = [
 export default function AssessmentsPage() {
   return (
     <MarketingChrome
-      title="Leadership Assessments"
+      eyebrow="Assessments"
+      title="Mapping leadership behavior."
       description="Choose focused or combined tracks to map leadership behavior and translate insight into action."
+      tail={<CohortCTA />}
     >
-      <div className="space-y-6">
-        <article className="section-frame glass-panel rounded-[2rem] p-7 md:p-9">
-          <h2 className="font-display text-3xl leading-tight text-slate-900 md:text-4xl">Assessment Catalogue</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {assessments.map((item) => (
-              <div key={item.title} className="hover-lift feature-card rounded-2xl p-5">
-                <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.text}</p>
-              </div>
-            ))}
-          </div>
-        </article>
+      {/* CATALOGUE */}
+      <div className="reveal-on-scroll max-w-2xl">
+        <Eyebrow>The catalogue</Eyebrow>
+        <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.75rem)] leading-[1.02] tracking-[-0.025em]">
+          Seven tracks. One leader.
+        </h2>
+      </div>
 
-        <article className="cta-panel relative overflow-hidden rounded-[2rem] p-8 text-white md:p-10">
-          <h2 className="font-display text-3xl leading-tight md:text-4xl">Ready to run your first cohort?</h2>
-          <p className="mt-3 max-w-3xl text-sm text-slate-300 md:text-base">
-            Start with a guided diagnostic program and get participant insights, leadership reports, and rollout support.
-          </p>
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              href="/contact"
-              className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
-            >
-              Contact Team
-            </Link>
-            <Link
-              href="/signin"
-              className="rounded-xl border border-slate-500 bg-slate-800/80 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
-            >
-              Sign In
-            </Link>
-          </div>
-        </article>
+      <ul className="mt-16 border-y border-[#0B0B0C]/12">
+        {assessments.map((a) => (
+          <li
+            key={a.code}
+            className="reveal-on-scroll grid grid-cols-[6rem_1fr] items-baseline gap-x-6 border-b border-[#0B0B0C]/12 py-10 last:border-b-0 md:grid-cols-[10rem_minmax(0,18rem)_1fr] md:gap-x-12 md:py-14"
+          >
+            <p className="font-display text-3xl leading-none tracking-[-0.02em] md:text-5xl">
+              {a.code}
+            </p>
+            <h3 className="font-display text-2xl leading-tight tracking-tight md:text-3xl">
+              {a.title}
+            </h3>
+            <p className="col-start-1 col-span-2 mt-3 text-base leading-relaxed text-[#0B0B0C]/72 md:col-start-3 md:col-span-1 md:mt-0 md:text-lg">
+              {a.text}
+            </p>
+          </li>
+        ))}
+      </ul>
+
+      <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
+        <PrimaryCTA href="/signin">Begin an assessment</PrimaryCTA>
+        <TextLink href="/framework">Read the framework</TextLink>
       </div>
     </MarketingChrome>
+  );
+}
+
+function CohortCTA() {
+  return (
+    <section className="bg-[#0B0B0C] text-[#F4F1EA]">
+      <div className="mx-auto max-w-5xl px-6 py-24 text-center md:px-10 md:py-32">
+        <h2 className="font-display reveal-on-scroll text-balance text-[clamp(2.25rem,6vw,5rem)] leading-[1.02] tracking-[-0.025em]">
+          Ready to run your first cohort?
+        </h2>
+        <p className="reveal-on-scroll mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[#F4F1EA]/72 md:text-lg">
+          Start with a guided diagnostic program and get participant insights, leadership
+          reports, and rollout support.
+        </p>
+        <div className="reveal-on-scroll mt-10 flex flex-wrap justify-center gap-x-8 gap-y-5">
+          <GhostCTA href="/contact">Contact the team</GhostCTA>
+        </div>
+      </div>
+    </section>
   );
 }
