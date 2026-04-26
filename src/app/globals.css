@@ -261,6 +261,48 @@ body {
   clip-path: inset(0 0 0% 0);
 }
 
+/* CPR Triangle ---------------------------------------------- */
+/* Triangle outline + medians draw themselves when the parent element
+   gets `is-revealed`. Nodes then fade in with a staggered delay. */
+
+.triangle-svg .triangle-edge,
+.triangle-svg .triangle-median {
+  stroke-dasharray: 320;
+  stroke-dashoffset: 320;
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.2, 0.7, 0.1, 1) 0.15s;
+}
+
+.is-revealed .triangle-svg .triangle-edge,
+.is-revealed .triangle-svg .triangle-median {
+  stroke-dashoffset: 0;
+}
+
+.triangle-svg .triangle-node {
+  opacity: 0;
+  transition: opacity 0.55s cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.is-revealed .triangle-svg .triangle-node {
+  opacity: 1;
+}
+
+/* Region detail panel: text fades each time the active region changes
+   (React swaps the element via `key`). */
+@keyframes region-fade {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 0.45rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-region-fade {
+  animation: region-fade 0.45s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+
 /* Word-by-word reveal triggered on scroll. Apply `.reveal-words` to the
    container; each child .reveal-word fades up with a per-word delay derived
    from --i. */
@@ -477,12 +519,20 @@ body {
   .image-rise,
   .image-mask,
   .scale-on-scroll,
-  .reveal-words .reveal-word {
+  .reveal-words .reveal-word,
+  .triangle-svg .triangle-edge,
+  .triangle-svg .triangle-median,
+  .triangle-svg .triangle-node {
     animation: none !important;
     transition: none !important;
     opacity: 1 !important;
     transform: none !important;
     clip-path: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .animate-region-fade {
+    animation: none !important;
   }
 
   .word-rise > span {

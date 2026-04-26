@@ -1,5 +1,6 @@
 import { MarketingChrome } from "@/components/marketing/MarketingChrome";
 import { Eyebrow, PrimaryCTA, TextLink } from "@/components/marketing/Editorial";
+import CprTriangle from "@/components/marketing/CprTriangle";
 
 const dimensions = [
   {
@@ -25,14 +26,53 @@ const dimensions = [
   },
 ];
 
-const archetypes = [
-  { code: "C", title: "Strategic Thinker" },
-  { code: "P", title: "Relational Leader" },
-  { code: "R", title: "Resilient Leader" },
-  { code: "CP", title: "Visionary" },
-  { code: "PR", title: "Empathetic Strategist" },
-  { code: "CR", title: "Steady Navigator" },
-  { code: "CPR", title: "Balanced Leader" },
+const archetypeRegions: {
+  code: "C" | "P" | "R" | "CP" | "PR" | "CR" | "CPR";
+  label: string;
+  description: string;
+}[] = [
+  {
+    code: "C",
+    label: "Strategic Thinker",
+    description:
+      "Pattern recognition under complexity. Decision discipline. The C-led leader brings analytical clarity to ambiguous problems.",
+  },
+  {
+    code: "P",
+    label: "Relational Leader",
+    description:
+      "Trust, presence, and communication. The P-led leader shapes culture through how they show up in the room.",
+  },
+  {
+    code: "R",
+    label: "Resilient Leader",
+    description:
+      "Calm under pressure, adaptive in chaos. The R-led leader holds the line when conditions shift around them.",
+  },
+  {
+    code: "CP",
+    label: "Visionary",
+    description:
+      "Strategy meets influence. Sees what is possible, then brings people along — combining analytical clarity with relational presence.",
+  },
+  {
+    code: "PR",
+    label: "Empathetic Strategist",
+    description:
+      "Reads people and pressure together. Leads team-centered through stress, with empathy as the steadying force.",
+  },
+  {
+    code: "CR",
+    label: "Steady Navigator",
+    description:
+      "Analytical consistency married to adaptability. Reliable judgment in high-uncertainty operating environments.",
+  },
+  {
+    code: "CPR",
+    label: "Balanced Leader",
+    description:
+      "All three dimensions held in proportion. Rare — and worth working toward. The integrated profile most teams need at the top.",
+  },
 ];
 
 export default function FrameworkPage() {
@@ -46,7 +86,8 @@ export default function FrameworkPage() {
       <div className="reveal-on-scroll max-w-2xl">
         <Eyebrow>Three dimensions</Eyebrow>
         <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.75rem)] leading-[1.02] tracking-[-0.025em]">
-          The shape of every leader.
+          The shape of every leader
+          <span className="brass-period">.</span>
         </h2>
       </div>
       <div className="mt-16 grid gap-14 md:grid-cols-3 md:gap-12">
@@ -73,12 +114,13 @@ export default function FrameworkPage() {
         ))}
       </div>
 
-      {/* ARCHETYPES */}
+      {/* ARCHETYPES — interactive triangle */}
       <div className="mt-32 md:mt-40">
         <div className="reveal-on-scroll max-w-2xl">
           <Eyebrow>Seven archetypes</Eyebrow>
           <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.75rem)] leading-[1.02] tracking-[-0.025em]">
-            How the dimensions combine.
+            How the dimensions combine
+            <span className="brass-period">.</span>
           </h2>
           <p className="mt-6 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
             Each leader expresses these dimensions in a unique pattern. Seven recognisable
@@ -86,24 +128,18 @@ export default function FrameworkPage() {
           </p>
         </div>
 
-        <ul className="mt-16 border-y border-[#101114]/12">
-          {archetypes.map((a) => (
-            <li
-              key={a.code}
-              className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-x-8 border-b border-[#101114]/12 py-9 last:border-b-0 md:grid-cols-[10rem_1fr] md:gap-x-12 md:py-12"
-            >
-              <p className="font-display text-3xl leading-none tracking-[-0.02em] md:text-5xl">
-                {a.code}
-              </p>
-              <h3 className="font-display text-2xl leading-tight tracking-tight md:text-3xl">
-                {a.title}
-              </h3>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-16 md:mt-24">
+          <CprTriangle
+            regions={archetypeRegions}
+            defaultActive="CPR"
+            hint="Hover or tap a region of the triangle."
+          />
+        </div>
 
-        <div className="reveal-on-scroll mt-16 flex flex-wrap items-center gap-x-8 gap-y-5">
-          <PrimaryCTA href="/assessments" className="cta-shimmer">Explore assessments</PrimaryCTA>
+        <div className="reveal-on-scroll mt-20 flex flex-wrap items-center gap-x-8 gap-y-5 md:mt-28">
+          <PrimaryCTA href="/assessments" className="cta-shimmer">
+            Explore assessments
+          </PrimaryCTA>
           <TextLink href="/oql">Read the OLQ foundations</TextLink>
         </div>
       </div>

@@ -6,42 +6,54 @@ import {
   TextLink,
 } from "@/components/marketing/Editorial";
 import Magnetic from "@/components/effects/Magnetic";
+import CprTriangle from "@/components/marketing/CprTriangle";
 
-const assessments = [
+const assessmentRegions: {
+  code: "C" | "P" | "R" | "CP" | "PR" | "CR" | "CPR";
+  label: string;
+  description: string;
+}[] = [
   {
     code: "C",
-    title: "Cognitive",
-    text: "Understand strategic thinking, decision discipline, and pattern recognition under complexity.",
+    label: "Cognitive",
+    description:
+      "Understand strategic thinking, decision discipline, and pattern recognition under complexity.",
   },
   {
     code: "P",
-    title: "Personality",
-    text: "Map communication style, relational impact, and leadership presence across stakeholders.",
+    label: "Personality",
+    description:
+      "Map communication style, relational impact, and leadership presence across stakeholders.",
   },
   {
     code: "R",
-    title: "Response",
-    text: "Measure resilience, adaptability, and pressure-response behavior in practical work scenarios.",
+    label: "Response",
+    description:
+      "Measure resilience, adaptability, and pressure-response behavior in practical work scenarios.",
   },
   {
     code: "CP",
-    title: "Visionary",
-    text: "Combine strategy and influence to evaluate visionary leadership potential.",
+    label: "Visionary",
+    description:
+      "Combine strategy and influence to evaluate visionary leadership potential.",
   },
   {
     code: "PR",
-    title: "Empathetic Strategist",
-    text: "Blend empathy and resilience to understand team-centered leadership under pressure.",
+    label: "Empathetic Strategist",
+    description:
+      "Blend empathy and resilience to understand team-centered leadership under pressure.",
   },
   {
     code: "CR",
-    title: "Steady Navigator",
-    text: "Evaluate analytical consistency and adaptability for high-uncertainty operating environments.",
+    label: "Steady Navigator",
+    description:
+      "Evaluate analytical consistency and adaptability for high-uncertainty operating environments.",
   },
   {
     code: "CPR",
-    title: "Comprehensive",
-    text: "Full-spectrum leadership profile with integrated development priorities and coaching actions.",
+    label: "Comprehensive",
+    description:
+      "Full-spectrum leadership profile with integrated development priorities and coaching actions.",
   },
 ];
 
@@ -57,30 +69,24 @@ export default function AssessmentsPage() {
       <div className="reveal-on-scroll max-w-2xl">
         <Eyebrow>The catalogue</Eyebrow>
         <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.75rem)] leading-[1.02] tracking-[-0.025em]">
-          Seven tracks. One leader.
+          Seven tracks. One leader
+          <span className="brass-period">.</span>
         </h2>
+        <p className="mt-6 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
+          Three primary dimensions, three pairings, and one comprehensive read.
+          Hover or tap any region of the diagram to see what each track measures.
+        </p>
       </div>
 
-      <ul className="mt-16 border-y border-[#101114]/12">
-        {assessments.map((a) => (
-          <li
-            key={a.code}
-            className="reveal-on-scroll grid grid-cols-[6rem_1fr] items-baseline gap-x-6 border-b border-[#101114]/12 py-10 last:border-b-0 md:grid-cols-[10rem_minmax(0,18rem)_1fr] md:gap-x-12 md:py-14"
-          >
-            <p className="font-display text-3xl leading-none tracking-[-0.02em] md:text-5xl">
-              {a.code}
-            </p>
-            <h3 className="font-display text-2xl leading-tight tracking-tight md:text-3xl">
-              {a.title}
-            </h3>
-            <p className="col-start-1 col-span-2 mt-3 text-base leading-relaxed text-[#101114]/72 md:col-start-3 md:col-span-1 md:mt-0 md:text-lg">
-              {a.text}
-            </p>
-          </li>
-        ))}
-      </ul>
+      <div className="mt-16 md:mt-24">
+        <CprTriangle
+          regions={assessmentRegions}
+          defaultActive="CPR"
+          hint="Hover or tap a region of the triangle."
+        />
+      </div>
 
-      <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
+      <div className="reveal-on-scroll mt-20 flex flex-wrap items-center gap-x-8 gap-y-5 md:mt-28">
         <Magnetic strength={0.18}>
           <PrimaryCTA href="/signin" className="cta-shimmer">
             Begin an assessment

@@ -156,7 +156,7 @@ export default function HomePage() {
                       <span
                         style={{
                           animationDelay: `${0.18 + i * 0.08}s`,
-                          marginRight: !isLast && !breakAfter ? "0.32em" : 0,
+                          marginRight: isLast ? 0 : "0.32em",
                         }}
                         className="inline-block"
                       >
