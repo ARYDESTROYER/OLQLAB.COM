@@ -5,13 +5,20 @@ import { useEffect } from "react";
 /**
  * Scroll-triggered reveal driver.
  *
- * Watches every element with `.reveal-on-scroll`, `.scale-on-scroll`, or
- * `.image-mask` and toggles `is-revealed` on it the moment it crosses into
- * the viewport. The matching CSS rules in globals.css then transition the
- * element from its hidden state to its revealed state.
+ * Watches every element with `.reveal-on-scroll`, `.scale-on-scroll`,
+ * `.image-mask`, or `.reveal-words` and toggles `is-revealed` on it as it
+ * crosses into / out of the viewport.
  *
- * Re-scans the DOM on each navigation (mutation observer) so client-side
- * route changes pick up freshly-rendered reveal targets.
+ * Bidirectional: animations re-play whenever an element enters the viewport
+ * from any direction (scrolling down past it, then scrolling back up — both
+ * trigger a fresh reveal).
+ *
+ * `rootMargin: "0px 0px -10% 0px"` delays the reveal slightly so elements
+ * animate in once they are comfortably in view rather than the moment they
+ * touch the bottom edge.
+ *
+ * Re-scans on DOM mutations so client-navigated pages pick up newly-mounted
+ * reveal targets.
  */
 export default function ScrollReveal() {
   useEffect(() => {
@@ -36,13 +43,14 @@ export default function ScrollReveal() {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             entry.target.classList.add("is-revealed");
-            observer.unobserve(entry.target);
+          } else {
+            entry.target.classList.remove("is-revealed");
           }
         }
       },
       {
-        threshold: 0.12,
-        rootMargin: "0px 0px -8% 0px",
+        threshold: 0,
+        rootMargin: "0px 0px -10% 0px",
       },
     );
 
@@ -50,15 +58,12 @@ export default function ScrollReveal() {
       document.querySelectorAll(SELECTOR).forEach((el) => {
         if (observed.has(el)) return;
         observed.add(el);
-        // If the element is already in view at mount, the observer will fire
-        // immediately on the first frame. No special-case needed.
         observer.observe(el);
       });
     };
 
     observeAll();
 
-    // Watch for new reveal targets added later (route changes, dynamic UI).
     const mutation = new MutationObserver(() => observeAll());
     mutation.observe(document.body, { childList: true, subtree: true });
 
