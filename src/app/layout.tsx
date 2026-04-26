@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Instrument_Serif, IBM_Plex_Mono } from "next/font/go
 import "./globals.css";
 import CustomCursor from "@/components/effects/CustomCursor";
 import ScrollProgress from "@/components/effects/ScrollProgress";
+import ScrollReveal from "@/components/effects/ScrollReveal";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -35,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <body className="paper-grain min-h-screen bg-[#EFE8DA] text-[#101114] antialiased">
         <ScrollProgress />
+        <ScrollReveal />
         {children}
         <CustomCursor />
       </body>

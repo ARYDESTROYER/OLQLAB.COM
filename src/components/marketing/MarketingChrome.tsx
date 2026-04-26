@@ -70,17 +70,22 @@ function HeroTitle({ title }: { title: string }) {
       className="font-display mt-10 max-w-5xl text-balance text-[clamp(2.5rem,7.5vw,7rem)] leading-[0.96] tracking-[-0.03em]"
     >
       <span className="word-rise" aria-hidden>
-        {words.map((word, i) => (
-          <span key={`${word}-${i}`}>
-            <span
-              style={{ animationDelay: `${0.18 + i * 0.07}s` }}
-              className="inline-block"
-            >
-              {word}
+        {words.map((word, i) => {
+          const isLast = i === words.length - 1;
+          return (
+            <span key={`${word}-${i}`}>
+              <span
+                style={{
+                  animationDelay: `${0.18 + i * 0.07}s`,
+                  marginRight: isLast ? 0 : "0.28em",
+                }}
+                className="inline-block"
+              >
+                {word}
+              </span>
             </span>
-            {i < words.length - 1 ? " " : null}
-          </span>
-        ))}
+          );
+        })}
       </span>
       {trailing ? (
         <span

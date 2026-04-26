@@ -50,8 +50,12 @@ export default function FrameworkPage() {
         </h2>
       </div>
       <div className="mt-16 grid gap-14 md:grid-cols-3 md:gap-12">
-        {dimensions.map((d) => (
-          <div key={d.code} className="reveal-on-scroll border-t border-[#101114] pt-8">
+        {dimensions.map((d, i) => (
+          <div
+            key={d.code}
+            data-stagger={String(i + 1)}
+            className="reveal-on-scroll border-t border-[#101114] pt-8"
+          >
             <div className="flex items-baseline gap-5">
               <p className="font-display text-5xl leading-none tracking-tight text-[#101114]/30">
                 {d.numeral}

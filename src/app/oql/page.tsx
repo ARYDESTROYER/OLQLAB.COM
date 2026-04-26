@@ -35,6 +35,7 @@ export default function OqlPage() {
         {olqs.map((item, i) => (
           <li
             key={item}
+            data-stagger={String((i % 3) + 1)}
             className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-6 border-b border-[#101114]/12 py-7 last:border-b-0 md:gap-8 md:py-9"
           >
             <span className="font-display text-xl text-[#101114]/35 md:text-2xl">

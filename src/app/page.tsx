@@ -148,21 +148,24 @@ export default function HomePage() {
               aria-label="Leadership is a journey within."
             >
               <span className="word-rise" aria-hidden>
-                {heroWords.map((word, i) => (
-                  <span key={word + i}>
-                    <span
-                      style={{ animationDelay: `${0.18 + i * 0.08}s` }}
-                      className="inline-block"
-                    >
-                      {word}
+                {heroWords.map((word, i) => {
+                  const isLast = i === heroWords.length - 1;
+                  const breakAfter = i === 2;
+                  return (
+                    <span key={word + i}>
+                      <span
+                        style={{
+                          animationDelay: `${0.18 + i * 0.08}s`,
+                          marginRight: !isLast && !breakAfter ? "0.32em" : 0,
+                        }}
+                        className="inline-block"
+                      >
+                        {word}
+                      </span>
+                      {breakAfter ? <br className="hidden sm:block" /> : null}
                     </span>
-                    {i === 2 ? (
-                      <br className="hidden sm:block" />
-                    ) : i === heroWords.length - 1 ? null : (
-                      " "
-                    )}
-                  </span>
-                ))}
+                  );
+                })}
               </span>
               <span
                 className="brass-period inline-block"
@@ -204,13 +207,7 @@ export default function HomePage() {
 
       {/* MANIFESTO ------------------------------------------- */}
       <section className="mx-auto max-w-4xl px-6 py-32 md:px-10 md:py-44">
-        <p className="font-display reveal-on-scroll text-balance text-[clamp(1.6rem,3.4vw,3.2rem)] leading-[1.18] tracking-[-0.015em] text-[#101114]/92">
-          We believe true leadership begins with self-awareness. Our assessments reveal not
-          just who you are, but who you are becoming. Through coaching grounded in
-          behavioral science and military-tested wisdom, we help you navigate complexity
-          with grace and lead with authentic impact
-          <span className="brass-period">.</span>
-        </p>
+        <ManifestoReveal />
       </section>
 
       {/* MARQUEE STRIP --------------------------------------- */}
@@ -316,8 +313,12 @@ export default function HomePage() {
           </p>
         </div>
         <div className="mt-20 grid gap-12 md:grid-cols-3 md:gap-10">
-          {dimensions.map((d) => (
-            <div key={d.title} className="reveal-on-scroll border-t border-[#101114] pt-8">
+          {dimensions.map((d, i) => (
+            <div
+              key={d.title}
+              data-stagger={String(i + 1) as "1" | "2" | "3"}
+              className="reveal-on-scroll border-t border-[#101114] pt-8"
+            >
               <p className="font-display text-6xl leading-none tracking-tight text-[#101114]/30">
                 {d.numeral}
               </p>
@@ -346,8 +347,12 @@ export default function HomePage() {
             </h2>
           </div>
           <div className="grid gap-x-12 gap-y-12 sm:grid-cols-2">
-            {benefits.map((b) => (
-              <div key={b.title} className="reveal-on-scroll">
+            {benefits.map((b, i) => (
+              <div
+                key={b.title}
+                data-stagger={String((i % 2) + 1)}
+                className="reveal-on-scroll"
+              >
                 <h3 className="font-display text-2xl leading-tight tracking-tight">
                   {b.title}
                 </h3>
@@ -411,5 +416,34 @@ export default function HomePage() {
 
       <EditorialFooter />
     </main>
+  );
+}
+
+const MANIFESTO =
+  "We believe true leadership begins with self-awareness. Our assessments reveal not just who you are, but who you are becoming. Through coaching grounded in behavioral science and military-tested wisdom, we help you navigate complexity with grace and lead with authentic impact";
+
+function ManifestoReveal() {
+  const words = MANIFESTO.split(" ");
+  return (
+    <p className="reveal-words font-display text-pretty text-[clamp(1.6rem,3.4vw,3.2rem)] leading-[1.18] tracking-[-0.015em] text-[#101114]/92">
+      {words.map((w, i) => (
+        <span
+          key={i}
+          className="reveal-word"
+          style={{
+            ["--i" as never]: i,
+            marginRight: i < words.length - 1 ? "0.22em" : 0,
+          }}
+        >
+          {w}
+        </span>
+      ))}
+      <span
+        className="reveal-word brass-period"
+        style={{ ["--i" as never]: words.length }}
+      >
+        .
+      </span>
+    </p>
   );
 }
