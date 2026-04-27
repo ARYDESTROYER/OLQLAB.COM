@@ -2,13 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { getServerAuthSession } from "@/lib/auth";
 import ProfileMenu from "@/components/navigation/ProfileMenu";
-
-const NAV = [
-  { href: "/about", label: "About" },
-  { href: "/framework", label: "Framework" },
-  { href: "/assessments", label: "Assessments" },
-  { href: "/contact", label: "Contact" },
-];
+import NavLinks from "@/components/navigation/NavLinks";
 
 export default async function PublicHeader() {
   const session = await getServerAuthSession();
@@ -22,30 +16,22 @@ export default async function PublicHeader() {
           <Image
             src="/logo.png"
             alt=""
-            width={36}
-            height={36}
+            width={32}
+            height={32}
             className="rounded-full opacity-90"
             priority
           />
-          <span className="font-display text-xl tracking-tight text-[#101114]">OLQLAB</span>
+          <span className="font-display text-lg tracking-tight text-[#101114]">
+            OLQLAB
+          </span>
         </Link>
 
-        <nav className="hidden items-center gap-9 md:flex">
-          {NAV.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="link-underline text-sm font-medium text-[#101114]/72 transition-colors duration-200 hover:text-[#101114]"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+        <NavLinks />
 
         {!session?.user ? (
           <Link
             href="/signin"
-            className="text-sm font-medium text-[#101114] underline underline-offset-[6px] decoration-[#101114]/30 transition-colors duration-200 hover:decoration-[#101114]"
+            className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
           >
             Sign in
           </Link>
@@ -53,7 +39,7 @@ export default async function PublicHeader() {
           <div className="flex items-center gap-5">
             <Link
               href="/dashboard"
-              className="text-sm font-medium text-[#101114] underline underline-offset-[6px] decoration-[#101114]/30 transition-colors duration-200 hover:decoration-[#101114]"
+              className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
             >
               Dashboard
             </Link>
