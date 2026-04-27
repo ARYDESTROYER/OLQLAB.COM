@@ -4,13 +4,43 @@ import {
   EditorialFooter,
   Eyebrow,
   PrimaryCTA,
+  SecondaryCTA,
   GhostCTA,
   Rule,
-  TextLink,
   Marquee,
-  ScrollCue,
 } from "@/components/marketing/Editorial";
 import Magnetic from "@/components/effects/Magnetic";
+import RotatingBadge from "@/components/marketing/RotatingBadge";
+
+const dimensionsRich = [
+  {
+    code: "C",
+    numeral: "I",
+    title: "Cognitive",
+    subtitle: "How you think",
+    body: "How leaders process complexity, evaluate tradeoffs, and make strategic decisions under constraints.",
+  },
+  {
+    code: "P",
+    numeral: "II",
+    title: "Personality",
+    subtitle: "How you engage",
+    body: "How leaders influence, build trust, and shape culture through presence, communication, and empathy.",
+  },
+  {
+    code: "R",
+    numeral: "III",
+    title: "Response",
+    subtitle: "How you adapt",
+    body: "How leaders remain effective in stress, recover from setbacks, and adapt behavior in changing contexts.",
+  },
+];
+
+const heroStats = [
+  { num: "35", label: "Years lived in leadership" },
+  { num: "3", label: "Dimensions of CPR" },
+  { num: "22", label: "Years naval service" },
+];
 
 const services = [
   {
@@ -24,27 +54,6 @@ const services = [
   {
     title: "Strategic talent and succession",
     body: "Identify emerging talent, nurture pipelines, and create cultures where people grow and stay.",
-  },
-];
-
-const dimensions = [
-  {
-    numeral: "I",
-    title: "Cognitive",
-    subtitle: "How you think",
-    body: "How you process information, analyze complexity, and make strategic decisions. Strong cognitive leaders think systemically and act decisively.",
-  },
-  {
-    numeral: "II",
-    title: "Personality",
-    subtitle: "How you engage",
-    body: "Your presence and influence. How you build relationships, inspire others, and shape the culture around you.",
-  },
-  {
-    numeral: "III",
-    title: "Response",
-    subtitle: "How you adapt",
-    body: "Your resilience under pressure. How you remain effective in chaos and reveal your inner strength.",
   },
 ];
 
@@ -111,108 +120,99 @@ const marqueeWords = [
   "Steadiness",
 ];
 
-const heroWords = ["Leadership", "is", "a", "journey", "within"];
-
 export default function HomePage() {
   return (
     <main className="relative min-h-screen bg-[#EFE8DA] text-[#101114]">
       <PublicHeader />
 
       {/* HERO ------------------------------------------------ */}
-      <section className="relative flex min-h-[92vh] flex-col overflow-hidden">
-        {/* Atmospheric warmth glow (bottom-right) */}
+      <section className="relative overflow-hidden">
+        {/* Atmospheric warmth glow */}
         <div
           aria-hidden
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "radial-gradient(140% 100% at 88% 112%, rgba(166,130,74,0.12), transparent 58%)",
+              "radial-gradient(140% 100% at 88% 112%, rgba(181,128,60,0.12), transparent 58%)",
           }}
         />
-        {/* Decorative oversized numeral I */}
-        <span
-          aria-hidden
-          className="deco-numeral right-[-3rem] top-28 hidden select-none md:block"
-        >
-          I
-        </span>
 
-        <div className="relative z-10 mx-auto flex w-full max-w-7xl flex-1 flex-col px-6 pt-14 pb-10 md:px-10 md:pt-20 md:pb-14">
-          <div className="reveal">
-            <Eyebrow>OLQLAB · Leadership begins within</Eyebrow>
-          </div>
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-6 pt-14 md:px-10 md:pt-16">
+          <div className="grid gap-12 md:grid-cols-[1.55fr_1fr] md:gap-x-16">
+            {/* LEFT — headline + subhead + CTAs */}
+            <div className="md:pt-4">
+              <div className="reveal">
+                <Eyebrow>OLQLAB · Leadership begins within</Eyebrow>
+              </div>
 
-          <div className="mt-auto pt-24">
-            <h1
-              className="font-display text-[clamp(3rem,11vw,11rem)] leading-[0.9] tracking-[-0.04em]"
-              aria-label="Leadership is a journey within."
-            >
-              <span className="word-rise" aria-hidden>
-                {heroWords.map((word, i) => {
-                  const isLast = i === heroWords.length - 1;
-                  const breakAfter = i === 2;
-                  return (
-                    <span key={word + i}>
-                      <span
-                        style={{
-                          animationDelay: `${0.18 + i * 0.08}s`,
-                          marginRight: isLast ? 0 : "0.32em",
-                        }}
-                        className="inline-block"
-                      >
-                        {word}
-                      </span>
-                      {breakAfter ? <br className="hidden sm:block" /> : null}
-                    </span>
-                  );
-                })}
-              </span>
-              <span
-                className="brass-period inline-block"
-                style={{
-                  opacity: 0,
-                  animation:
-                    "reveal-fade 700ms cubic-bezier(0.2, 0.7, 0.1, 1) 1.05s forwards",
-                }}
-                aria-hidden
+              <h1
+                className="font-display reveal reveal-delay-1 mt-10 text-[clamp(3rem,9.5vw,9.5rem)] leading-[0.95] tracking-[-0.035em]"
+                aria-label="Leadership is a journey within."
               >
-                .
-              </span>
-            </h1>
+                <span className="block">Leadership</span>
+                <span className="display-italic block text-[#101114]/82">
+                  is a journey
+                </span>
+                <span className="block">
+                  within
+                  <span className="brass-period">.</span>
+                </span>
+              </h1>
 
-            <div className="mt-14 grid gap-8 md:grid-cols-[1fr_auto] md:items-end md:gap-16">
-              <p className="reveal reveal-delay-3 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
-                Understand yourself deeply. Lead with clarity and compassion. We walk
-                alongside you with honest reflection and the wisdom to navigate complexity
-                with grace.
-              </p>
-              <div className="reveal reveal-delay-4 flex flex-wrap items-center gap-x-8 gap-y-5">
+              <div className="reveal reveal-delay-3 mt-12 grid gap-y-10 md:grid-cols-[1fr_auto] md:items-end md:gap-x-12">
+                <p className="drop-cap max-w-md text-base leading-relaxed text-[#101114]/82 md:text-lg">
+                  Understand yourself deeply. Lead with clarity and compassion. We walk
+                  alongside you—offering honest reflection and the wisdom to navigate
+                  complexity with grace.
+                </p>
+              </div>
+
+              <div className="reveal reveal-delay-4 mt-10 flex flex-wrap items-center gap-4">
                 <Magnetic strength={0.22}>
                   <PrimaryCTA href="/assessments" className="cta-shimmer">
-                    Begin the Assessment
+                    Begin the assessment
                   </PrimaryCTA>
                 </Magnetic>
-                <TextLink href="/about">Read the philosophy</TextLink>
+                <SecondaryCTA href="/about">Read the philosophy</SecondaryCTA>
               </div>
+            </div>
+
+            {/* RIGHT — rotating badge + stats */}
+            <div className="flex flex-col justify-between gap-12 md:items-end">
+              <div className="reveal reveal-delay-2 w-[clamp(140px,18vw,200px)] self-end">
+                <RotatingBadge />
+              </div>
+
+              <dl className="reveal reveal-delay-3 w-full md:max-w-[320px]">
+                {heroStats.map((s) => (
+                  <div key={s.num} className="stat-row">
+                    <dt className="stat-num">{s.num}</dt>
+                    <dd className="stat-label">{s.label}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
 
-          <div className="reveal reveal-delay-4 mt-16 flex justify-center md:mt-20">
-            <ScrollCue>Continue</ScrollCue>
+          {/* Scroll-to-read divider */}
+          <div className="reveal reveal-delay-4 hero-divider mt-16 md:mt-20">
+            <span className="flex items-center gap-2">
+              <span aria-hidden>↓</span>
+              Scroll to read
+            </span>
+            <span>A practice, not a performance.</span>
           </div>
         </div>
-      </section>
 
-      <Rule />
+        {/* MARQUEE — at the very bottom of the hero band */}
+        <div className="relative z-10 mt-10 border-y border-[#101114]/12 bg-[#F4EEE0]">
+          <Marquee items={marqueeWords} />
+        </div>
+      </section>
 
       {/* MANIFESTO ------------------------------------------- */}
       <section className="mx-auto max-w-4xl px-6 py-32 md:px-10 md:py-44">
         <ManifestoReveal />
-      </section>
-
-      {/* MARQUEE STRIP --------------------------------------- */}
-      <section className="border-y border-[#101114]/12 bg-[#F4EEE0]">
-        <Marquee items={marqueeWords} />
       </section>
 
       {/* FOUNDER --------------------------------------------- */}
@@ -255,7 +255,7 @@ export default function HomePage() {
             </p>
             <blockquote
               className="reveal-on-scroll mt-12 border-l-2 pl-6 font-display text-[clamp(1.4rem,2.6vw,2.4rem)] leading-[1.22] tracking-[-0.01em]"
-              style={{ borderLeftColor: "#A6824A" }}
+              style={{ borderLeftColor: "#B5803C" }}
             >
               &ldquo;Leadership isn&rsquo;t about being the loudest in the room.
               It&rsquo;s about understanding the quiet struggles of those around you, and
@@ -300,67 +300,84 @@ export default function HomePage() {
 
       <Rule />
 
-      {/* CPR DIMENSIONS -------------------------------------- */}
+      {/* CPR DIMENSIONS — vertical row layout with huge brass letters --- */}
       <section className="mx-auto max-w-7xl px-6 py-28 md:px-10 md:py-36">
         <div className="reveal-on-scroll max-w-2xl">
           <Eyebrow>The CPR Framework</Eyebrow>
-          <h2 className="font-display mt-6 text-balance text-[clamp(2.25rem,5vw,4.25rem)] leading-[1.02] tracking-[-0.025em]">
-            Three dimensions, one leader
+          <h2 className="font-display mt-6 text-balance text-[clamp(2.25rem,5vw,4.5rem)] leading-[1.02] tracking-[-0.025em]">
+            The shape of every leader
             <span className="brass-period">.</span>
           </h2>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
-            Leadership isn&rsquo;t one-dimensional. The Composite Pattern Recognition model
-            reveals three essential dimensions that shape how you lead.
-          </p>
         </div>
-        <div className="mt-20 grid gap-12 md:grid-cols-3 md:gap-10">
-          {dimensions.map((d, i) => (
-            <div
-              key={d.title}
-              data-stagger={String(i + 1) as "1" | "2" | "3"}
-              className="reveal-on-scroll border-t border-[#101114] pt-8"
+
+        <ol className="mt-14 border-y border-[#101114]/12 md:mt-20">
+          {dimensionsRich.map((d) => (
+            <li
+              key={d.code}
+              className="reveal-on-scroll grid grid-cols-[auto_1fr] items-center gap-x-6 gap-y-3 border-b border-[#101114]/12 py-12 last:border-b-0 md:grid-cols-[10rem_1fr_2fr_auto] md:gap-x-12 md:py-16"
             >
-              <p className="font-display text-6xl leading-none tracking-tight text-[#101114]/30">
+              <span
+                className="font-display leading-none"
+                style={{
+                  fontSize: "clamp(4rem, 8vw, 7rem)",
+                  color: "#B5803C",
+                  letterSpacing: "-0.04em",
+                }}
+              >
+                {d.code}
+              </span>
+
+              <div className="md:pr-6">
+                <h3 className="font-display text-2xl leading-tight tracking-tight md:text-4xl">
+                  {d.title}
+                </h3>
+                <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
+                  {d.subtitle}
+                </p>
+              </div>
+
+              <p className="col-span-2 text-base leading-relaxed text-[#101114]/76 md:col-span-1 md:text-lg">
+                {d.body}
+              </p>
+
+              <span className="hidden font-display text-sm tracking-[0.18em] text-[#101114]/35 md:block">
                 {d.numeral}
-              </p>
-              <h3 className="font-display mt-7 text-3xl leading-tight tracking-tight">
-                {d.title}
-              </h3>
-              <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
-                {d.subtitle}
-              </p>
-              <p className="mt-5 text-base leading-relaxed text-[#101114]/76">{d.body}</p>
-            </div>
+              </span>
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
       <Rule />
 
-      {/* WHAT AWAITS ----------------------------------------- */}
+      {/* WHAT AWAITS — 3x2 grid with internal hairlines --------- */}
       <section className="mx-auto max-w-7xl px-6 py-28 md:px-10 md:py-36">
-        <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
-          <div className="reveal-on-scroll">
-            <Eyebrow>What awaits</Eyebrow>
-            <h2 className="font-display mt-6 text-balance text-[clamp(2.25rem,5vw,4rem)] leading-[1.02] tracking-[-0.025em]">
-              A quieter, more honest way to lead
-              <span className="brass-period">.</span>
-            </h2>
-          </div>
-          <div className="grid gap-x-12 gap-y-12 sm:grid-cols-2">
-            {benefits.map((b, i) => (
-              <div
-                key={b.title}
-                data-stagger={String((i % 2) + 1)}
-                className="reveal-on-scroll"
-              >
-                <h3 className="font-display text-2xl leading-tight tracking-tight">
-                  {b.title}
-                </h3>
-                <p className="mt-3 text-base leading-relaxed text-[#101114]/72">{b.body}</p>
-              </div>
-            ))}
-          </div>
+        <div className="reveal-on-scroll max-w-2xl">
+          <Eyebrow>What awaits</Eyebrow>
+          <h2 className="font-display mt-6 text-balance text-[clamp(2.25rem,5vw,4rem)] leading-[1.02] tracking-[-0.025em]">
+            A quieter, more honest way to lead
+            <span className="brass-period">.</span>
+          </h2>
+        </div>
+
+        <div className="grid-cells mt-14 md:mt-20">
+          {benefits.map((b, i) => (
+            <div
+              key={b.title}
+              data-stagger={String((i % 3) + 1)}
+              className="reveal-on-scroll"
+            >
+              <p className="text-[11px] font-medium tracking-[0.22em] text-[#101114]/45">
+                {String(i + 1).padStart(2, "0")}
+              </p>
+              <h3 className="font-display mt-3 text-xl leading-tight tracking-tight md:text-2xl">
+                {b.title}
+              </h3>
+              <p className="mt-3 text-sm leading-relaxed text-[#101114]/72 md:text-base">
+                {b.body}
+              </p>
+            </div>
+          ))}
         </div>
       </section>
 

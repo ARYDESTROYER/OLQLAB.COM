@@ -14,6 +14,7 @@ const instrumentSerif = Instrument_Serif({
   subsets: ["latin"],
   variable: "--font-instrument-serif",
   weight: "400",
+  style: ["normal", "italic"],
 });
 
 const plexMono = IBM_Plex_Mono({

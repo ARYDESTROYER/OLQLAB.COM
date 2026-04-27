@@ -122,7 +122,7 @@ export function PrimaryCTA({
   return (
     <Link
       href={href}
-      className={`group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20] ${className}`}
+      className={`group inline-flex items-center gap-3 rounded-full bg-[#B5803C] px-7 py-3.5 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#9C6F31] ${className}`}
     >
       <span>{children}</span>
       <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
@@ -144,7 +144,7 @@ export function SecondaryCTA({
   return (
     <Link
       href={href}
-      className={`group inline-flex items-center gap-3 border border-[#101114]/85 px-7 py-4 text-sm font-medium text-[#101114] transition-colors duration-300 hover:bg-[#101114] hover:text-[#EFE8DA] ${className}`}
+      className={`group inline-flex items-center gap-3 rounded-full border border-[#101114]/30 bg-transparent px-7 py-3.5 text-sm font-medium text-[#101114] transition-colors duration-300 hover:border-[#101114] hover:bg-[#101114] hover:text-[#EFE8DA] ${className}`}
     >
       <span>{children}</span>
       <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
@@ -166,7 +166,7 @@ export function GhostCTA({
   return (
     <Link
       href={href}
-      className={`group inline-flex items-center gap-3 border border-[#EFE8DA]/80 px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#EFE8DA] hover:text-[#101114] ${className}`}
+      className={`group inline-flex items-center gap-3 rounded-full border border-[#EFE8DA]/80 px-7 py-3.5 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#EFE8DA] hover:text-[#101114] ${className}`}
     >
       <span>{children}</span>
       <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
