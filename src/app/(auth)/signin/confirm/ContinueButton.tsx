@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { createPortal } from "react-dom";
 import RotatingBadge from "@/components/marketing/RotatingBadge";
 
 type SubmitState = "idle" | "signing" | "completing" | "error";
@@ -77,7 +78,9 @@ export default function ContinueButton({ tokenUrl }: { tokenUrl: string }) {
         </p>
       </form>
 
-      {overlayVisible && <SignInOverlay state={state} />}
+      {overlayVisible
+        ? createPortal(<SignInOverlay state={state} />, document.body)
+        : null}
     </>
   );
 }
