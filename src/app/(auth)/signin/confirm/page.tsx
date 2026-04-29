@@ -5,6 +5,7 @@ import { getServerAuthSession } from "@/lib/auth";
 import { validateVerificationCallbackUrl } from "@/lib/magic-link-continue";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
+import ContinueButton from "./ContinueButton";
 
 type ConfirmSignInPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -87,28 +88,7 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
           </div>
 
           <div className="reveal reveal-delay-1">
-            <form
-              action="/api/auth/continue"
-              method="post"
-              className="border-t border-[#101114]/15 pt-8 md:pt-10"
-            >
-              <input type="hidden" name="tokenUrl" value={validated.absoluteUrl} />
-              <button
-                type="submit"
-                className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20]"
-              >
-                <span>Continue to sign-in</span>
-                <span
-                  aria-hidden
-                  className="transition-transform duration-300 group-hover:translate-x-1"
-                >
-                  →
-                </span>
-              </button>
-              <p className="mt-8 text-sm leading-relaxed text-[#101114]/64">
-                Sign-in is completed only after pressing continue.
-              </p>
-            </form>
+            <ContinueButton tokenUrl={validated.absoluteUrl} />
           </div>
         </div>
       </section>

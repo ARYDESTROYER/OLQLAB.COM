@@ -1189,3 +1189,45 @@ This file is the append-only engineering diary for implementation work in this r
   - Existing links generated before rollout retain old direct-callback behavior.
 - Next step:
   - Run browser smoke tests with one fresh sign-in link from a scanner-heavy mailbox to confirm the new confirm-step behavior reduces invalid-link incidents.
+
+## Entry 2026-04-29-01
+- Timestamp (UTC): 2026-04-29T06:29:46Z
+- Timestamp (Local): 2026-04-29 11:59 IST (+0530)
+- Task: Add an aesthetic full-screen "securely signing you in" overlay between the `Continue to sign-in` click and the dashboard landing, so users have a clear, on-brand signal during the 5-10 second NextAuth verification + dashboard render window.
+- Why: After fixing the staging `NEXTAUTH_URL` misconfiguration, sign-in works end-to-end but the post-Continue verification feels broken because the browser sits on a blank/loading state while the magic-link callback verifies the token, runs the `signIn` callback (User + Seat lookup), creates the session row, and the dashboard server-renders three more queries. User reported it looked stuck.
+- What changed:
+  - Added client component `src/app/(auth)/signin/confirm/ContinueButton.tsx`.
+    - Replaces the inline server-rendered form on `/signin/confirm` with a state-machine-driven submit handler.
+    - On submit: prevents default, sets `signing` state, POSTs the same `/api/auth/continue` request via `fetch` with `credentials: "include"` and `redirect: "follow"` so the browser still picks up the NextAuth `Set-Cookie` from the redirect chain.
+    - Enforces a `MIN_HOLD_MS = 1200` minimum visible duration so the badge gets a beat to spin even on warm-path responses.
+    - On success: switches to `completing` state for 700 ms, then `window.location.assign(response.url || "/dashboard")`.
+    - On network error: switches to `error` state for 1.4 s, then routes to `/signin?error=invalid_link`.
+    - Renders an inline `SignInOverlay` subcomponent (same file, private) that takes the current state and shows the rotating brass `LEADERSHIP · BEGINS · WITHIN` badge, an editorial headline (`Securely signing you in.` / `Welcome back.` / `Something went wrong.`), supporting copy, and an indeterminate brass progress bar that becomes determinate at 100% in the `completing` state.
+  - Updated `src/app/(auth)/signin/confirm/page.tsx`:
+    - Imported `ContinueButton` from `./ContinueButton`.
+    - Replaced the inline `<form action="/api/auth/continue" ...>` block with `<ContinueButton tokenUrl={validated.absoluteUrl} />`.
+    - Server-rendered greeting, validation logic, error branch, and overall layout are unchanged.
+  - Appended a Sign-in overlay block to `src/app/globals.css`:
+    - `.signin-overlay`, `.signin-overlay-inner`, `.signin-badge-wrap`, `.signin-copy`, `.signin-eyebrow`, `.signin-headline`, `.signin-subtitle`, `.signin-progress`, `.signin-progress-fill`.
+    - Reuses existing `--cream`, `--ink`, `--brass`, `--ink-soft` tokens and the existing `reveal-fade` / `reveal-fade-up` keyframes.
+    - Adds `signin-overlay-in` and `signin-progress-slide` keyframes.
+    - State-conditional styling on `[data-state="completing"]` (progress fills 100%) and `[data-state="error"]` (muted ink-toned bar).
+    - `prefers-reduced-motion: reduce` block disables the rotating badge, fade-in animations, and progress slide so accessibility settings are honored.
+- How:
+  - Kept the §13.18 contract intact: the form still POSTs to `/api/auth/continue` and the NextAuth callback chain (`/api/auth/callback/email`) still consumes the token. Only the *client* presentation around the existing endpoint changed; the route, validation logic, and redirect target are untouched.
+  - Reused `src/components/marketing/RotatingBadge.tsx` as-is (it is already a server-renderable SVG with the brass circular text). No new image assets, no new fonts.
+  - Used `fetch` with `redirect: "follow"` so the browser still receives `Set-Cookie` headers from the verification endpoint mid-redirect-chain. Then a final `window.location.assign(response.url)` triggers a real navigation, where the now-set session cookie is sent to `/dashboard`.
+  - Single atomic commit so rollback is `git revert <sha>` with no env vars, schema changes, or migrations.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors. Same 3 pre-existing warnings in `ReportEditorClient.tsx` and `report-format.ts` remain. No new warnings introduced.
+  - `npm run build` -> "Compiled successfully in 4.1s". `/signin/confirm` route present in build manifest as `ƒ` (server-rendered on demand).
+  - Local `next dev` render of `/signin/confirm` returns 500 because `DATABASE_URL` is not set on this dev machine. The error stack confirms the failure is in pre-existing code (`db.user.findUnique` at `page.tsx:64:30`), well before `<ContinueButton>` mounts. This is a baseline limitation of the local environment, not a regression.
+  - Static visual preview of the overlay in the three states (signing / completing / error) was rendered from `tmp/overlay-preview.html` (untracked) using inlined CSS copies from the new globals.css block to confirm sizing, copy, motion, and brass progress timing before pushing.
+- Risks/unknowns:
+  - The overlay covers the page during the entire fetch wait. If the fetch hangs (e.g. NextAuth backend stuck), the user sees the indeterminate progress bar indefinitely. Network failures throw and route to `/signin?error=invalid_link`, but a slow-but-not-failed call has no timeout. Acceptable for now since the same wait existed before — just invisible. A client-side timeout (e.g. 30 s) could be added later.
+  - `fetch` with `credentials: "include"` and `redirect: "follow"` is well-supported in modern browsers but does not surface intermediate redirects; if NextAuth ever stops issuing cookies on the verification endpoint and instead requires JavaScript to complete the flow, the silent-fetch model would break. Current NextAuth v4 EmailProvider behavior is fine.
+  - The minimum-hold of 1.2 s deliberately slows fast paths so the animation doesn't flash. If users with very fast warm responses report it feels artificial, the minimum can be lowered or removed.
+- Next step:
+  - Push and let Vercel auto-deploy the `staging` branch.
+  - Manually request a fresh sign-in link on `staging.olqlab.com`, click `Continue to sign-in`, and verify: overlay enters smoothly, badge rotates, progress slides, copy swaps to `Welcome back.` for ~700 ms, then dashboard loads. Confirm `prefers-reduced-motion` users see a static overlay with no animation.
+  - If the visual is approved, fold the same change into `main` via PR. If not approved, revert with a single `git revert <sha>`.
