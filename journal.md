@@ -1231,3 +1231,47 @@ This file is the append-only engineering diary for implementation work in this r
   - Push and let Vercel auto-deploy the `staging` branch.
   - Manually request a fresh sign-in link on `staging.olqlab.com`, click `Continue to sign-in`, and verify: overlay enters smoothly, badge rotates, progress slides, copy swaps to `Welcome back.` for ~700 ms, then dashboard loads. Confirm `prefers-reduced-motion` users see a static overlay with no animation.
   - If the visual is approved, fold the same change into `main` via PR. If not approved, revert with a single `git revert <sha>`.
+
+## Entry 2026-05-17-01
+- Timestamp (UTC): 2026-05-17T20:14:37Z
+- Timestamp (Local): 2026-05-18 01:44 IST (+0530)
+- Task: Decouple `PublicHeader` auth check from SSR so all marketing pages can be statically generated and CDN-cached, eliminating the dominant cause of browsing slowness on `olqlab.com`.
+- Why: Investigation confirmed every marketing route (`/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, `/oql`) was rendering as `ƒ Dynamic` solely because `src/components/navigation/PublicHeader.tsx` called `getServerAuthSession()` at the server-component layer. That call read the next-auth cookie (forcing dynamic rendering) and triggered a Postgres roundtrip on every page hit. Vercel sent `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate` for every HTML response — no CDN reuse, no browser reuse, no prefetch reuse, cold lambdas on every quiet-period visit.
+- What changed:
+  - Added `src/components/navigation/HeaderAuthSlot.tsx`.
+    - `"use client"` island that fetches `/api/auth/session` once on mount.
+    - Renders the anonymous `<Link href="/signin">Sign in</Link>` by default (matches what static HTML serializes).
+    - When the session JSON resolves with a `user.role`, swaps to `<Link href="/dashboard">Dashboard</Link>` + `<ProfileMenu role={...} email={...} />`.
+    - Module-level promise cache (`let cached`) dedupes the session fetch across client-side route hops — one `/api/auth/session` request per SPA session, not per page mount.
+    - `.catch(() => undefined)` falls back to anonymous render if the endpoint errors, so the header never blocks.
+  - Edited `src/components/navigation/PublicHeader.tsx`.
+    - Removed `async` keyword.
+    - Removed `import { getServerAuthSession } from "@/lib/auth";` and `import ProfileMenu from "@/components/navigation/ProfileMenu";`.
+    - Removed the `const session = await getServerAuthSession(); const role = ...; const email = ...;` block.
+    - Removed the 18-line `{!session?.user ? <Link href="/signin">…</Link> : <div>…Dashboard + ProfileMenu…</div>}` ternary.
+    - Added `import HeaderAuthSlot from "@/components/navigation/HeaderAuthSlot";` and rendered `<HeaderAuthSlot />` in the same DOM position the ternary occupied (after the logo + `<NavLinks />`).
+    - Component remains a server component with `Link`, `Image`, `NavLinks` rendered server-side.
+- How:
+  - Single atomic refactor — kept the existing `ProfileMenu` and `signOut` flow untouched; only the parent that decides "show ProfileMenu vs sign-in link" moved client-side.
+  - Used bare `fetch` to `/api/auth/session` rather than wrapping the app in `<SessionProvider>` (the next-auth/react route). Avoids a global client provider and saves bundle weight.
+  - Default render is anonymous because (a) it's the most common state for marketing-page visitors and (b) it matches what Next.js serializes into the static HTML, so anonymous users see no flash. Logged-in visitors briefly see "Sign in" before the swap; explicitly accepted with the user before implementation.
+  - Relied on Next.js App Router's static-by-default behavior — after PublicHeader stops reading cookies, no marketing route reads any dynamic API. No `export const dynamic = 'force-static'` directives added; if a future change introduces dynamic deps it will surface in the build manifest as `ƒ` rather than be silently swallowed.
+- Validation/output:
+  - `npm run lint` -> 0 errors. 6 warnings reported, all duplicates of the 3 pre-existing warnings in `ReportEditorClient.tsx` / `report-format.ts` (ESLint scans both `src/` and a worktree mirror). No new warnings introduced by either changed file.
+  - `npm run build` -> "Compiled successfully in 3.9s". Route manifest now shows:
+    - `○ /`, `○ /about`, `○ /assessments`, `○ /blindspot`, `○ /coaching`, `○ /contact`, `○ /framework`, `○ /oql`, `○ /_not-found`, `○ /singin` — Static (Prerendered).
+    - `ƒ /signin`, `ƒ /signin/confirm` — Dynamic (they call `getServerAuthSession()` themselves for the already-signed-in redirect, expected and acceptable per plan).
+    - `ƒ /dashboard`, `ƒ /admin/*`, `ƒ /reports/*`, `ƒ /assessment/*`, `ƒ /api/*` — Dynamic, correctly behind auth.
+  - Before this change, all marketing pages were `ƒ Dynamic`. Eight pages converted from Dynamic to Static.
+- Risks/unknowns:
+  - Logged-in users browsing marketing pages will see a brief (~100–300 ms warm) flash of "Sign in" before the slot upgrades to "Dashboard + Profile". Explicitly accepted by user; mitigation (CSS `visibility: hidden` until resolved) deferred unless reported.
+  - If `/api/auth/session` is ever modified to require POST or to return non-JSON, the slot will silently fall back to anonymous render — the `.catch` is intentionally broad. Acceptable degradation; the alternative (showing an error) would be worse for UX.
+  - Module-level `cached` promise persists for the lifetime of the JS module instance. A user who signs out via `ProfileMenu` triggers `signOut({ callbackUrl: "/" })` which navigates to `/` with a full page load — the new page load starts a fresh module instance, so the cached session is invalidated correctly. No memory leak.
+  - CDN cache headers depend on Vercel's auto-applied behavior for static routes. Live verification post-deploy will confirm `Cache-Control: public, max-age=…, s-maxage=…` and `X-Vercel-Cache: HIT`.
+  - Local dev render of `/dashboard` will still 500 without `DATABASE_URL`; pre-existing limitation, not affected by this change.
+- Next step:
+  - Push to `staging` and wait for Vercel auto-deploy to READY.
+  - Verify CDN cache headers and `X-Vercel-Cache: HIT` on warm second requests via curl.
+  - Measure warm TTFB on marketing pages — expect drop from 70–200 ms to 20–60 ms range.
+  - Manual browser test: anonymous visit (no flash), signed-in visit (brief flash on marketing pages but ProfileMenu still works), already-signed-in `/signin` redirect to `/dashboard` still functions.
+  - If visual approved on staging, fold into the open PR #1 (`staging` → `main`) so production deploys with the static-marketing change.

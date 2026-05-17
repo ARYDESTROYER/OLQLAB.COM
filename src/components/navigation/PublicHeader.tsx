@@ -1,14 +1,20 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getServerAuthSession } from "@/lib/auth";
-import ProfileMenu from "@/components/navigation/ProfileMenu";
 import NavLinks from "@/components/navigation/NavLinks";
+import HeaderAuthSlot from "@/components/navigation/HeaderAuthSlot";
 
-export default async function PublicHeader() {
-  const session = await getServerAuthSession();
-  const role = session?.user?.role;
-  const email = session?.user?.email;
-
+/**
+ * Marketing-site header. Pure server component — renders the static logo +
+ * primary navigation, then defers the "Sign in" vs "Dashboard + Profile"
+ * decision to `<HeaderAuthSlot />`, a client island that fetches
+ * `/api/auth/session` after mount.
+ *
+ * This component intentionally does NOT call `getServerAuthSession()` so that
+ * every marketing route (`/`, `/about`, `/framework`, `/assessments`,
+ * `/coaching`, `/blindspot`, `/contact`, `/oql`) has zero dynamic-API
+ * dependencies and can be statically generated and CDN-cached.
+ */
+export default function PublicHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-[#101114]/10 bg-[#EFE8DA]/85 backdrop-blur-md">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 md:px-10">
@@ -28,24 +34,7 @@ export default async function PublicHeader() {
 
         <NavLinks />
 
-        {!session?.user ? (
-          <Link
-            href="/signin"
-            className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
-          >
-            Sign in
-          </Link>
-        ) : (
-          <div className="flex items-center gap-5">
-            <Link
-              href="/dashboard"
-              className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
-            >
-              Dashboard
-            </Link>
-            {role && <ProfileMenu role={role} email={email} />}
-          </div>
-        )}
+        <HeaderAuthSlot />
       </div>
     </header>
   );
