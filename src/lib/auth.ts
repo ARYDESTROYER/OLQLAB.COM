@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { getServerSession, type NextAuthOptions } from "next-auth";
 import type { Adapter } from "next-auth/adapters";
 import EmailProvider from "next-auth/providers/email";
@@ -44,7 +45,7 @@ export const authOptions: NextAuthOptions = {
       }
     },
   },
-  session: { strategy: "database" },
+  session: { strategy: "jwt" },
   providers: [
     EmailProvider({
       from: process.env.EMAIL_FROM,
@@ -144,8 +145,11 @@ export const authOptions: NextAuthOptions = {
 
       return true;
     },
-    async session({ session, user }) {
-      if (session.user) {
+    async jwt({ token, user }) {
+      // First call after sign-in: `user` is the freshly authenticated User row.
+      // Fetch role/tenantId/firstName/lastName once and bake them into the JWT
+      // so subsequent reads (every authenticated page render) don't hit the DB.
+      if (user?.id) {
         const dbUser = await db.user.findUnique({
           where: { id: user.id },
           select: {
@@ -155,11 +159,25 @@ export const authOptions: NextAuthOptions = {
             lastName: true,
           },
         });
-        session.user.id = user.id;
-        session.user.role = dbUser?.role || "EMPLOYEE";
-        session.user.tenantId = dbUser?.tenantId || "";
-        session.user.firstName = dbUser?.firstName || "";
-        session.user.lastName = dbUser?.lastName || "";
+        token.sub = user.id;
+        token.role = dbUser?.role || "EMPLOYEE";
+        token.tenantId = dbUser?.tenantId || "";
+        token.firstName = dbUser?.firstName || "";
+        token.lastName = dbUser?.lastName || "";
+      }
+      return token;
+    },
+    async session({ session, token }) {
+      // Decode the signed JWT into the session object. Pure in-memory work,
+      // no DB roundtrip. Token claims are populated in the `jwt` callback above
+      // at sign-in time. Role changes in the database do NOT propagate until the
+      // user signs out + back in (documented trade-off of jwt session strategy).
+      if (session.user && token) {
+        session.user.id = (token.sub as string) || "";
+        session.user.role = (token.role as "ADMIN" | "EMPLOYEE" | "LEADER") || "EMPLOYEE";
+        session.user.tenantId = (token.tenantId as string) || "";
+        session.user.firstName = (token.firstName as string) || "";
+        session.user.lastName = (token.lastName as string) || "";
       }
       return session;
     },
@@ -167,6 +185,9 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-export function getServerAuthSession() {
-  return getServerSession(authOptions);
-}
+// Wrapped in React's `cache()` so multiple calls within the same request
+// (e.g. (app)/layout.tsx + page.tsx) dedupe to one underlying invocation.
+// Pairs with the jwt session strategy above: session reads are now pure
+// cookie-decode in the warm path, and cache() ensures we don't even repeat
+// the cookie-decode within a single render.
+export const getServerAuthSession = cache(() => getServerSession(authOptions));

@@ -1275,3 +1275,45 @@ This file is the append-only engineering diary for implementation work in this r
   - Measure warm TTFB on marketing pages — expect drop from 70–200 ms to 20–60 ms range.
   - Manual browser test: anonymous visit (no flash), signed-in visit (brief flash on marketing pages but ProfileMenu still works), already-signed-in `/signin` redirect to `/dashboard` still functions.
   - If visual approved on staging, fold into the open PR #1 (`staging` → `main`) so production deploys with the static-marketing change.
+
+## Entry 2026-05-17-02
+- Timestamp (UTC): 2026-05-17T21:18:47Z
+- Timestamp (Local): 2026-05-18 02:48 IST (+0530)
+- Task: Cut per-page-load database overhead on every authenticated route by switching NextAuth from `database` to `jwt` session strategy and request-deduping `getServerAuthSession` with React `cache()`. Also add a repo-level `CLAUDE.md` so future contributors (human and agent) know to maintain `guide.md` and `journal.md`.
+- Why: User reports landing on `/dashboard` from a marketing page takes 3-5 seconds; navigation within the (app) section (clicks on `My Reports`, `Assessment Center`, `Admin Console`) takes 2-3 seconds per click. Investigation traced this to (a) the `session` callback in `src/lib/auth.ts` running a fresh `db.user.findUnique` on every page render to enrich session.user with `role`/`tenantId`/`firstName`/`lastName`, and (b) `getServerAuthSession()` being called twice on every (app) page - once in `(app)/layout.tsx` and again in the page component itself - with no request-scoped cache, causing two identical DB roundtrips per click. With Mumbai-region Postgres latency at ~30-50 ms per query, that is 60-100 ms of pure overhead every authenticated render even before any business queries run.
+- What changed:
+  - `src/lib/auth.ts`:
+    - Added `import { cache } from "react";` at the top of the imports.
+    - Flipped `session: { strategy: "database" }` to `session: { strategy: "jwt" }`.
+    - Added a new `jwt` callback BEFORE the existing `session` callback. On the first invocation after `signIn` (when `user` is defined), it fetches `role`/`tenantId`/`firstName`/`lastName` from the database once and bakes them into the signed JWT cookie as `token.sub`/`token.role`/`token.tenantId`/`token.firstName`/`token.lastName`. On subsequent invocations (where `user` is undefined), it returns the token unchanged.
+    - Rewrote the `session` callback signature from `({ session, user })` to `({ session, token })`. It now reads the JWT claims off `token` and populates `session.user` - pure in-memory work, no database call. Includes safe `||` fallbacks for missing claims.
+    - Replaced the trailing `export function getServerAuthSession() { return getServerSession(authOptions); }` with `export const getServerAuthSession = cache(() => getServerSession(authOptions));`. React `cache()` dedupes identical calls within a single render so that the layout-then-page double-call pattern only triggers one underlying invocation.
+  - `src/types/next-auth.d.ts`:
+    - Added a `declare module "next-auth/jwt"` block augmenting the `JWT` interface with optional `sub`/`role`/`tenantId`/`firstName`/`lastName` claims so TypeScript understands the new token shape.
+  - New file `CLAUDE.md` at the repo root:
+    - Project orientation (Next.js 16 / Tailwind v4 / Prisma 6 / NextAuth 4 / Resend / Vercel) and folder layout.
+    - Pointers to `guide.md` (architectural truth) and `journal.md` (this log) with explicit instructions to append a journal entry in every meaningful commit, per `guide.md` section 15.
+    - References specific guide sections that future contributors must read before touching auth (13.18), Prisma migrations (6.1), line endings (16), and the access model (4).
+    - Lists "things that have bitten us before": NEXTAUTH_URL per-environment, position:fixed inside transformed ancestors (the sign-in overlay portal pattern), `react-hooks/set-state-in-effect` and the module-cache pattern in `HeaderAuthSlot.tsx`, and the constraint that marketing pages must stay static.
+    - Quick reference of paths + commands at the end.
+- How:
+  - JWT strategy is the NextAuth v4 standard alternative to database sessions. The signed cookie carries the claims; the server validates the signature using `NEXTAUTH_SECRET` (already set). No schema migration needed - the existing `Session` Prisma table simply stops being written to. The `PrismaAdapter` remains in use for `VerificationToken` (magic-link tokens) and `User`/`Account` reads during sign-in.
+  - The `jwt` callback runs once per sign-in to do the role/tenant lookup. Subsequent reads (every page render) decode the cookie locally and skip the DB entirely.
+  - React `cache()` works on Promise-returning functions; it memoizes by argument list within a single render tree. Calling `getServerAuthSession()` from both `(app)/layout.tsx` and the child page component now resolves the same Promise.
+  - Trade-off the user explicitly accepted: existing database-strategy session cookies are invalidated by the strategy flip, so all currently-logged-in users get redirected to `/signin` on their next visit and must request a fresh magic link (single one-time event). And database role changes (admin promotes user) only take effect after the user signs out and back in, since the role is now baked into the JWT. Documented in CLAUDE.md and the in-file comment.
+- Validation/output:
+  - `npm run lint` -> 0 errors. 6 warnings, all duplicates of the 3 pre-existing warnings in `ReportEditorClient.tsx` / `report-format.ts` (ESLint scans `src/` and a worktree mirror under `.claude/worktrees/`). No new warnings introduced by either edited file.
+  - `npm run build` -> "Compiled successfully in 4.5s". Route manifest unchanged from previous build: marketing pages still `circle` (Static), authenticated routes still `f` (Dynamic), `/signin` and `/signin/confirm` still `f` (Dynamic).
+  - TypeScript accepts the new `token.role`, `token.tenantId`, etc. references thanks to the `next-auth/jwt` augmentation in `src/types/next-auth.d.ts`.
+- Risks/unknowns:
+  - All currently-logged-in users will be signed out on next visit. Accepted by the user. The new sign-in UX (two-step confirm + animated overlay) makes the re-sign-in fast and on-brand.
+  - Role changes do not auto-propagate. If an admin promotes a user to `ADMIN` while that user has an active session, the user keeps their old `EMPLOYEE` role until they next sign in. For an urgent promotion, the admin can ask the user to sign out and back in. Documented limitation; mitigation if it becomes a real problem is a token-invalidation denylist, but not worth building pre-emptively.
+  - The `Session` Prisma table goes unused but rows persist. Harmless. Cleanup is a manual SQL delete whenever desired - no schema migration required.
+  - `runDueUnenrollJobs` is still being invoked synchronously on every `/reports/current` and `/assessment/current` render. This was flagged in the investigation as Fix #4 but explicitly out of scope per the user. `guide.md` section 14 already calls this out as future hardening (move to Vercel cron).
+  - The N+1 query pattern in `/reports/current` via `resolveAssessmentAccess` (5 queries per completed report) is also still present - Fix #3 in the investigation, also out of scope per the user. The `cache()` wrap helps slightly because the `db.user.findUnique` inside resolveAssessmentAccess hits the same row repeatedly, but Prisma client does not dedupe across calls within a single Promise.all - the dedupe is only at the `getServerAuthSession` level. So `/reports/current` may still feel slow for users with many completed assessments. Worth measuring on staging post-deploy.
+- Next step:
+  - Push to `staging` and wait for Vercel auto-deploy to READY.
+  - Sign in with the test account (old cookie will be invalid - expect to see the `/signin` form first, then the magic-link flow; this is the one-time re-sign-in event).
+  - From `/dashboard`, time the navigation to `/reports/current`, `/assessment/current`, and `/admin` (if ADMIN). Expect the warm-path latency to drop by 50-150 ms per click. Cold lambda penalty still exists but the per-page DB hit is gone.
+  - Inspect Vercel runtime logs (`get_runtime_logs` MCP tool) to compare lambda execution time on `/dashboard` before and after - particularly the duration field. Confirm no error spikes.
+  - If satisfied, fold into PR #1 (`staging` to `main`) and merge to ship the same change to production. Users on `www.olqlab.com` will also need to sign in once on first visit after the prod merge.
