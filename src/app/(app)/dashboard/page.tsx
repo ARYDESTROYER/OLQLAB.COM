@@ -11,6 +11,14 @@ function roleLabel(role: Role) {
   return "Participant";
 }
 
+type QuickLink = {
+  href: string;
+  numeral: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+};
+
 export default async function DashboardPage() {
   const session = await getServerAuthSession();
   if (!session?.user) {
@@ -112,73 +120,117 @@ export default async function DashboardPage() {
     session.user.email ||
     "Participant";
 
+  const orgName = userRecord?.tenant?.name || session.user.tenantId || "—";
+
+  const quickLinks: QuickLink[] = [
+    {
+      href: "/assessment/current",
+      numeral: "I",
+      eyebrow: "Participant",
+      title: "Assessment Center",
+      body: "Start pending assessments and resume in-progress attempts.",
+    },
+    {
+      href: "/reports/current",
+      numeral: "II",
+      eyebrow: "Participant",
+      title: "My Reports",
+      body: "Open completed reports and download PDF copies.",
+    },
+  ];
+
+  if (role === "ADMIN") {
+    quickLinks.push({
+      href: "/admin",
+      numeral: "III",
+      eyebrow: "Operations",
+      title: "Admin Console",
+      body: "Manage organisations, users, assessments, completion tracking, and policy rules.",
+    });
+  }
+
+  const metrics: Array<{ label: string; value: string | number }> = [
+    { label: "Published assessments", value: publishedAssessments },
+    { label: "Completed by you", value: mySubmittedCount },
+    { label: "Role", value: roleLabel(role) },
+    { label: "Organisation", value: orgName },
+  ];
+
   return (
-    <main className="mx-auto max-w-6xl space-y-8 px-6 py-8 md:px-10 md:py-12">
-      <section className="section-frame glass-panel rounded-[2rem] p-8 shadow-[0_24px_64px_-34px_rgba(15,23,42,0.45)]">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">OLQLAB Workspace</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">Welcome back, {fullName}</h1>
-            <p className="mt-2 text-sm text-slate-600">{session.user.email}</p>
+    <main className="mx-auto max-w-7xl px-6 pt-12 pb-24 md:px-10 md:pt-16 md:pb-32">
+      <section>
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="max-w-3xl">
+            <p className="inline-flex items-center text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/55">
+              <span className="brass-dot" aria-hidden /> OLQLAB workspace
+            </p>
+            <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.98] tracking-[-0.03em]">
+              Welcome back, {fullName}<span className="brass-period">.</span>
+            </h1>
+            <p className="mt-5 max-w-xl text-sm leading-relaxed text-[#101114]/64 md:text-base">
+              {session.user.email}
+            </p>
           </div>
-          <span className="rounded-full border border-slate-200 bg-white/80 px-3 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700">
+          <span className="workspace-chip" data-tone="brass">
             {roleLabel(role)}
           </span>
         </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="metric-card rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Published Assessments</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{publishedAssessments}</p>
-          </div>
-          <div className="metric-card rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Completed By You</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{mySubmittedCount}</p>
-          </div>
-          <div className="metric-card rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Role</p>
-            <p className="mt-2 text-sm font-semibold text-slate-900">{roleLabel(role)}</p>
-          </div>
-          <div className="metric-card rounded-xl p-4">
-            <p className="text-xs uppercase tracking-wide text-slate-500">Organisation</p>
-            <p className="mt-2 truncate text-sm font-semibold text-slate-900">
-              {userRecord?.tenant?.name || session.user.tenantId || "-"}
-            </p>
-          </div>
-        </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <Link
-          href="/assessment/current"
-          className="hover-lift rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm"
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Participant</p>
-          <h2 className="mt-2 text-lg font-semibold text-slate-900">Assessment Center</h2>
-          <p className="mt-2 text-sm text-slate-600">Start pending assessments and resume in-progress attempts.</p>
-        </Link>
-
-        <Link
-          href="/reports/current"
-          className="hover-lift rounded-2xl border border-slate-200 bg-white/88 p-6 shadow-sm"
-        >
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Participant</p>
-          <h2 className="mt-2 text-lg font-semibold text-slate-900">My Reports</h2>
-          <p className="mt-2 text-sm text-slate-600">Open completed reports and download PDF copies.</p>
-        </Link>
-
-        {role === "ADMIN" && (
-          <Link
-            href="/admin"
-            className="hover-lift rounded-2xl border border-cyan-200 bg-cyan-50/90 p-6 shadow-sm"
+      <section
+        aria-label="Workspace metrics"
+        className="mt-[var(--workspace-section-y)] grid gap-y-8 border-y border-[#101114]/15 py-[var(--workspace-metric-py)] md:grid-cols-4 md:gap-x-10"
+      >
+        {metrics.map((metric, idx) => (
+          <div
+            key={metric.label}
+            className={`flex flex-col gap-3 md:gap-4 ${
+              idx > 0 ? "md:border-l md:border-[#101114]/10 md:pl-10" : ""
+            }`}
           >
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-cyan-700">Operations</p>
-            <h2 className="mt-2 text-lg font-semibold text-slate-900">Admin Console</h2>
-            <p className="mt-2 text-sm text-slate-700">
-              Manage companies, users, assessments, completion tracking, and policy rules.
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
+              {metric.label}
             </p>
+            <p className="font-display truncate text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none tracking-[-0.02em] text-[#101114]">
+              {metric.value}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section
+        aria-label="Quick links"
+        className="mt-[var(--workspace-section-y)] grid gap-x-10 gap-y-12 md:grid-cols-3"
+      >
+        {quickLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="group block border-t border-[#101114]/15 pt-8 transition-colors duration-200 hover:border-[#B5803C]/55"
+          >
+            <p className="flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.22em] text-[#B5803C]">
+              <span className="font-display text-base normal-case tracking-tight text-[#B5803C]">
+                {link.numeral}
+              </span>
+              <span>{link.eyebrow}</span>
+            </p>
+            <h2 className="font-display mt-4 text-[clamp(1.75rem,3.5vw,2.25rem)] leading-tight tracking-tight text-[#101114]">
+              {link.title}
+            </h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-[#101114]/68">
+              {link.body}
+            </p>
+            <span className="link-underline mt-6 inline-flex items-center gap-3 text-sm font-medium text-[#101114]">
+              Open
+              <span
+                aria-hidden
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              >
+                →
+              </span>
+            </span>
           </Link>
-        )}
+        ))}
       </section>
     </main>
   );

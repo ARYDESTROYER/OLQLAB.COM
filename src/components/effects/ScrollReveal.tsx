@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
+
+const WORKSPACE_PREFIXES = ["/dashboard", "/admin", "/reports", "/assessment"];
 
 /**
  * Scroll-triggered reveal driver.
@@ -19,9 +22,20 @@ import { useEffect } from "react";
  *
  * Re-scans on DOM mutations so client-navigated pages pick up newly-mounted
  * reveal targets.
+ *
+ * Skipped entirely inside the authenticated workspace (`/dashboard`,
+ * `/admin/*`, `/reports/*`, `/assessment/*`) — those pages favour crisp
+ * data scanning over editorial reveals.
  */
 export default function ScrollReveal() {
+  const pathname = usePathname();
+  const inWorkspace = WORKSPACE_PREFIXES.some((prefix) =>
+    pathname?.startsWith(prefix),
+  );
+
   useEffect(() => {
+    if (inWorkspace) return;
+
     if (typeof window === "undefined") return;
 
     const SELECTOR =
@@ -71,7 +85,7 @@ export default function ScrollReveal() {
       observer.disconnect();
       mutation.disconnect();
     };
-  }, []);
+  }, [inWorkspace]);
 
   return null;
 }

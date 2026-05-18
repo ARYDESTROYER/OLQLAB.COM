@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
+
+const WORKSPACE_PREFIXES = ["/dashboard", "/admin", "/reports", "/assessment"];
 
 /**
  * Custom cursor: a small dot that follows the pointer exactly + a larger ring
@@ -9,12 +12,21 @@ import { useEffect, useRef } from "react";
  * Activates only on fine pointers (no touch) and only when the user has not
  * requested reduced motion. Adds `cursor-active` to <html> so CSS can hide the
  * native cursor.
+ *
+ * Disabled inside the authenticated workspace (`/dashboard`, `/admin/*`,
+ * `/reports/*`, `/assessment/*`) so the native cursor stays crisp for
+ * data work.
  */
 export default function CustomCursor() {
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const inWorkspace = WORKSPACE_PREFIXES.some((prefix) =>
+    pathname?.startsWith(prefix),
+  );
 
   useEffect(() => {
+    if (inWorkspace) return;
     if (typeof window === "undefined") return;
     const fine = window.matchMedia("(pointer: fine)").matches;
     const motionOk = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -99,7 +111,9 @@ export default function CustomCursor() {
       document.documentElement.removeEventListener("mouseenter", handleEnter);
       document.documentElement.classList.remove("cursor-active");
     };
-  }, []);
+  }, [inWorkspace]);
+
+  if (inWorkspace) return null;
 
   return (
     <>
