@@ -68,13 +68,13 @@ export default function StartAssessmentButton({ assessmentId }: { assessmentId: 
   return (
     <>
       <button
-        className="mt-6 rounded-xl bg-slate-900 px-5 py-3 font-medium text-white disabled:opacity-50"
+        className="mt-6 rounded-xl bg-[#101114] px-5 py-3 font-medium text-white disabled:opacity-50"
         onClick={startSession}
         disabled={loading}
       >
         {loading ? "Starting..." : "Begin Assessment"}
       </button>
-      {error ? <p className="mt-3 text-sm font-medium text-rose-700">{error}</p> : null}
+      {error ? <p className="mt-3 text-sm font-medium text-[#101114]">{error}</p> : null}
     </>
   );
 }

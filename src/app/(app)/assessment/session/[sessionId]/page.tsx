@@ -64,15 +64,15 @@ function renderQuestionImage(question: Question) {
   if (!question.imageUrl) return null;
 
   return (
-    <figure className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+    <figure className="mt-4 overflow-hidden rounded-2xl border border-[#101114]/12 bg-[#F4EEE0]/60">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={question.imageUrl}
         alt={question.imageAlt || "Question reference image"}
-        className="max-h-[28rem] w-full object-contain bg-white"
+        className="max-h-[28rem] w-full object-contain bg-[#F4EEE0]"
       />
       {question.imageCaption ? (
-        <figcaption className="border-t border-slate-200 px-4 py-3 text-sm text-slate-600">
+        <figcaption className="border-t border-[#101114]/12 px-4 py-3 text-sm text-[#101114]/72">
           {question.imageCaption}
         </figcaption>
       ) : null}
@@ -332,14 +332,14 @@ export default function SessionPage() {
 
   function renderQuestionCard(question: Question, displayIndex: number) {
     return (
-      <article key={question.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+      <article key={question.id} className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <div className="flex items-start justify-between gap-2">
-          <p className="font-medium text-slate-900">
+          <p className="font-medium text-[#101114]">
             {question.code ? `${question.code}. ` : `${displayIndex + 1}. `}
             {question.prompt}
           </p>
           {question.category && (
-            <span className="rounded-full bg-amber-100 px-2 py-1 text-xs text-amber-900">
+            <span className="rounded-full bg-[#F4EEE0] px-2 py-1 text-xs text-[#B5803C]">
               {question.category}
             </span>
           )}
@@ -357,8 +357,8 @@ export default function SessionPage() {
                 key={value}
                 className={`rounded-lg border px-3 py-1 text-sm ${
                   answers[question.id]?.value === value
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 bg-white"
+                    ? "border-[#101114] bg-[#101114] text-white"
+                    : "border-[#101114]/20 bg-[#F4EEE0]"
                 }`}
                 onClick={() => answerLikert(question.id, value)}
                 disabled={isReadOnly}
@@ -374,8 +374,8 @@ export default function SessionPage() {
                 key={option.id}
                 className={`rounded-xl border px-4 py-3 text-left text-sm ${
                   answers[question.id]?.optionId === option.id
-                    ? "border-cyan-700 bg-cyan-50"
-                    : "border-slate-300 bg-white"
+                    ? "border-[#B5803C] bg-[#F4EEE0]"
+                    : "border-[#101114]/20 bg-[#F4EEE0]"
                 }`}
                 onClick={() => answerScenario(question.id, option.id)}
                 disabled={isReadOnly}
@@ -387,7 +387,7 @@ export default function SessionPage() {
         ) : (
           <div className="mt-4">
             <textarea
-              className="min-h-28 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none ring-offset-2 focus:border-cyan-700 focus:ring-2 focus:ring-cyan-200"
+              className="min-h-28 w-full rounded-xl border border-[#101114]/20 p-3 text-sm outline-none ring-offset-2 focus:border-[#B5803C] focus:ring-2 focus:ring-cyan-200"
               placeholder="Type your response"
               value={answers[question.id]?.textValue || ""}
               onChange={(event) => {
@@ -415,9 +415,9 @@ export default function SessionPage() {
   if (loading) {
     return (
       <main className="mx-auto max-w-3xl p-6 md:p-10">
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-slate-900">Loading assessment session...</h1>
-          <p className="mt-2 text-sm text-slate-600">
+        <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-[#101114]">Loading assessment session...</h1>
+          <p className="mt-2 text-sm text-[#101114]/72">
             Preparing your questions and saved progress.
           </p>
         </section>
@@ -428,19 +428,19 @@ export default function SessionPage() {
   if (loadError) {
     return (
       <main className="mx-auto max-w-3xl p-6 md:p-10">
-        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6 shadow-sm">
-          <h1 className="text-xl font-semibold text-rose-900">Could not load this session</h1>
-          <p className="mt-2 text-sm text-rose-800">{loadError}</p>
+        <section className="rounded-2xl border border-[#101114]/20 bg-[#F4EEE0] p-6 shadow-sm">
+          <h1 className="text-xl font-semibold text-[#101114]">Could not load this session</h1>
+          <p className="mt-2 text-sm text-[#101114]">{loadError}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <Link
               href={defaultBackHref}
-              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="rounded-xl bg-[#101114] px-4 py-2 text-sm font-semibold text-white"
             >
               {isPreviewMode ? "Back to Assessment Settings" : "Back to Assessment Center"}
             </Link>
             <Link
               href="/dashboard"
-              className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+              className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-4 py-2 text-sm font-semibold text-[#101114]/82"
             >
               Dashboard
             </Link>
@@ -456,45 +456,45 @@ export default function SessionPage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Link
             href={defaultBackHref}
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
           >
             {isPreviewMode ? "Back to Assessment Settings" : "Back to Assessment Center"}
           </Link>
           {isPreviewMode ? (
-            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+            <span className="rounded-full bg-[#101114] px-3 py-1 text-xs font-semibold text-white">
               Admin Preview
             </span>
           ) : null}
         </div>
         <h1 className="text-2xl font-semibold tracking-tight">Personality & Behavior Assessment</h1>
-        <p className="mt-2 text-sm text-slate-700">
+        <p className="mt-2 text-sm text-[#101114]/82">
           Progress: {answeredCount}/{questions.length}
         </p>
         {isPreviewMode ? (
-          <p className="mt-2 rounded-lg bg-white/80 px-3 py-2 text-sm text-slate-700">
+          <p className="mt-2 rounded-lg bg-[#F4EEE0]/72 px-3 py-2 text-sm text-[#101114]/82">
             You are testing the live participant experience. Submitting this preview will not generate a participant score or report.
           </p>
         ) : null}
         {isOneQuestionAtATime && activeQuestion ? (
-          <p className="mt-1 text-sm text-slate-700">
+          <p className="mt-1 text-sm text-[#101114]/82">
             Question {activeQuestionIndex + 1} of {questions.length}
           </p>
         ) : null}
         {isReadOnly && (
-          <p className="mt-2 rounded-lg bg-emerald-100 px-3 py-2 text-sm text-emerald-800">
+          <p className="mt-2 rounded-lg bg-[#F4EEE0] px-3 py-2 text-sm text-[#B5803C]">
             This session has already been submitted. Responses are read-only.
           </p>
         )}
-        <div className="mt-3 h-2 rounded-full bg-white/80">
+        <div className="mt-3 h-2 rounded-full bg-[#F4EEE0]/72">
           <div
-            className="h-2 rounded-full bg-slate-900"
+            className="h-2 rounded-full bg-[#101114]"
             style={{ width: `${questions.length ? (answeredCount / questions.length) * 100 : 0}%` }}
           />
         </div>
       </header>
 
       {actionError ? (
-        <section className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+        <section className="rounded-2xl border border-[#101114]/20 bg-[#F4EEE0] p-4 text-sm text-[#101114]">
           {actionError}
         </section>
       ) : null}
@@ -502,11 +502,11 @@ export default function SessionPage() {
       {isOneQuestionAtATime && activeQuestion ? (
         <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <span className="rounded-full bg-slate-900 px-2 py-1 text-xs font-medium text-white">
+            <span className="rounded-full bg-[#101114] px-2 py-1 text-xs font-medium text-white">
               Section {sections.length > 0 && activeSection ? activeSection.sortOrder + 1 : 1}
             </span>
             <h2 className="text-lg font-semibold">{activeSection?.title || "Assessment"}</h2>
-            <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">
+            <span className="rounded-full bg-[#F4EEE0] px-2 py-1 text-xs text-[#101114]/72">
               {activeSection?.kind || "QUESTION"}
             </span>
           </div>
@@ -515,7 +515,7 @@ export default function SessionPage() {
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <button
-              className="rounded-xl border border-slate-300 bg-white px-4 py-3 font-medium text-slate-700 disabled:opacity-50"
+              className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-4 py-3 font-medium text-[#101114]/82 disabled:opacity-50"
               disabled={navigating || activeQuestionIndex === 0}
               onClick={() => void navigateToQuestion(activeQuestionIndex - 1)}
             >
@@ -525,7 +525,7 @@ export default function SessionPage() {
             <div className="flex flex-wrap gap-3">
               {activeQuestionIndex < questions.length - 1 ? (
                 <button
-                  className="rounded-xl bg-slate-900 px-4 py-3 font-medium text-white disabled:opacity-50"
+                  className="rounded-xl bg-[#101114] px-4 py-3 font-medium text-white disabled:opacity-50"
                   disabled={navigating || submitting}
                   onClick={() => void navigateToQuestion(activeQuestionIndex + 1)}
                 >
@@ -533,7 +533,7 @@ export default function SessionPage() {
                 </button>
               ) : (
                 <button
-                  className="rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white disabled:opacity-50"
+                  className="rounded-xl bg-[#B5803C] px-4 py-3 font-medium text-white disabled:opacity-50"
                   disabled={submitting || navigating || (!isReadOnly && answeredCount !== questions.length)}
                   onClick={submit}
                 >
@@ -556,11 +556,11 @@ export default function SessionPage() {
           {groupedSections.map((section, sectionIndex) => (
             <section key={section.id} className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className="rounded-full bg-slate-900 px-2 py-1 text-xs font-medium text-white">
+                <span className="rounded-full bg-[#101114] px-2 py-1 text-xs font-medium text-white">
                   Section {sectionIndex + 1}
                 </span>
                 <h2 className="text-lg font-semibold">{section.title}</h2>
-                <span className="rounded-full bg-slate-100 px-2 py-1 text-xs text-slate-600">{section.kind}</span>
+                <span className="rounded-full bg-[#F4EEE0] px-2 py-1 text-xs text-[#101114]/72">{section.kind}</span>
               </div>
 
               <div className="space-y-4">
@@ -570,7 +570,7 @@ export default function SessionPage() {
           ))}
 
           <button
-            className="w-full rounded-xl bg-emerald-700 px-4 py-3 font-medium text-white disabled:opacity-50"
+            className="w-full rounded-xl bg-[#B5803C] px-4 py-3 font-medium text-white disabled:opacity-50"
             disabled={submitting || (!isReadOnly && answeredCount !== questions.length)}
             onClick={submit}
           >
