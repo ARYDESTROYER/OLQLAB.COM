@@ -826,20 +826,20 @@ export default function UsersClient() {
   return (
     <div className="space-y-6">
       {/* ── Add User ── */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <h2 className="text-lg font-semibold">Add Account</h2>
 
         {/* Mode toggle */}
-        <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+        <div className="mt-3 flex gap-1 rounded-lg bg-[#F4EEE0] p-1 w-fit">
           <button
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${addMode === "org" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${addMode === "org" ? "bg-[#F4EEE0] text-[#101114] shadow-sm" : "text-[#101114]/55 hover:text-[#101114]/82"
               }`}
             onClick={() => setAddMode("org")}
           >
             Add to Organisation
           </button>
           <button
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${addMode === "solo" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${addMode === "solo" ? "bg-[#F4EEE0] text-[#101114] shadow-sm" : "text-[#101114]/55 hover:text-[#101114]/82"
               }`}
             onClick={() => setAddMode("solo")}
           >
@@ -847,7 +847,7 @@ export default function UsersClient() {
           </button>
         </div>
 
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-[#101114]/55">
           {addMode === "org"
             ? createRole === "ADMIN"
               ? "Create an admin account inside an existing organisation."
@@ -855,16 +855,16 @@ export default function UsersClient() {
             : "Create an independent participant. They can be grouped into an organisation later."}
         </p>
 
-        <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+        <div className="mt-3 flex gap-1 rounded-lg bg-[#F4EEE0] p-1 w-fit">
           <button
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${createRole === "EMPLOYEE" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${createRole === "EMPLOYEE" ? "bg-[#F4EEE0] text-[#101114] shadow-sm" : "text-[#101114]/55 hover:text-[#101114]/82"
               }`}
             onClick={() => setCreateRole("EMPLOYEE")}
           >
             Participant
           </button>
           <button
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${createRole === "ADMIN" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${createRole === "ADMIN" ? "bg-[#F4EEE0] text-[#101114] shadow-sm" : "text-[#101114]/55 hover:text-[#101114]/82"
               }`}
             onClick={() => {
               setCreateRole("ADMIN");
@@ -878,9 +878,9 @@ export default function UsersClient() {
         <div className="mt-3 flex flex-wrap items-end gap-2">
           {addMode === "org" && (
             <div className="flex-1 min-w-[180px]">
-              <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Organisation</label>
+              <label className="mb-1 block text-[11px] font-medium text-[#101114]/55 uppercase tracking-wide">Organisation</label>
               <select
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                 value={createForm.tenantId}
                 onChange={(e) => setCreateForm((prev) => ({ ...prev, tenantId: e.target.value }))}
               >
@@ -896,16 +896,16 @@ export default function UsersClient() {
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-[11px] text-[#101114]/55">
                 Archived organisations are shown but disabled. Unarchive them from Organisations first.
               </p>
             </div>
           )}
 
           <div className="flex-1 min-w-[220px]">
-            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Email</label>
+            <label className="mb-1 block text-[11px] font-medium text-[#101114]/55 uppercase tracking-wide">Email</label>
             <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
               placeholder="participant@company.com"
               type="email"
               value={createForm.email}
@@ -914,7 +914,7 @@ export default function UsersClient() {
           </div>
 
           <button
-            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+            className="rounded-xl bg-[#101114] px-5 py-2 text-sm font-medium text-white hover:bg-[#1b1c20] transition-colors"
             onClick={createUser}
           >
             {createRole === "ADMIN" ? "Add Admin" : "Add"}
@@ -923,7 +923,7 @@ export default function UsersClient() {
 
         {/* Optional fields toggle */}
         <button
-          className="mt-3 text-xs text-slate-500 hover:text-slate-700 transition-colors"
+          className="mt-3 text-xs text-[#101114]/55 hover:text-[#101114]/82 transition-colors"
           onClick={() => setShowOptionalFields(!showOptionalFields)}
         >
           {showOptionalFields
@@ -934,19 +934,19 @@ export default function UsersClient() {
         {showOptionalFields && (
           <div className="mt-2 grid gap-2 md:grid-cols-3 animate-slide-in-menu">
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
               placeholder="First name"
               value={createForm.firstName}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, firstName: e.target.value }))}
             />
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
               placeholder="Last name"
               value={createForm.lastName}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, lastName: e.target.value }))}
             />
             <input
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
               placeholder={createRole === "ADMIN" ? "Manager email not used for admins" : "Manager email"}
               value={createForm.managerEmail}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
@@ -956,15 +956,15 @@ export default function UsersClient() {
         )}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <h2 className="text-lg font-semibold">Bulk Add Users</h2>
 
-        <div className="mt-3 flex gap-1 rounded-lg bg-slate-100 p-1 w-fit">
+        <div className="mt-3 flex gap-1 rounded-lg bg-[#F4EEE0] p-1 w-fit">
           <button
             className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
               bulkImportMode === "ORGANIZATION"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                ? "bg-[#F4EEE0] text-[#101114] shadow-sm"
+                : "text-[#101114]/55 hover:text-[#101114]/82"
             }`}
             onClick={() => {
               setBulkImportMode("ORGANIZATION");
@@ -976,8 +976,8 @@ export default function UsersClient() {
           <button
             className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
               bulkImportMode === "SOLO"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-500 hover:text-slate-700"
+                ? "bg-[#F4EEE0] text-[#101114] shadow-sm"
+                : "text-[#101114]/55 hover:text-[#101114]/82"
             }`}
             onClick={() => {
               setBulkImportMode("SOLO");
@@ -988,7 +988,7 @@ export default function UsersClient() {
           </button>
         </div>
 
-        <p className="mt-2 text-xs text-slate-500">
+        <p className="mt-2 text-xs text-[#101114]/55">
           {bulkImportMode === "ORGANIZATION"
             ? "Import multiple participants into one existing organisation."
             : "Create one solo organisation per CSV row. Use the optional solo_organisation_name column to override the default name."}
@@ -997,7 +997,7 @@ export default function UsersClient() {
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {bulkImportMode === "ORGANIZATION" && (
             <select
-              className="min-w-[240px] rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="min-w-[240px] rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
               value={bulkImportTenantId}
               onChange={(e) => {
                 setBulkImportTenantId(e.target.value);
@@ -1012,7 +1012,7 @@ export default function UsersClient() {
               ))}
             </select>
           )}
-          <label className="cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors">
+          <label className="cursor-pointer rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors">
             Load CSV File
             <input
               className="hidden"
@@ -1022,20 +1022,20 @@ export default function UsersClient() {
             />
           </label>
           <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
             onClick={downloadBulkCsvTemplate}
           >
             Download Template
           </button>
           <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors disabled:opacity-50"
             onClick={() => runBulkImportRequest(true)}
             disabled={bulkImportBusy}
           >
             {bulkImportBusy ? "Working..." : "Validate CSV"}
           </button>
           <button
-            className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+            className="rounded-xl bg-[#101114] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b1c20] transition-colors disabled:opacity-50"
             onClick={() => runBulkImportRequest(false)}
             disabled={bulkImportBusy}
           >
@@ -1044,14 +1044,14 @@ export default function UsersClient() {
         </div>
 
         <div className="mt-3 space-y-2">
-          <div className="flex items-center justify-between gap-2 text-[11px] text-slate-500">
+          <div className="flex items-center justify-between gap-2 text-[11px] text-[#101114]/55">
             <span>
               CSV columns: email, first_name, last_name, manager_email, solo_organisation_name
             </span>
             {bulkCsvFileName ? <span>Loaded file: {bulkCsvFileName}</span> : null}
           </div>
           <textarea
-            className="min-h-[180px] w-full rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="min-h-[180px] w-full rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
             placeholder="Paste CSV content here..."
             value={bulkCsvText}
             onChange={(e) => {
@@ -1062,8 +1062,8 @@ export default function UsersClient() {
         </div>
 
         {bulkImportSummary && (
-          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <div className="flex flex-wrap gap-3 text-xs text-slate-600">
+          <div className="mt-4 rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
+            <div className="flex flex-wrap gap-3 text-xs text-[#101114]/72">
               <span>Rows: {bulkImportSummary.requestedCount}</span>
               <span>Ready: {bulkImportSummary.readyCount}</span>
               <span>Skipped: {bulkImportSummary.skippedCount}</span>
@@ -1075,16 +1075,16 @@ export default function UsersClient() {
 
         {(bulkPreviewRows.length > 0 || bulkImportIssues.length > 0) && (
           <div className="mt-4 grid gap-4 lg:grid-cols-2">
-            <div className="rounded-xl border border-slate-200">
-              <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+            <div className="rounded-xl border border-[#101114]/12">
+              <div className="border-b border-[#101114]/12 px-3 py-2 text-xs font-semibold text-[#101114]/82">
                 Preview
               </div>
               {bulkPreviewRows.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-slate-500">No importable rows in current CSV.</div>
+                <div className="px-3 py-4 text-xs text-[#101114]/55">No importable rows in current CSV.</div>
               ) : (
                 <div className="max-h-80 overflow-auto">
                   <table className="min-w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500">
+                    <thead className="bg-[#F4EEE0]/60 text-[#101114]/55">
                       <tr>
                         <th className="px-3 py-2">Row</th>
                         <th className="px-3 py-2">Email</th>
@@ -1094,16 +1094,16 @@ export default function UsersClient() {
                     </thead>
                     <tbody>
                       {bulkPreviewRows.map((row) => (
-                        <tr key={`${row.rowNumber}-${row.email}`} className="border-t border-slate-100">
+                        <tr key={`${row.rowNumber}-${row.email}`} className="border-t border-[#101114]/10">
                           <td className="px-3 py-2">{row.rowNumber}</td>
                           <td className="px-3 py-2">
-                            <div className="font-medium text-slate-700">{row.email}</div>
-                            <div className="text-[11px] text-slate-500">
+                            <div className="font-medium text-[#101114]/82">{row.email}</div>
+                            <div className="text-[11px] text-[#101114]/55">
                               {[row.firstName, row.lastName].filter(Boolean).join(" ") || "No name set"}
                             </div>
                           </td>
-                          <td className="px-3 py-2 text-slate-600">{formatBulkPreviewAction(row.action)}</td>
-                          <td className="px-3 py-2 text-slate-600">{row.targetName}</td>
+                          <td className="px-3 py-2 text-[#101114]/72">{formatBulkPreviewAction(row.action)}</td>
+                          <td className="px-3 py-2 text-[#101114]/72">{row.targetName}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1112,22 +1112,22 @@ export default function UsersClient() {
               )}
             </div>
 
-            <div className="rounded-xl border border-slate-200">
-              <div className="border-b border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">
+            <div className="rounded-xl border border-[#101114]/12">
+              <div className="border-b border-[#101114]/12 px-3 py-2 text-xs font-semibold text-[#101114]/82">
                 Issues
               </div>
               {bulkImportIssues.length === 0 ? (
-                <div className="px-3 py-4 text-xs text-slate-500">No issues found in the current preview.</div>
+                <div className="px-3 py-4 text-xs text-[#101114]/55">No issues found in the current preview.</div>
               ) : (
                 <div className="max-h-80 overflow-auto px-3 py-2">
                   <div className="space-y-2">
                     {bulkImportIssues.map((issue) => (
-                      <div key={`${issue.rowNumber}-${issue.email}-${issue.reason}`} className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2">
-                        <div className="text-xs font-semibold text-rose-700">
+                      <div key={`${issue.rowNumber}-${issue.email}-${issue.reason}`} className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2">
+                        <div className="text-xs font-semibold text-[#101114]">
                           Row {issue.rowNumber}
                           {issue.email ? ` · ${issue.email}` : ""}
                         </div>
-                        <div className="mt-1 text-xs text-rose-700">{issue.message}</div>
+                        <div className="mt-1 text-xs text-[#101114]">{issue.message}</div>
                       </div>
                     ))}
                   </div>
@@ -1139,32 +1139,32 @@ export default function UsersClient() {
       </section>
 
       {/* ── User Directory ── */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex rounded-xl border border-slate-300 bg-white p-1 text-xs">
+            <div className="flex rounded-xl border border-[#101114]/20 bg-[#F4EEE0] p-1 text-xs">
               <button
-                className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${scope === "ALL" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"}`}
+                className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${scope === "ALL" ? "bg-[#101114] text-white" : "text-[#101114]/72 hover:text-[#101114]"}`}
                 onClick={() => setScope("ALL")}
               >
                 All Accounts
               </button>
               <button
-                className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${scope === "PARTICIPANTS" ? "bg-slate-900 text-white" : "text-slate-600 hover:text-slate-900"}`}
+                className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${scope === "PARTICIPANTS" ? "bg-[#101114] text-white" : "text-[#101114]/72 hover:text-[#101114]"}`}
                 onClick={() => setScope("PARTICIPANTS")}
               >
                 Participants
               </button>
             </div>
             <input
-              className="w-full min-w-[240px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="w-full min-w-[240px] flex-1 rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleSearchKeyDown}
               placeholder="Search users..."
             />
             <select
-              className="min-w-[190px] rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="min-w-[190px] rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
               value={selectedTenantId}
               onChange={(e) => setSelectedTenantId(e.target.value)}
             >
@@ -1178,7 +1178,7 @@ export default function UsersClient() {
               ))}
             </select>
             <select
-              className="min-w-[150px] rounded-xl border border-slate-300 px-3 py-2 text-sm"
+              className="min-w-[150px] rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
               value={selectedRole}
               onChange={(e) =>
                 setSelectedRole(e.target.value as "" | "ADMIN" | "EMPLOYEE" | "LEADER")
@@ -1192,25 +1192,25 @@ export default function UsersClient() {
               </option>
             </select>
             <button
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
               onClick={() => setShowAdvancedFilters((prev) => !prev)}
             >
               {showAdvancedFilters ? "Hide Filters" : "More Filters"}
             </button>
             <button
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+              className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
               onClick={loadUsers}
             >
               Refresh
             </button>
             <button
-              className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+              className="rounded-xl border border-[#101114]/20 bg-[#101114] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b1c20] transition-colors"
               onClick={exportUsersCsv}
             >
               Export CSV
             </button>
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#101114]/55">
             Showing {users.length} of {meta.totalMatchingFilters} user(s) (scope:{" "}
             {meta.scope === "PARTICIPANTS" ? "Participants only" : "All accounts"}). Platform totals:
             {" "}
@@ -1218,10 +1218,10 @@ export default function UsersClient() {
           </p>
 
           {showAdvancedFilters && (
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+            <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-2">
               <div className="flex flex-wrap items-center gap-2">
                 <select
-                  className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="min-w-[170px] rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                   value={selectedTenantType}
                   onChange={(e) =>
                     setSelectedTenantType(e.target.value as "ANY" | "ORGANIZATION" | "SOLO")
@@ -1232,7 +1232,7 @@ export default function UsersClient() {
                   <option value="SOLO">Solo</option>
                 </select>
                 <select
-                  className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="min-w-[170px] rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                   value={selectedManagerFilter}
                   onChange={(e) =>
                     setSelectedManagerFilter(e.target.value as "ANY" | "WITH" | "WITHOUT")
@@ -1243,7 +1243,7 @@ export default function UsersClient() {
                   <option value="WITHOUT">Without manager</option>
                 </select>
                 <select
-                  className="min-w-[170px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="min-w-[170px] rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                   value={selectedTenantArchived}
                   onChange={(e) =>
                     setSelectedTenantArchived(e.target.value as "ANY" | "ACTIVE" | "ARCHIVED")
@@ -1254,7 +1254,7 @@ export default function UsersClient() {
                   <option value="ARCHIVED">Archived organisations</option>
                 </select>
                 <select
-                  className="min-w-[150px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="min-w-[150px] rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                   value={sortBy}
                   onChange={(e) =>
                     setSortBy(e.target.value as "createdAt" | "updatedAt" | "name" | "email")
@@ -1266,7 +1266,7 @@ export default function UsersClient() {
                   <option value="email">Sort: Email</option>
                 </select>
                 <select
-                  className="min-w-[140px] rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm"
+                  className="min-w-[140px] rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                   value={sortOrder}
                   onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
                 >
@@ -1274,7 +1274,7 @@ export default function UsersClient() {
                   <option value="asc">Oldest first</option>
                 </select>
                 <button
-                  className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+                  className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
                   onClick={clearAdvancedFilters}
                 >
                   Clear Filters
@@ -1285,13 +1285,13 @@ export default function UsersClient() {
         </div>
 
         {selectedUserIds.length > 0 && (
-          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+          <div className="mt-3 rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-semibold text-slate-700">
+              <span className="text-xs font-semibold text-[#101114]/82">
                 {selectedUserIds.length} selected
               </span>
               <select
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2 py-1 text-xs"
                 value={bulkMoveTenantId}
                 onChange={(e) => setBulkMoveTenantId(e.target.value)}
                 disabled={bulkBusy}
@@ -1304,7 +1304,7 @@ export default function UsersClient() {
                 ))}
               </select>
               <button
-                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0]/60 transition-colors disabled:opacity-50"
                 onClick={bulkMoveUsers}
                 disabled={bulkBusy || !bulkMoveTenantId}
               >
@@ -1318,14 +1318,14 @@ export default function UsersClient() {
                 Make Solo
               </button>
               <button
-                className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors disabled:opacity-50"
+                className="rounded-lg border border-[#101114]/30 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0] transition-colors disabled:opacity-50"
                 onClick={bulkDeleteUsers}
                 disabled={bulkBusy}
               >
                 Delete Selected
               </button>
               <button
-                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
+                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0]/60 transition-colors"
                 onClick={() => setSelectedUserIds([])}
                 disabled={bulkBusy}
               >
@@ -1335,9 +1335,9 @@ export default function UsersClient() {
           </div>
         )}
 
-        <div className="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-slate-200">
+        <div className="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-[#101114]/12">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="bg-[#F4EEE0]/60 text-[#101114]/72">
               <tr>
                 <th className="px-3 py-2">
                   <input
@@ -1367,7 +1367,7 @@ export default function UsersClient() {
                 />
               ) : (
                 users.map((user) => (
-                  <tr key={user.id} className="border-t border-slate-100 align-top">
+                  <tr key={user.id} className="border-t border-[#101114]/10 align-top">
                     <td className="px-3 py-2">
                       <input
                         type="checkbox"
@@ -1379,37 +1379,37 @@ export default function UsersClient() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="font-medium">{`${user.firstName} ${user.lastName}`.trim() || "No name set"}</div>
-                      <div className="text-xs text-slate-500">{user.email}</div>
+                      <div className="text-xs text-[#101114]/55">{user.email}</div>
                       {user.role === "ADMIN" && (
                         <span className="mt-0.5 inline-block rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] font-semibold text-violet-700">Admin</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-600">
+                    <td className="px-3 py-2 text-[#101114]/72">
                       {user.tenant?.name}
                       {user.tenant?.type === "SOLO" && (
-                        <span className="ml-1.5 text-[10px] text-slate-400">(Solo)</span>
+                        <span className="ml-1.5 text-[10px] text-[#101114]/45">(Solo)</span>
                       )}
                       {user.tenant?.isArchived && (
-                        <span className="ml-1.5 text-[10px] text-amber-600">(Archived)</span>
+                        <span className="ml-1.5 text-[10px] text-[#B5803C]">(Archived)</span>
                       )}
                       {user.tenant?.type === "ORGANIZATION" && (
                         <div className="mt-1">
                           <Link
                             href={`/admin/tenants?q=${encodeURIComponent(user.tenant?.name || "")}`}
-                            className="text-[11px] font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline"
+                            className="text-[11px] font-medium text-[#101114]/55 underline-offset-2 hover:text-[#101114]/82 hover:underline"
                           >
                             Open Organisation
                           </Link>
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-slate-500 text-xs">{user.manager?.email || "—"}</td>
+                    <td className="px-3 py-2 text-[#101114]/55 text-xs">{user.manager?.email || "—"}</td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <ActionMenu actions={getRowActions(user)} />
 
                         <select
-                          className="rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
+                          className="rounded-lg border border-[#101114]/20 px-2 py-1 text-[11px]"
                           value={moveTenantByUser[user.id] || ""}
                           onChange={(e) =>
                             setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
@@ -1426,7 +1426,7 @@ export default function UsersClient() {
                           ))}
                         </select>
                         <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
+                          className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0]/60 transition-colors"
                           onClick={() => moveUser(user.id)}
                           disabled={busyUserId === user.id || user.role === "ADMIN" || bulkBusy}
                         >
@@ -1435,27 +1435,27 @@ export default function UsersClient() {
                       </div>
 
                       {editingUserId === user.id && (
-                        <div className="mt-2 grid gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 md:grid-cols-5">
+                        <div className="mt-2 grid gap-2 rounded-lg border border-[#101114]/12 bg-[#F4EEE0]/60 p-2 md:grid-cols-5">
                           <input
-                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            className="rounded-lg border border-[#101114]/20 px-2 py-1 text-xs"
                             placeholder="First name"
                             value={editForm.firstName}
                             onChange={(e) => setEditForm((prev) => ({ ...prev, firstName: e.target.value }))}
                           />
                           <input
-                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            className="rounded-lg border border-[#101114]/20 px-2 py-1 text-xs"
                             placeholder="Last name"
                             value={editForm.lastName}
                             onChange={(e) => setEditForm((prev) => ({ ...prev, lastName: e.target.value }))}
                           />
                           <input
-                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            className="rounded-lg border border-[#101114]/20 px-2 py-1 text-xs"
                             placeholder="Manager email"
                             value={editForm.managerEmail}
                             onChange={(e) => setEditForm((prev) => ({ ...prev, managerEmail: e.target.value }))}
                           />
                           <select
-                            className="rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                            className="rounded-lg border border-[#101114]/20 px-2 py-1 text-xs"
                             value={editForm.role}
                             onChange={(e) =>
                               setEditForm((prev) => ({
@@ -1472,14 +1472,14 @@ export default function UsersClient() {
                           </select>
                           <div className="flex items-center gap-1">
                             <button
-                              className="rounded-md bg-slate-900 px-2 py-1 text-[11px] text-white"
+                              className="rounded-md bg-[#101114] px-2 py-1 text-[11px] text-white"
                               onClick={() => saveEditUser(user.id)}
                               disabled={busyUserId === user.id}
                             >
                               Save
                             </button>
                             <button
-                              className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px]"
+                              className="rounded-md border border-[#101114]/20 bg-[#F4EEE0] px-2 py-1 text-[11px]"
                               onClick={cancelEditUser}
                               disabled={busyUserId === user.id}
                             >
@@ -1505,7 +1505,7 @@ export default function UsersClient() {
       >
         {inspectPanel.loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="text-sm text-slate-400">Loading…</div>
+            <div className="text-sm text-[#101114]/45">Loading…</div>
           </div>
         ) : inspectPanel.data ? (
           inspectPanel.type === "tests" ? (

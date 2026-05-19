@@ -260,27 +260,27 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
         <div className="flex bg-gray-50 min-h-screen">
             {/* Editor Main Canvas */}
             <div className="flex-1 overflow-y-auto pt-16 px-4 sm:px-12 xl:px-32 flex justify-center pb-24">
-                <div className="w-full max-w-4xl bg-white min-h-[1056px] shadow-sm rounded-lg border border-gray-200 mt-6 md:mt-10 overflow-hidden relative">
+                <div className="w-full max-w-4xl bg-[#F4EEE0] min-h-[1056px] shadow-sm rounded-lg border border-gray-200 mt-6 md:mt-10 overflow-hidden relative">
 
                     {/* Editor Toolbar */}
-                    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center rounded-t-lg shadow-sm">
+                    <div className="sticky top-0 z-10 bg-[#F4EEE0] border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center rounded-t-lg shadow-sm">
                         <button
                             onClick={() => setEditMode("RICH")}
-                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "RICH" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
+                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "RICH" ? "bg-[#101114] text-white border-[#101114]" : "bg-[#F4EEE0] text-[#101114]/82 border-[#101114]/20"}`}
                             title="Edit rich text"
                         >
                             Rich Text
                         </button>
                         <button
                             onClick={() => setEditMode("JSON")}
-                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "JSON" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
+                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "JSON" ? "bg-[#101114] text-white border-[#101114]" : "bg-[#F4EEE0] text-[#101114]/82 border-[#101114]/20"}`}
                             title="Edit full report JSON"
                         >
                             Full JSON
                         </button>
                         <button
                             onClick={() => setEditMode("PREVIEW")}
-                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "PREVIEW" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
+                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "PREVIEW" ? "bg-[#101114] text-white border-[#101114]" : "bg-[#F4EEE0] text-[#101114]/82 border-[#101114]/20"}`}
                             title="Preview report"
                         >
                             Preview
@@ -355,11 +355,11 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                         <EditorContent editor={editor} className="p-8 md:p-12 lg:p-16" />
                     ) : editMode === "JSON" ? (
                         <div className="p-4 md:p-6 lg:p-8">
-                            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-slate-500">
+                            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-[#101114]/55">
                                 Full Report JSON (all sections editable)
                             </label>
                             <textarea
-                                className="min-h-[680px] w-full rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                                className="min-h-[680px] w-full rounded-lg border border-[#101114]/20 bg-[#F4EEE0]/60 p-3 font-mono text-xs text-[#101114] focus:outline-none focus:ring-2 focus:ring-slate-300"
                                 value={jsonContent}
                                 onChange={(e) => setJsonContent(e.target.value)}
                             />
@@ -373,7 +373,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
             </div>
 
             {/* Right Sidebar - Actions & Meta */}
-            <div className="w-80 border-l border-gray-200 bg-white fixed right-0 top-16 bottom-0 overflow-y-auto">
+            <div className="w-80 border-l border-gray-200 bg-[#F4EEE0] fixed right-0 top-16 bottom-0 overflow-y-auto">
                 <div className="p-6">
                     <h2 className="text-lg font-semibold text-gray-900 mb-6">Report Delivery</h2>
 
@@ -391,7 +391,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                         </div>
                         <div>
                             <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</label>
-                            <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${status === "PUBLISHED" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
+                            <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${status === "PUBLISHED" ? "bg-[#F4EEE0] text-[#B5803C]" : "bg-[#F4EEE0] text-[#B5803C]"
                                 }`}>
                                 {status}
                             </span>
@@ -408,7 +408,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                                     value="DASHBOARD_ONLY"
                                     checked={deliveryMethod === "DASHBOARD_ONLY"}
                                     onChange={() => setDeliveryMethod("DASHBOARD_ONLY")}
-                                    className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    className="mt-1 h-4 w-4 text-[#B5803C] border-gray-300 focus:ring-blue-500"
                                 />
                                 <div className="ml-3">
                                     <span className="block text-sm font-medium text-gray-700">Dashboard Only</span>
@@ -423,7 +423,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                                     value="EMAIL_LINK"
                                     checked={deliveryMethod === "EMAIL_LINK"}
                                     onChange={() => setDeliveryMethod("EMAIL_LINK")}
-                                    className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                                    className="mt-1 h-4 w-4 text-[#B5803C] border-gray-300 focus:ring-blue-500"
                                 />
                                 <div className="ml-3">
                                     <span className="block text-sm font-medium text-gray-700">Email Magic Link</span>
@@ -437,7 +437,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                         <button
                             onClick={handleSaveProgress}
                             disabled={saving || sending || unpublishing}
-                            className="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+                            className="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-[#F4EEE0] hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
                         >
                             {saving ? "Saving..." : "Save Progress"}
                         </button>
@@ -445,7 +445,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                         <button
                             onClick={handleUnpublish}
                             disabled={saving || sending || unpublishing || status !== "PUBLISHED"}
-                            className="w-full flex justify-center py-2.5 px-4 border border-amber-300 rounded-md shadow-sm text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 disabled:opacity-50"
+                            className="w-full flex justify-center py-2.5 px-4 border border-[#B5803C]/55 rounded-md shadow-sm text-sm font-medium text-[#B5803C] bg-[#F4EEE0] hover:bg-[#F4EEE0] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 disabled:opacity-50"
                         >
                             {unpublishing ? "Unpublishing..." : "Unpublish to Edit"}
                         </button>
@@ -455,7 +455,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
                             disabled={saving || sending || unpublishing}
                             className={`w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${status === "PUBLISHED"
                                     ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"
-                                    : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
+                                    : "bg-[#101114] hover:bg-[#1b1c20] focus:ring-blue-500"
                                 }`}
                         >
                             {sending ? "Sending..." : status === "PUBLISHED" ? "Re-send Report" : "Send Report"}

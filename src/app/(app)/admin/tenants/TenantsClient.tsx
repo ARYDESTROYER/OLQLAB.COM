@@ -300,15 +300,15 @@ export default function TenantsClient() {
   return (
     <div className="space-y-6">
       {/* ── Create Organisation ── */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <h2 className="text-lg font-semibold">Create Organisation</h2>
-        <p className="mt-1 text-xs text-slate-500">Add a new client organisation to the platform.</p>
+        <p className="mt-1 text-xs text-[#101114]/55">Add a new client organisation to the platform.</p>
 
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[220px]">
-            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Name</label>
+            <label className="mb-1 block text-[11px] font-medium text-[#101114]/55 uppercase tracking-wide">Name</label>
             <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
               placeholder="Organisation name"
               value={createForm.name}
               onChange={(e) => setCreateForm((prev) => ({ ...prev, name: e.target.value }))}
@@ -316,11 +316,11 @@ export default function TenantsClient() {
           </div>
 
           <div className="w-28">
-            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Seats</label>
+            <label className="mb-1 block text-[11px] font-medium text-[#101114]/55 uppercase tracking-wide">Seats</label>
             <input
               type="number"
               min={1}
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
               value={createForm.seatLimit}
               onChange={(e) =>
                 setCreateForm((prev) => ({ ...prev, seatLimit: Number(e.target.value) }))
@@ -329,7 +329,7 @@ export default function TenantsClient() {
           </div>
 
           <button
-            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
+            className="rounded-xl bg-[#101114] px-5 py-2 text-sm font-medium text-white hover:bg-[#1b1c20] transition-colors"
             onClick={createTenant}
           >
             Create
@@ -338,17 +338,17 @@ export default function TenantsClient() {
       </section>
 
       {/* ── Organisation Directory ── */}
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <div className="flex flex-wrap items-center gap-2">
           <input
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder="Search organisations…"
           />
           <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
             value={typeFilter}
             onChange={(e) =>
               setTypeFilter(e.target.value as "" | "ORGANIZATION" | "SOLO")
@@ -359,7 +359,7 @@ export default function TenantsClient() {
             <option value="SOLO">Solo organisations</option>
           </select>
           <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
             value={seatStateFilter}
             onChange={(e) =>
               setSeatStateFilter(
@@ -373,7 +373,7 @@ export default function TenantsClient() {
             <option value="OVER_CAPACITY">Over capacity</option>
           </select>
           <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
             value={sortBy}
             onChange={(e) =>
               setSortBy(
@@ -395,14 +395,14 @@ export default function TenantsClient() {
             <option value="seatUtilization">Sort: Utilization</option>
           </select>
           <select
-            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
+            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
           >
             <option value="desc">Descending</option>
             <option value="asc">Ascending</option>
           </select>
-          <label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm">
+          <label className="flex items-center gap-2 rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm">
             <input
               type="checkbox"
               checked={includeArchived}
@@ -411,48 +411,48 @@ export default function TenantsClient() {
             Include archived
           </label>
           <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
             onClick={loadTenants}
           >
             Refresh
           </button>
           <button
-            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
+            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
             onClick={resetFilters}
           >
             Clear Filters
           </button>
           <button
-            className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
+            className="rounded-xl border border-[#101114]/20 bg-[#101114] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b1c20] transition-colors"
             onClick={exportTenantsCsv}
           >
             Export CSV
           </button>
         </div>
 
-        <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
+        <div className="mt-4 overflow-auto rounded-xl border border-[#101114]/12">
           {selectedTenantIds.length > 0 && (
-            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="border-b border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-slate-700">
+                <span className="text-xs font-semibold text-[#101114]/82">
                   {selectedTenantIds.length} selected
                 </span>
                 <button
-                  className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-800 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                  className="rounded-lg border border-[#B5803C]/55 bg-[#F4EEE0] px-2.5 py-1 text-[11px] text-[#B5803C] hover:bg-[#F4EEE0] transition-colors disabled:opacity-50"
                   onClick={() => runBulkArchive(true)}
                   disabled={bulkBusy}
                 >
                   Archive Selected
                 </button>
                 <button
-                  className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] text-emerald-800 hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                  className="rounded-lg border border-[#B5803C]/55 bg-[#F4EEE0] px-2.5 py-1 text-[11px] text-[#B5803C] hover:bg-[#F4EEE0] transition-colors disabled:opacity-50"
                   onClick={() => runBulkArchive(false)}
                   disabled={bulkBusy}
                 >
                   Unarchive Selected
                 </button>
                 <button
-                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
+                  className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0]/60 transition-colors"
                   onClick={() => setSelectedTenantIds([])}
                   disabled={bulkBusy}
                 >
@@ -462,7 +462,7 @@ export default function TenantsClient() {
             </div>
           )}
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="bg-[#F4EEE0]/60 text-[#101114]/72">
               <tr>
                 <th className="px-3 py-2">
                   <input
@@ -490,7 +490,7 @@ export default function TenantsClient() {
                 />
               ) : (
                 tenants.map((tenant) => (
-                  <tr key={tenant.id} className="border-t border-slate-100 align-top">
+                  <tr key={tenant.id} className="border-t border-[#101114]/10 align-top">
                     <td className="px-3 py-2">
                       <input
                         type="checkbox"
@@ -502,7 +502,7 @@ export default function TenantsClient() {
                     </td>
                     <td className="px-3 py-2">
                       <input
-                        className="w-full rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        className="w-full rounded-lg border border-[#101114]/20 px-2 py-1 text-sm"
                         value={editByTenant[tenant.id]?.name || tenant.name}
                         onChange={(e) =>
                           setEditByTenant((prev) => ({
@@ -514,10 +514,10 @@ export default function TenantsClient() {
                           }))
                         }
                       />
-                      <p className="mt-1 text-[11px] text-slate-400">{tenant.id}</p>
+                      <p className="mt-1 text-[11px] text-[#101114]/45">{tenant.id}</p>
                     </td>
                     <td className="px-3 py-2">
-                      <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-semibold text-slate-700">
+                      <span className="rounded-full bg-[#F4EEE0] px-2 py-1 text-[11px] font-semibold text-[#101114]/82">
                         {tenant.type}
                       </span>
                     </td>
@@ -525,7 +525,7 @@ export default function TenantsClient() {
                       <input
                         type="number"
                         min={1}
-                        className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm"
+                        className="w-24 rounded-lg border border-[#101114]/20 px-2 py-1 text-sm"
                         value={editByTenant[tenant.id]?.seatLimit || tenant.seatLimit}
                         onChange={(e) =>
                           setEditByTenant((prev) => ({
@@ -538,7 +538,7 @@ export default function TenantsClient() {
                         }
                       />
                     </td>
-                    <td className="px-3 py-2 text-xs text-slate-600">
+                    <td className="px-3 py-2 text-xs text-[#101114]/72">
                       <div className="font-medium">
                         {tenant.seatsUsed ?? 0}/{tenant.seatLimit}
                       </div>
@@ -571,7 +571,7 @@ export default function TenantsClient() {
                       <div className="flex flex-wrap justify-end gap-1.5">
                         <ActionMenu actions={getRowActions(tenant)} />
                         <button
-                          className="rounded-lg border border-slate-300 bg-slate-900 px-2.5 py-1 text-[11px] text-white hover:bg-slate-800 transition-colors"
+                          className="rounded-lg border border-[#101114]/20 bg-[#101114] px-2.5 py-1 text-[11px] text-white hover:bg-[#1b1c20] transition-colors"
                           onClick={() => saveTenant(tenant.id)}
                           disabled={busyTenantId === tenant.id || bulkBusy}
                         >
@@ -595,13 +595,13 @@ export default function TenantsClient() {
       >
         {inspectPanel.loading ? (
           <div className="flex items-center justify-center py-16">
-            <div className="text-sm text-slate-400">Loading…</div>
+            <div className="text-sm text-[#101114]/45">Loading…</div>
           </div>
         ) : inspectPanel.data && Array.isArray(inspectPanel.data) ? (
           inspectPanel.data.length === 0 ? (
-            <p className="py-8 text-center text-sm text-slate-400">No data found.</p>
+            <p className="py-8 text-center text-sm text-[#101114]/45">No data found.</p>
           ) : (
-            <pre className="overflow-auto rounded-lg bg-slate-50 p-4 text-xs">{JSON.stringify(inspectPanel.data, null, 2)}</pre>
+            <pre className="overflow-auto rounded-lg bg-[#F4EEE0]/60 p-4 text-xs">{JSON.stringify(inspectPanel.data, null, 2)}</pre>
           )
         ) : null}
       </InspectPanel>

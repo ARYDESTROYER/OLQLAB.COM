@@ -1387,7 +1387,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
   if (loading || !detail) {
     return (
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <h2 className="text-lg font-semibold">Loading assessment...</h2>
       </section>
     );
@@ -1395,15 +1395,15 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
   return (
     <div className="space-y-6">
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
+      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
             <h2 className="text-xl font-semibold">{detail.title}</h2>
-            <p className="mt-1 text-xs text-slate-500">{detail.id}</p>
+            <p className="mt-1 text-xs text-[#101114]/55">{detail.id}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
-              className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+              className="rounded-xl bg-[#101114] px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
               onClick={() => void startAssessmentPreview()}
               disabled={previewBusy}
             >
@@ -1411,13 +1411,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             </button>
             <Link
               href="/admin/assessments"
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+              className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
             >
               Back to Assessments
             </Link>
           </div>
         </div>
-        <p className="mt-3 text-sm text-slate-600">
+        <p className="mt-3 text-sm text-[#101114]/72">
           Test Assessment opens the live participant flow in admin preview mode without requiring enrollment or generating a participant report.
         </p>
 
@@ -1426,8 +1426,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             <button
               key={item.key}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === item.key
-                ? "bg-slate-900 text-white"
-                : "border border-slate-300 bg-white text-slate-700"
+                ? "bg-[#101114] text-white"
+                : "border border-[#101114]/20 bg-[#F4EEE0] text-[#101114]/82"
                 }`}
               onClick={() => setTab(item.key)}
             >
@@ -1438,35 +1438,35 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       </section>
 
       {tab === "CONTENT" && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
           <h3 className="text-lg font-semibold">Assessment Content</h3>
           <div className="mt-3">
-            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Title</label>
+            <label className="mb-1 block text-[11px] font-medium text-[#101114]/55 uppercase tracking-wide">Title</label>
             <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2"
+              className="w-full rounded-lg border border-[#101114]/20 px-3 py-2"
               value={contentForm.title}
               onChange={(e) => setContentForm((prev) => ({ ...prev, title: e.target.value }))}
             />
           </div>
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="mt-3 text-sm text-[#101114]/72">
             Sections: {detail._count?.sections || 0} | Questions: {detail._count?.questions || 0} |
             User enrollments: {detail._count?.userEnrollments || 0} | Organisation enrollments: {detail._count?.tenantEnrollments || 0}
           </p>
-          <button className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={saveContent} disabled={busy}>
+          <button className="mt-4 rounded-xl bg-[#101114] px-4 py-2 text-sm text-white" onClick={saveContent} disabled={busy}>
             Save Content Metadata
           </button>
 
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white p-3">
+          <div className="mt-6 rounded-xl border border-[#101114]/12 bg-[#F4EEE0] p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-sm font-semibold">Bulk CSV Import</h4>
-              <span className="text-xs text-slate-500">
+              <span className="text-xs text-[#101114]/55">
                 Import full question sets in one file. Source question codes are preserved as-is.
               </span>
             </div>
 
             <div className="mt-3 grid gap-2 md:grid-cols-4">
               <select
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 value={csvImportMode}
                 onChange={(e) => setCsvImportMode(e.target.value as "REPLACE_ALL" | "APPEND")}
                 disabled={csvImportBusy}
@@ -1477,12 +1477,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               <input
                 type="file"
                 accept=".csv,text/csv"
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm md:col-span-2"
                 onChange={(e) => setCsvImportFile(e.target.files?.[0] || null)}
                 disabled={csvImportBusy}
               />
               <button
-                className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-xs font-semibold hover:bg-slate-50"
+                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60"
                 onClick={downloadCsvTemplate}
                 disabled={csvImportBusy}
               >
@@ -1492,14 +1492,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <button
-                className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
+                className="rounded-xl border border-[#B5803C]/55 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#B5803C] hover:bg-[#F4EEE0] disabled:opacity-50"
                 onClick={validateCsvImport}
                 disabled={csvImportBusy || !csvImportFile}
               >
                 {csvImportBusy ? "Validating..." : "Validate CSV"}
               </button>
               <button
-                className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
+                className="rounded-xl bg-[#101114] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b1c20] disabled:opacity-50"
                 onClick={applyCsvImport}
                 disabled={csvImportBusy || !csvImportFile || !csvImportSummary || csvImportIssues.length > 0}
               >
@@ -1508,8 +1508,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             </div>
 
             {csvImportSummary && (
-              <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                <p className="font-semibold text-slate-700">
+              <div className="mt-3 rounded-lg border border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2 text-xs text-[#101114]/72">
+                <p className="font-semibold text-[#101114]/82">
                   {csvImportSummary.questions} questions across {csvImportSummary.sections} sections
                 </p>
                 <p className="mt-1">
@@ -1519,14 +1519,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             )}
 
             {csvImportPreview.length > 0 && (
-              <div className="mt-3 rounded-lg border border-slate-200">
-                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
+              <div className="mt-3 rounded-lg border border-[#101114]/12">
+                <div className="border-b border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2 text-xs font-semibold text-[#101114]/72">
                   Preview (first {csvImportPreview.length})
                 </div>
-                <ul className="max-h-32 overflow-auto px-3 py-2 text-xs text-slate-600">
+                <ul className="max-h-32 overflow-auto px-3 py-2 text-xs text-[#101114]/72">
                   {csvImportPreview.map((item) => (
                     <li key={`${item.code}-${item.prompt}`} className="py-1">
-                      <span className="font-semibold text-slate-700">{item.code}</span> · {item.section} · {item.type}
+                      <span className="font-semibold text-[#101114]/82">{item.code}</span> · {item.section} · {item.type}
                     </li>
                   ))}
                 </ul>
@@ -1534,7 +1534,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             )}
 
             {csvImportIssues.length > 0 && (
-              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+              <div className="mt-3 rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs text-[#101114]">
                 <p className="font-semibold">Validation issues ({csvImportIssues.length})</p>
                 <ul className="mt-1 max-h-32 list-disc overflow-auto pl-5">
                   {csvImportIssues.map((issue, index) => (
@@ -1548,21 +1548,21 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             )}
           </div>
 
-          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <div className="mt-6 rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h4 className="text-sm font-semibold">Question Builder</h4>
-              <span className="text-xs text-slate-500">Add / Edit / Remove questions here.</span>
+              <span className="text-xs text-[#101114]/55">Add / Edit / Remove questions here.</span>
             </div>
 
             <div className="mt-3 grid gap-2 md:grid-cols-2">
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 placeholder="Source question code (optional)"
                 value={questionForm.code}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, code: e.target.value }))}
               />
               <select
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 value={questionForm.questionType}
                 onChange={(e) =>
                   updateQuestionFormType(
@@ -1575,37 +1575,37 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 <option value="FREE_TEXT">Free Text</option>
               </select>
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 placeholder="Question prompt"
                 value={questionForm.prompt}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, prompt: e.target.value }))}
               />
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 placeholder="Category (optional)"
                 value={questionForm.category}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, category: e.target.value }))}
               />
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 placeholder="Image URL or /public path (optional)"
                 value={questionForm.imageUrl}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
               />
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 placeholder="Image alt text (optional)"
                 value={questionForm.imageAlt}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageAlt: e.target.value }))}
               />
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 placeholder="Image caption (optional)"
                 value={questionForm.imageCaption}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageCaption: e.target.value }))}
               />
               <input
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 placeholder="Trait (optional)"
                 value={questionForm.trait}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, trait: e.target.value }))}
@@ -1613,7 +1613,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="number"
-                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                  className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                   placeholder="Scale min"
                   value={questionForm.scaleMin}
                   onChange={(e) =>
@@ -1623,7 +1623,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 />
                 <input
                   type="number"
-                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                  className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                   placeholder="Scale max"
                   value={questionForm.scaleMax}
                   onChange={(e) =>
@@ -1633,7 +1633,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 />
               </div>
               <select
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 value={questionForm.sectionId}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, sectionId: e.target.value }))}
               >
@@ -1643,7 +1643,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                   </option>
                 ))}
               </select>
-              <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm">
+              <label className="flex items-center gap-2 rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2 py-2 text-sm">
                 <input
                   type="checkbox"
                   checked={questionForm.reverse}
@@ -1654,17 +1654,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             </div>
 
             {questionForm.questionType === "SJT_SINGLE" && (
-              <div className="mt-4 rounded-xl border border-slate-200 bg-white p-3">
+              <div className="mt-4 rounded-xl border border-[#101114]/12 bg-[#F4EEE0] p-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h5 className="text-sm font-semibold text-slate-900">MCQ Options and Marks</h5>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <h5 className="text-sm font-semibold text-[#101114]">MCQ Options and Marks</h5>
+                    <p className="mt-1 text-xs text-[#101114]/55">
                       Add every option and each stored competency mark before creating the question.
                     </p>
                   </div>
                   <button
                     type="button"
-                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                    className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
                     onClick={addQuestionFormOption}
                   >
                     Add Option
@@ -1673,23 +1673,23 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
                 <div className="mt-3 space-y-3">
                   {questionForm.options.map((option, optionIndex) => (
-                    <div key={option.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                    <div key={option.id} className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
                       <div className="grid gap-2 md:grid-cols-[120px_minmax(0,1fr)_auto]">
                         <input
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                           placeholder="Code"
                           value={option.code}
                           onChange={(e) => updateQuestionFormOption(option.id, { code: e.target.value })}
                         />
                         <input
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                           placeholder={`Option ${optionIndex + 1} text`}
                           value={option.text}
                           onChange={(e) => updateQuestionFormOption(option.id, { text: e.target.value })}
                         />
                         <button
                           type="button"
-                          className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"
+                          className="rounded-lg border border-[#101114]/30 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]"
                           onClick={() => removeQuestionFormOption(option.id)}
                         >
                           Remove
@@ -1700,7 +1700,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         {option.impacts.map((impact) => (
                           <div key={impact.id} className="grid gap-2 md:grid-cols-[minmax(0,1fr)_120px_auto]">
                             <input
-                              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              className="rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                               placeholder="Competency code"
                               value={impact.competencyCode}
                               onChange={(e) =>
@@ -1712,7 +1712,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             <input
                               type="number"
                               step="0.1"
-                              className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              className="rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                               placeholder="Delta"
                               value={impact.delta}
                               onChange={(e) =>
@@ -1721,7 +1721,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             />
                             <button
                               type="button"
-                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                              className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
                               onClick={() => removeQuestionFormImpact(option.id, impact.id)}
                             >
                               Remove Mark
@@ -1731,7 +1731,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
                         <button
                           type="button"
-                          className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                          className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
                           onClick={() => addQuestionFormImpact(option.id)}
                         >
                           Add Mark / Impact
@@ -1744,7 +1744,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             )}
 
             <button
-              className="mt-3 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white"
+              className="mt-3 rounded-xl bg-[#101114] px-4 py-2 text-sm text-white"
               onClick={addQuestion}
               disabled={busy}
             >
@@ -1760,31 +1760,31 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 const questionCode = formatQuestionCode(question, index);
 
                 return (
-                  <article key={question.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-3">
+                  <article key={question.id} className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-4 shadow-sm">
+                    <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#101114]/10 pb-3">
                       <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#101114]/55">
                           Question {index + 1}
                         </p>
-                        <h5 className="mt-1 text-base font-semibold text-slate-900">{questionCode}</h5>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <h5 className="mt-1 text-base font-semibold text-[#101114]">{questionCode}</h5>
+                        <p className="mt-1 text-xs text-[#101114]/55">
                           {formatQuestionTypeLabel(question.questionType)}
                           {question.category ? ` · ${question.category}` : ""}
                           {question.section?.title ? ` · ${question.section.title}` : ""}
                         </p>
                       </div>
-                      <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-slate-600">
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                      <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-[#101114]/72">
+                        <span className="rounded-full bg-[#F4EEE0] px-2.5 py-1">
                           Scale {formatScaleLabel(question)}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        <span className="rounded-full bg-[#F4EEE0] px-2.5 py-1">
                           {question.options.length} option{question.options.length === 1 ? "" : "s"}
                         </span>
-                        <span className="rounded-full bg-slate-100 px-2.5 py-1">
+                        <span className="rounded-full bg-[#F4EEE0] px-2.5 py-1">
                           {totalImpacts} mark{totalImpacts === 1 ? "" : "s"}
                         </span>
                         {question.reverse ? (
-                          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-800">
+                          <span className="rounded-full bg-[#F4EEE0] px-2.5 py-1 text-[#B5803C]">
                             Reverse scored
                           </span>
                         ) : null}
@@ -1794,34 +1794,34 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)]">
                       <div className="space-y-4">
                         <div>
-                          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                          <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
                             Full Prompt
                           </label>
                           <textarea
-                            className="min-h-[110px] w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                            className="min-h-[110px] w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                             value={question.prompt}
                             onChange={(e) => updateQuestion(question.id, { prompt: e.target.value })}
                           />
                         </div>
 
                         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#101114]/55">
                               Source Code
                             </p>
                             <input
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              className="mt-1 w-full rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm text-[#101114]"
                               value={question.code || ""}
                               placeholder="Not set"
                               onChange={(e) => updateQuestion(question.id, { code: e.target.value })}
                             />
                           </div>
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#101114]/55">
                               Response Type
                             </p>
                             <select
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              className="mt-1 w-full rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm text-[#101114]"
                               value={question.questionType}
                               onChange={(e) =>
                                 updateQuestionType(
@@ -1835,33 +1835,33 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                               <option value="FREE_TEXT">Free Text</option>
                             </select>
                           </div>
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#101114]/55">
                               Category
                             </p>
                             <input
-                              className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                              className="mt-1 w-full rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm text-[#101114]"
                               value={question.category || ""}
                               placeholder="Not set"
                               onChange={(e) => updateQuestion(question.id, { category: e.target.value })}
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
                               Trait
                             </label>
                             <input
-                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                               value={question.trait || ""}
                               onChange={(e) => updateQuestion(question.id, { trait: e.target.value })}
                             />
                           </div>
                           <div>
-                            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
+                            <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
                               Section
                             </label>
                             <select
-                              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                              className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                               value={question.sectionId || ""}
                               onChange={(e) => {
                                 const nextSection = sections.find((section) => section.id === e.target.value);
@@ -1880,14 +1880,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                               ))}
                             </select>
                           </div>
-                          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                          <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-[#101114]/55">
                               Stored Scale
                             </p>
                             <div className="mt-1 grid grid-cols-2 gap-2">
                               <input
                                 type="number"
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm text-[#101114]"
                                 value={question.scaleMin}
                                 disabled={question.questionType === "FREE_TEXT"}
                                 onChange={(e) =>
@@ -1898,7 +1898,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                               />
                               <input
                                 type="number"
-                                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-800"
+                                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm text-[#101114]"
                                 value={question.scaleMax}
                                 disabled={question.questionType === "FREE_TEXT"}
                                 onChange={(e) =>
@@ -1911,7 +1911,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           </div>
                         </div>
 
-                        <label className="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">
+                        <label className="flex items-center gap-2 rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm font-medium text-[#101114]/82">
                           <input
                             type="checkbox"
                             checked={question.reverse}
@@ -1921,17 +1921,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         </label>
                       </div>
 
-                      <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                      <div className="space-y-3 rounded-2xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#101114]/55">
                             Image Metadata
                           </p>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-[#101114]/55">
                             Manual URL entry and direct uploads stay side by side for the same question.
                           </p>
                         </div>
                         <input
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                           placeholder="Image URL or /public path"
                           value={question.imageUrl || ""}
                           onChange={(e) => updateQuestion(question.id, { imageUrl: e.target.value })}
@@ -1952,8 +1952,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         <div
                           className={`rounded-lg border border-dashed px-3 py-3 text-xs transition-colors ${
                             dragOverQuestionId === question.id
-                              ? "border-cyan-500 bg-cyan-50 text-cyan-900"
-                              : "border-slate-300 bg-white text-slate-600"
+                              ? "border-[#B5803C] bg-[#F4EEE0] text-[#B5803C]"
+                              : "border-[#101114]/20 bg-[#F4EEE0] text-[#101114]/72"
                           }`}
                           onDragOver={(event) => {
                             event.preventDefault();
@@ -1978,19 +1978,19 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         >
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
-                              <p className="font-semibold text-slate-700">
+                              <p className="font-semibold text-[#101114]/82">
                                 {uploadingQuestionId === question.id
                                   ? "Uploading image..."
                                   : "Drag and drop JPG, PNG, or WebP here"}
                               </p>
-                              <p className="mt-1 text-slate-500">
+                              <p className="mt-1 text-[#101114]/55">
                                 Upload directly without losing access to the manual URL field.
                               </p>
                             </div>
                             <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
-                                className="rounded border border-slate-300 bg-white px-2 py-1 font-semibold text-slate-700"
+                                className="rounded border border-[#101114]/20 bg-[#F4EEE0] px-2 py-1 font-semibold text-[#101114]/82"
                                 onClick={() =>
                                   document.getElementById(`question-image-upload-${question.id}`)?.click()
                                 }
@@ -2001,7 +2001,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                               {question.imageUrl ? (
                                 <button
                                   type="button"
-                                  className="rounded border border-rose-300 bg-rose-50 px-2 py-1 font-semibold text-rose-700"
+                                  className="rounded border border-[#101114]/30 bg-[#F4EEE0] px-2 py-1 font-semibold text-[#101114]"
                                   onClick={() => void removeQuestionImage(question)}
                                   disabled={uploadingQuestionId === question.id}
                                 >
@@ -2012,53 +2012,53 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           </div>
                         </div>
                         {question.imageUrl ? (
-                          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+                          <div className="overflow-hidden rounded-lg border border-[#101114]/12 bg-[#F4EEE0]">
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
                               src={question.imageUrl}
                               alt={question.imageAlt || "Question image preview"}
-                              className="max-h-56 w-full object-contain bg-slate-50"
+                              className="max-h-56 w-full object-contain bg-[#F4EEE0]/60"
                             />
                           </div>
                         ) : null}
                         <input
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                           placeholder="Image alt text"
                           value={question.imageAlt || ""}
                           onChange={(e) => updateQuestion(question.id, { imageAlt: e.target.value })}
                         />
                         <input
-                          className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
                           placeholder="Image caption"
                           value={question.imageCaption || ""}
                           onChange={(e) => updateQuestion(question.id, { imageCaption: e.target.value })}
                         />
-                        <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-500">
+                        <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0] px-3 py-2 text-xs text-[#101114]/55">
                           Internal ID: {question.id}
                         </div>
                       </div>
                     </div>
 
-                    <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+                    <div className="mt-4 overflow-hidden rounded-2xl border border-[#101114]/12 bg-[#F4EEE0]/60">
+                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#101114]/12 px-4 py-3">
                         <div>
-                          <h6 className="text-sm font-semibold text-slate-900">Options and Marks</h6>
-                          <p className="mt-1 text-xs text-slate-500">
+                          <h6 className="text-sm font-semibold text-[#101114]">Options and Marks</h6>
+                          <p className="mt-1 text-xs text-[#101114]/55">
                             Every stored option and scoring impact for this question is shown here.
                           </p>
                         </div>
-                        <span className="rounded-full bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                        <span className="rounded-full bg-[#F4EEE0] px-2.5 py-1 text-[11px] font-semibold text-[#101114]/72">
                           {question.options.length} option{question.options.length === 1 ? "" : "s"}
                         </span>
                       </div>
 
                       {question.questionType === "SJT_SINGLE" ? (
-                        <div className="space-y-3 bg-white p-4">
+                        <div className="space-y-3 bg-[#F4EEE0] p-4">
                           {question.options.map((option, optionIndex) => (
-                            <div key={option.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div key={option.id} className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
                               <div className="grid gap-2 lg:grid-cols-[80px_minmax(0,1fr)_auto]">
                                 <input
-                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                  className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                                   value={option.code}
                                   placeholder={`O${optionIndex + 1}`}
                                   onChange={(e) =>
@@ -2066,7 +2066,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                                   }
                                 />
                                 <input
-                                  className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                  className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                                   value={option.text}
                                   placeholder={`Option ${optionIndex + 1} text`}
                                   onChange={(e) =>
@@ -2075,7 +2075,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                                 />
                                 <button
                                   type="button"
-                                  className="rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700"
+                                  className="rounded-lg border border-[#101114]/30 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]"
                                   onClick={() => removeQuestionOption(question.id, option.id)}
                                 >
                                   Remove Option
@@ -2087,7 +2087,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                                   <div key={impact.id} className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_120px_auto]">
                                     <div>
                                       <input
-                                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                        className="w-full rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                                         value={impact.competencyCode}
                                         placeholder="Competency code"
                                         onChange={(e) =>
@@ -2098,13 +2098,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                                         }
                                       />
                                       {impact.competencyName ? (
-                                        <p className="mt-1 text-[11px] text-slate-500">Current name: {impact.competencyName}</p>
+                                        <p className="mt-1 text-[11px] text-[#101114]/55">Current name: {impact.competencyName}</p>
                                       ) : null}
                                     </div>
                                     <input
                                       type="number"
                                       step="0.1"
-                                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                                      className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm"
                                       value={impact.delta}
                                       onChange={(e) =>
                                         updateQuestionImpact(question.id, option.id, impact.id, {
@@ -2114,7 +2114,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                                     />
                                     <button
                                       type="button"
-                                      className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                                      className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
                                       onClick={() => removeQuestionImpact(question.id, option.id, impact.id)}
                                     >
                                       Remove Mark
@@ -2125,15 +2125,15 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                                 <div className="flex flex-wrap gap-2">
                                   <button
                                     type="button"
-                                    className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                                    className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
                                     onClick={() => addQuestionImpact(question.id, option.id)}
                                   >
                                     Add Mark / Impact
                                   </button>
                                   {option.impacts.length > 0 ? (
-                                    <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+                                    <div className="flex flex-wrap gap-2 text-[11px] text-[#101114]/55">
                                       {option.impacts.map((impact) => (
-                                        <span key={`${option.id}-${impact.id}`} className="rounded-full border border-cyan-200 bg-cyan-50 px-2 py-1 text-cyan-900">
+                                        <span key={`${option.id}-${impact.id}`} className="rounded-full border border-[#B5803C]/40 bg-[#F4EEE0] px-2 py-1 text-[#B5803C]">
                                           {formatImpactLabel(impact)} {formatImpactDelta(impact.delta)}
                                         </span>
                                       ))}
@@ -2146,16 +2146,16 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
                           <button
                             type="button"
-                            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+                            className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
                             onClick={() => addQuestionOption(question.id)}
                           >
                             Add Option
                           </button>
                         </div>
                       ) : question.options.length > 0 ? (
-                        <div className="overflow-auto bg-white">
+                        <div className="overflow-auto bg-[#F4EEE0]">
                           <table className="min-w-full text-left text-xs">
-                            <thead className="bg-slate-50 text-slate-600">
+                            <thead className="bg-[#F4EEE0]/60 text-[#101114]/72">
                               <tr>
                                 <th className="px-3 py-2">Order</th>
                                 <th className="px-3 py-2">Code</th>
@@ -2165,24 +2165,24 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             </thead>
                             <tbody>
                               {question.options.map((option) => (
-                                <tr key={option.id} className="border-t border-slate-100 align-top">
-                                  <td className="px-3 py-3 font-medium text-slate-700">{option.displayOrder + 1}</td>
-                                  <td className="px-3 py-3 font-semibold text-slate-800">{option.code}</td>
-                                  <td className="px-3 py-3 text-slate-700">{option.text}</td>
+                                <tr key={option.id} className="border-t border-[#101114]/10 align-top">
+                                  <td className="px-3 py-3 font-medium text-[#101114]/82">{option.displayOrder + 1}</td>
+                                  <td className="px-3 py-3 font-semibold text-[#101114]">{option.code}</td>
+                                  <td className="px-3 py-3 text-[#101114]/82">{option.text}</td>
                                   <td className="px-3 py-3">
                                     {option.impacts.length ? (
                                       <div className="flex flex-wrap gap-2">
                                         {option.impacts.map((impact) => (
                                           <span
                                             key={impact.id}
-                                            className="rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 font-medium text-cyan-900"
+                                            className="rounded-full border border-[#B5803C]/40 bg-[#F4EEE0] px-2.5 py-1 font-medium text-[#B5803C]"
                                           >
                                             {formatImpactLabel(impact)} {formatImpactDelta(impact.delta)}
                                           </span>
                                         ))}
                                       </div>
                                     ) : (
-                                      <span className="text-slate-400">No marks or competency impacts stored.</span>
+                                      <span className="text-[#101114]/45">No marks or competency impacts stored.</span>
                                     )}
                                   </td>
                                 </tr>
@@ -2191,7 +2191,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           </table>
                         </div>
                       ) : (
-                        <div className="px-4 py-4 text-sm text-slate-600">
+                        <div className="px-4 py-4 text-sm text-[#101114]/72">
                           {question.questionType === "FREE_TEXT"
                             ? "This question stores no options because the participant enters a written response."
                             : "This question has no stored option rows. For Likert questions, the participant uses the shared numeric scale shown above."}
@@ -2201,14 +2201,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
                     <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
                       <button
-                        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                        className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-sm font-semibold text-[#101114]/82"
                         onClick={() => saveQuestion(question)}
                         disabled={busy || uploadingQuestionId === question.id}
                       >
                         Save Question
                       </button>
                       <button
-                        className="rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700"
+                        className="rounded-xl border border-[#101114]/30 bg-[#F4EEE0] px-3 py-2 text-sm font-semibold text-[#101114]"
                         onClick={() => removeQuestion(question.id)}
                         disabled={busy || uploadingQuestionId === question.id}
                       >
@@ -2224,11 +2224,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       )}
 
       {tab === "ACCESS" && (
-        <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="space-y-4 rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-semibold">Access Management</h3>
             <button
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold"
+              className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold"
               onClick={() => {
                 setWizardOpen(true);
                 setWizardStep(1);
@@ -2239,11 +2239,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             </button>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Create Enrollment</p>
+          <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#101114]/55">Create Enrollment</p>
             <div className="mt-2 grid gap-2 md:grid-cols-4">
               <select
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 value={enrollForm.scope}
                 onChange={(e) =>
                   setEnrollForm((prev) => ({
@@ -2260,7 +2260,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               {enrollForm.scope === "USER" ? (
                 <div className="space-y-2 md:col-span-2">
                   <input
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    className="w-full rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                     placeholder="Search participants by name or email"
                     value={userSearchQuery}
                     onChange={(e) => {
@@ -2269,7 +2269,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     }}
                   />
                   <select
-                    className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    className="w-full rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                     value={enrollForm.targetId}
                     onChange={(e) => {
                       const nextTargetId = e.target.value;
@@ -2291,14 +2291,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                       </option>
                     ))}
                   </select>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-[#101114]/55">
                     Search is required once your participant list grows. Showing up to 50 matches at a time.
                     {selectedEnrollmentUser ? ` Selected: ${formatUserOptionLabel(selectedEnrollmentUser)}.` : ""}
                   </p>
                 </div>
               ) : (
                 <select
-                  className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+                  className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm md:col-span-2"
                   value={enrollForm.targetId}
                   onChange={(e) => setEnrollForm((prev) => ({ ...prev, targetId: e.target.value }))}
                 >
@@ -2311,7 +2311,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 </select>
               )}
 
-              <label className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm">
+              <label className="flex items-center gap-2 rounded-lg border border-[#101114]/20 px-2 py-2 text-sm">
                 <input
                   type="checkbox"
                   checked={enrollForm.includeFutureUsers}
@@ -2323,7 +2323,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               </label>
 
               <select
-                className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 value={enrollForm.reportMode}
                 onChange={(e) =>
                   setEnrollForm((prev) => ({
@@ -2337,12 +2337,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               </select>
 
               {enrollForm.reportMode === "AUTO" && (
-                <div className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2">
+                <div className="flex items-center gap-2 rounded-lg border border-[#101114]/20 px-2 py-2 text-sm md:col-span-2">
                   <span className="whitespace-nowrap">Delay (hrs):</span>
                   <input
                     type="number"
                     min="0"
-                    className="w-20 rounded border border-slate-200 px-1"
+                    className="w-20 rounded border border-[#101114]/12 px-1"
                     value={enrollForm.reportDelayHours}
                     onChange={(e) =>
                       setEnrollForm((prev) => ({ ...prev, reportDelayHours: parseInt(e.target.value) || 0 }))
@@ -2352,50 +2352,50 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               )}
             </div>
 
-            <button className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm flex items-center gap-2 text-white" onClick={createEnrollment} disabled={busy}>
+            <button className="mt-4 rounded-xl bg-[#101114] px-4 py-2 text-sm flex items-center gap-2 text-white" onClick={createEnrollment} disabled={busy}>
               Create / Reactivate Enrollment
             </button>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <article className="rounded-xl border border-slate-200 bg-white p-3">
+            <article className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0] p-3">
               <h4 className="text-sm font-semibold">User Enrollments</h4>
               <ul className="mt-2 space-y-1 text-sm">
                 {access?.enrollments.users.length ? (
                   access.enrollments.users.map((enrollment) => (
                     <li key={enrollment.id}>
                       {enrollment.user.firstName} {enrollment.user.lastName} ({enrollment.user.email}) {" "}
-                      <span className="text-xs text-slate-500">[{enrollment.active ? "ACTIVE" : "INACTIVE"}]</span>
+                      <span className="text-xs text-[#101114]/55">[{enrollment.active ? "ACTIVE" : "INACTIVE"}]</span>
                     </li>
                   ))
                 ) : (
-                  <li className="text-slate-500">No user enrollments</li>
+                  <li className="text-[#101114]/55">No user enrollments</li>
                 )}
               </ul>
             </article>
 
-            <article className="rounded-xl border border-slate-200 bg-white p-3">
+            <article className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0] p-3">
               <h4 className="text-sm font-semibold">Organisation Enrollments</h4>
               <ul className="mt-2 space-y-1 text-sm">
                 {access?.enrollments.tenants.length ? (
                   access.enrollments.tenants.map((enrollment) => (
                     <li key={enrollment.id}>
                       {enrollment.tenant.name} ({enrollment.includeFutureUsers ? "Dynamic" : "Snapshot"}) {" "}
-                      <span className="text-xs text-slate-500">[{enrollment.active ? "ACTIVE" : "INACTIVE"}]</span>
+                      <span className="text-xs text-[#101114]/55">[{enrollment.active ? "ACTIVE" : "INACTIVE"}]</span>
                     </li>
                   ))
                 ) : (
-                  <li className="text-slate-500">No organisation enrollments</li>
+                  <li className="text-[#101114]/55">No organisation enrollments</li>
                 )}
               </ul>
             </article>
           </div>
 
-          <article className="rounded-xl border border-slate-200 bg-white p-3">
+          <article className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0] p-3">
             <h4 className="text-sm font-semibold">Resolved Active Users</h4>
-            <div className="mt-2 overflow-auto rounded border border-slate-200">
+            <div className="mt-2 overflow-auto rounded border border-[#101114]/12">
               <table className="min-w-full text-left text-sm">
-                <thead className="bg-slate-50 text-slate-600">
+                <thead className="bg-[#F4EEE0]/60 text-[#101114]/72">
                   <tr>
                     <th className="px-3 py-2">User</th>
                     <th className="px-3 py-2">Role</th>
@@ -2404,7 +2404,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                 </thead>
                 <tbody>
                   {(access?.activeUsers || []).map((user) => (
-                    <tr key={user.userId} className="border-t border-slate-100">
+                    <tr key={user.userId} className="border-t border-[#101114]/10">
                       <td className="px-3 py-2">{user.firstName} {user.lastName} ({user.email})</td>
                       <td className="px-3 py-2">{user.role}</td>
                       <td className="px-3 py-2">{user.sources.map((source) => formatScopeLabel(source.scope)).join(", ")}</td>
@@ -2416,13 +2416,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           </article>
 
           {wizardOpen && (
-            <article className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <article className="rounded-xl border border-[#B5803C]/40 bg-[#F4EEE0] p-4">
               <h4 className="text-sm font-semibold">Unenroll Wizard (Step {wizardStep} / 5)</h4>
 
               {wizardStep === 1 && (
                 <div className="mt-3 grid gap-2 md:grid-cols-3">
                   <select
-                    className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                     value={wizardForm.scope}
                     onChange={(e) =>
                       setWizardForm((prev) => ({
@@ -2436,7 +2436,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <option value="TENANT">ORGANISATION</option>
                   </select>
                   <select
-                    className="rounded-lg border border-slate-300 px-2 py-2 text-sm md:col-span-2"
+                    className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm md:col-span-2"
                     value={wizardForm.targetId}
                     onChange={(e) => setWizardForm((prev) => ({ ...prev, targetId: e.target.value }))}
                   >
@@ -2459,7 +2459,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               {wizardStep === 2 && (
                 <div className="mt-3 space-y-2">
                   <select
-                    className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                     value={wizardForm.timingMode}
                     onChange={(e) =>
                       setWizardForm((prev) => ({
@@ -2477,7 +2477,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <input
                       type="number"
                       min={1}
-                      className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                      className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                       value={wizardForm.afterHours}
                       onChange={(e) =>
                         setWizardForm((prev) => ({ ...prev, afterHours: Number(e.target.value) }))
@@ -2488,7 +2488,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                   {wizardForm.timingMode === "AT_DATE" && (
                     <input
                       type="datetime-local"
-                      className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                      className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                       value={wizardForm.atDateTime}
                       onChange={(e) =>
                         setWizardForm((prev) => ({ ...prev, atDateTime: e.target.value }))
@@ -2501,7 +2501,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               {wizardStep === 3 && (
                 <div className="mt-3">
                   <select
-                    className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                     value={wizardForm.reportMode}
                     onChange={(e) =>
                       setWizardForm((prev) => ({
@@ -2519,7 +2519,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
               {wizardStep === 4 && (
                 <div className="mt-3 space-y-2">
-                  <label className="flex items-center gap-2 rounded-lg border border-slate-300 px-2 py-2 text-sm">
+                  <label className="flex items-center gap-2 rounded-lg border border-[#101114]/20 px-2 py-2 text-sm">
                     <input
                       type="checkbox"
                       checked={wizardForm.notifyByEmail}
@@ -2532,7 +2532,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                   <input
                     type="number"
                     min={1}
-                    className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                    className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                     value={wizardForm.linkTtlHours}
                     onChange={(e) =>
                       setWizardForm((prev) => ({ ...prev, linkTtlHours: Number(e.target.value) }))
@@ -2543,10 +2543,10 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
               {wizardStep === 5 && (
                 <div className="mt-3 space-y-2">
-                  <p className="text-sm text-slate-700">
+                  <p className="text-sm text-[#101114]/82">
                     Impact preview: {wizardPreview?.length || 0} user(s)
                   </p>
-                  <ul className="max-h-40 overflow-auto rounded border border-slate-200 bg-white p-2 text-xs">
+                  <ul className="max-h-40 overflow-auto rounded border border-[#101114]/12 bg-[#F4EEE0] p-2 text-xs">
                     {(wizardPreview || []).map((item) => (
                       <li key={item.userId}>
                         {item.firstName} {item.lastName} ({item.email})
@@ -2558,7 +2558,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
               <div className="mt-4 flex flex-wrap gap-2">
                 <button
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs"
+                  className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-3 py-1.5 text-xs"
                   onClick={() => {
                     if (wizardStep === 1) {
                       setWizardOpen(false);
@@ -2572,7 +2572,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
                 {wizardStep < 4 && (
                   <button
-                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white"
+                    className="rounded-lg bg-[#101114] px-3 py-1.5 text-xs text-white"
                     onClick={() => setWizardStep((prev) => Math.min(4, prev + 1))}
                   >
                     Next
@@ -2581,7 +2581,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
                 {wizardStep === 4 && (
                   <button
-                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs text-white"
+                    className="rounded-lg bg-[#101114] px-3 py-1.5 text-xs text-white"
                     onClick={previewWizard}
                   >
                     Preview Impact
@@ -2590,7 +2590,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
 
                 {wizardStep === 5 && (
                   <button
-                    className="rounded-lg bg-rose-700 px-3 py-1.5 text-xs text-white"
+                    className="rounded-lg bg-[#101114] px-3 py-1.5 text-xs text-white"
                     onClick={confirmWizard}
                     disabled={busy}
                   >
@@ -2604,9 +2604,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       )}
 
       {tab === "PARTICIPANTS" && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
           <h3 className="text-lg font-semibold">Participants</h3>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-1 text-xs text-[#101114]/55">
             {isManualWorkflow
               ? "Manual workflow enabled: review inputs, upload PDF, and notify users when ready."
               : "AI report workflow enabled: use Review Draft/Open Report and publish controls."}
@@ -2616,8 +2616,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               <button
                 key={status}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium ${participantStatusFilter === status
-                  ? "bg-slate-900 text-white"
-                  : "border border-slate-300 bg-white text-slate-700"
+                  ? "bg-[#101114] text-white"
+                  : "border border-[#101114]/20 bg-[#F4EEE0] text-[#101114]/82"
                   }`}
                 onClick={() => setParticipantStatusFilter(status)}
               >
@@ -2626,9 +2626,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             ))}
           </div>
 
-          <div className="mt-3 overflow-auto rounded-xl border border-slate-200">
+          <div className="mt-3 overflow-auto rounded-xl border border-[#101114]/12">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600">
+              <thead className="bg-[#F4EEE0]/60 text-[#101114]/72">
                 <tr>
                   <th className="px-3 py-2">User</th>
                   <th className="px-3 py-2">Status</th>
@@ -2639,26 +2639,26 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               </thead>
               <tbody>
                 {filteredParticipants.map((participant) => (
-                  <tr key={participant.userId} className="border-t border-slate-100 align-top">
+                  <tr key={participant.userId} className="border-t border-[#101114]/10 align-top">
                     <td className="px-3 py-2">
                       {participant.firstName} {participant.lastName}
-                      <div className="text-xs text-slate-500">{participant.email}</div>
+                      <div className="text-xs text-[#101114]/55">{participant.email}</div>
                     </td>
                     <td className="px-3 py-2">{participant.status}</td>
-                    <td className="px-3 py-2 text-xs text-slate-600">
+                    <td className="px-3 py-2 text-xs text-[#101114]/72">
                       {participant.reportStatus ? (
                         <div className="space-y-1">
                           <span
                             className={`rounded-full px-2 py-1 font-semibold ${
                               participant.reportStatus === "PUBLISHED"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-amber-100 text-amber-700"
+                                ? "bg-[#F4EEE0] text-[#B5803C]"
+                                : "bg-[#F4EEE0] text-[#B5803C]"
                             }`}
                           >
                             {participant.reportStatus}
                           </span>
                           {isManualWorkflow && (
-                            <div className="text-[10px] text-slate-500">
+                            <div className="text-[10px] text-[#101114]/55">
                               PDF: {participant.hasManualPdf ? "Uploaded" : "Missing"}
                             </div>
                           )}
@@ -2673,7 +2673,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         {participant.status === "SUBMITTED" && (
                           <Link
                             href={`/admin/assessments/${assessmentId}/participants/${participant.userId}/responses`}
-                            className="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-[11px] hover:bg-sky-100 transition-colors"
+                            className="rounded-lg border border-[#B5803C]/55 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0] transition-colors"
                           >
                             View Inputs
                           </Link>
@@ -2682,7 +2682,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           <Link
                             href={`/reports/leader/${participant.userId}/${assessmentId}`}
                             target="_blank"
-                            className="rounded-lg border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] hover:bg-emerald-100 transition-colors"
+                            className="rounded-lg border border-[#B5803C]/55 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0] transition-colors"
                           >
                             View Report
                           </Link>
@@ -2693,7 +2693,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             className={`rounded-lg border px-2.5 py-1 text-[11px] transition-colors ${
                               participant.reportStatus === "DRAFT"
                                 ? "border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                                : "border-slate-300 bg-white hover:bg-slate-50"
+                                : "border-[#101114]/20 bg-[#F4EEE0] hover:bg-[#F4EEE0]/60"
                             }`}
                           >
                             {participant.reportStatus === "DRAFT" ? "Review Draft" : "Open Report"}
@@ -2733,7 +2733,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                               Notify User
                             </button>
                             <button
-                              className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px]"
+                              className="rounded-lg border border-[#101114]/30 bg-[#F4EEE0] px-2.5 py-1 text-[11px]"
                               onClick={() => participantAction(participant, "REMOVE_PDF")}
                               disabled={busy || !participant.hasManualPdf || !participant.reportId}
                             >
@@ -2742,7 +2742,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           </>
                         )}
                         <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                          className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px]"
                           onClick={() => participantAction(participant, "REGENERATE")}
                           disabled={busy || participant.status !== "SUBMITTED" || isManualWorkflow}
                         >
@@ -2756,14 +2756,14 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           Unpublish
                         </button>
                         <button
-                          className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px]"
+                          className="rounded-lg border border-[#B5803C]/55 bg-[#F4EEE0] px-2.5 py-1 text-[11px]"
                           onClick={() => participantAction(participant, "RETEST_NOW")}
                           disabled={busy || participant.status !== "SUBMITTED"}
                         >
                           Retest Now
                         </button>
                         <button
-                          className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px]"
+                          className="rounded-lg border border-[#B5803C]/55 bg-[#F4EEE0] px-2.5 py-1 text-[11px]"
                           onClick={() => participantAction(participant, "RESET")}
                           disabled={busy || participant.status === "NOT_STARTED"}
                         >
@@ -2780,7 +2780,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       )}
 
       {tab === "POLICY" && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
           <h3 className="text-lg font-semibold">Publish & Visibility Policy</h3>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
             <label className="flex items-center gap-2 text-sm">
@@ -2822,11 +2822,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               Randomize question order for participants
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+              <span className="mb-1 block text-xs uppercase tracking-wide text-[#101114]/55">
                 Report workflow
               </span>
               <select
-                className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="w-full rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 value={policyForm.reportWorkflow}
                 onChange={(e) =>
                   setPolicyForm((prev) => ({
@@ -2840,11 +2840,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               </select>
             </label>
             <label className="text-sm">
-              <span className="mb-1 block text-xs uppercase tracking-wide text-slate-500">
+              <span className="mb-1 block text-xs uppercase tracking-wide text-[#101114]/55">
                 Question presentation
               </span>
               <select
-                className="w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                className="w-full rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
                 value={policyForm.questionPresentationMode}
                 onChange={(e) =>
                   setPolicyForm((prev) => ({
@@ -2860,7 +2860,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
             <input
               type="number"
               min={0}
-              className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              className="rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
               value={policyForm.resultReleaseDelayHours}
               onChange={(e) =>
                 setPolicyForm((prev) => ({
@@ -2871,18 +2871,18 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               placeholder="Result delay hours"
             />
           </div>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-[#101114]/55">
             Question presentation changes only the participant answering flow. Access, scoring, retests, and report generation stay the same.
           </p>
-          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <div className="mt-4 rounded-lg border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#101114]/72">
               Assessment Start Screen
             </p>
-            <p className="mt-1 text-[11px] text-slate-500">
+            <p className="mt-1 text-[11px] text-[#101114]/55">
               The assessment title is used as the main heading. Customize the intro copy and checklist shown before the participant begins.
             </p>
             <textarea
-              className="mt-3 min-h-[100px] w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              className="mt-3 min-h-[100px] w-full rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
               value={policyForm.introDescription}
               onChange={(e) =>
                 setPolicyForm((prev) => ({ ...prev, introDescription: e.target.value }))
@@ -2890,7 +2890,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               placeholder="Intro description"
             />
             <textarea
-              className="mt-3 min-h-[120px] w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+              className="mt-3 min-h-[120px] w-full rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
               value={policyForm.introBulletsText}
               onChange={(e) =>
                 setPolicyForm((prev) => ({ ...prev, introBulletsText: e.target.value }))
@@ -2898,12 +2898,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               placeholder="One checklist item per line"
             />
           </div>
-          <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+          <div className="mt-3 rounded-lg border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[#101114]/72">
               Submission Alert Recipients
             </p>
             {adminUsers.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-500">No admin users available.</p>
+              <p className="mt-2 text-xs text-[#101114]/55">No admin users available.</p>
             ) : (
               <div className="mt-2 grid gap-2 md:grid-cols-2">
                 {adminUsers.map((admin) => {
@@ -2911,7 +2911,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                   return (
                     <label
                       key={admin.id}
-                      className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5 text-xs"
+                      className="flex items-center gap-2 rounded border border-[#101114]/12 bg-[#F4EEE0] px-2 py-1.5 text-xs"
                     >
                       <input
                         type="checkbox"
@@ -2925,37 +2925,37 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                           }))
                         }
                       />
-                      <span className="font-medium text-slate-700">{admin.firstName} {admin.lastName}</span>
-                      <span className="text-slate-500">{admin.email}</span>
+                      <span className="font-medium text-[#101114]/82">{admin.firstName} {admin.lastName}</span>
+                      <span className="text-[#101114]/55">{admin.email}</span>
                     </label>
                   );
                 })}
               </div>
             )}
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[11px] text-[#101114]/55">
               Only selected admins receive completion alerts for manual workflow submissions.
             </p>
           </div>
           <input
-            className="mt-3 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+            className="mt-3 w-full rounded-lg border border-[#101114]/20 px-2 py-2 text-sm"
             value={policyForm.postSubmitMessage}
             onChange={(e) =>
               setPolicyForm((prev) => ({ ...prev, postSubmitMessage: e.target.value }))
             }
             placeholder="Post-submit message"
           />
-          <button className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white" onClick={savePolicy} disabled={busy}>
+          <button className="mt-4 rounded-xl bg-[#101114] px-4 py-2 text-sm text-white" onClick={savePolicy} disabled={busy}>
             Save Policy
           </button>
         </section>
       )}
 
       {tab === "JOBS" && (
-        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+        <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
           <h3 className="text-lg font-semibold">Unenroll Jobs</h3>
-          <div className="mt-3 overflow-auto rounded-xl border border-slate-200">
+          <div className="mt-3 overflow-auto rounded-xl border border-[#101114]/12">
             <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600">
+              <thead className="bg-[#F4EEE0]/60 text-[#101114]/72">
                 <tr>
                   <th className="px-3 py-2">Job</th>
                   <th className="px-3 py-2">Scope</th>
@@ -2967,11 +2967,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               </thead>
               <tbody>
                 {jobs.map((job) => (
-                  <tr key={job.id} className="border-t border-slate-100">
+                  <tr key={job.id} className="border-t border-[#101114]/10">
                     <td className="px-3 py-2">
                       <div className="font-medium">{job.id}</div>
-                      <div className="text-xs text-slate-500">{new Date(job.effectiveAt).toLocaleString()}</div>
-                      {job.errorMessage ? <div className="text-xs text-rose-700">{job.errorMessage}</div> : null}
+                      <div className="text-xs text-[#101114]/55">{new Date(job.effectiveAt).toLocaleString()}</div>
+                      {job.errorMessage ? <div className="text-xs text-[#101114]">{job.errorMessage}</div> : null}
                     </td>
                     <td className="px-3 py-2">{job.targetScope}</td>
                     <td className="px-3 py-2">{job.targetId}</td>
@@ -2979,7 +2979,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     <td className="px-3 py-2">{job.status}</td>
                     <td className="px-3 py-2">
                       <button
-                        className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px]"
+                        className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px]"
                         onClick={() => runJob(job.id)}
                       >
                         Run Now

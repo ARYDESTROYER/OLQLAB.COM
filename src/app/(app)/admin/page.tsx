@@ -3,6 +3,17 @@ import { db } from "@/lib/db";
 import { getAdminUserStats } from "@/lib/admin-user-stats";
 import { isMissingTableError } from "@/lib/prisma-errors";
 
+type RecentJob = {
+  id: string;
+  assessmentId: string;
+  targetScope: string;
+  targetId: string;
+  reportMode: string;
+  status: string;
+  effectiveAt: Date;
+  assessment: { id: string; title: string };
+};
+
 export default async function AdminOverviewPage() {
   const [tenantCount, userStats, assessmentCount, sessionCount] = await Promise.all([
     db.tenant.count(),
@@ -12,16 +23,7 @@ export default async function AdminOverviewPage() {
   ]);
 
   let pendingJobs = 0;
-  let recentJobs: Array<{
-    id: string;
-    assessmentId: string;
-    targetScope: string;
-    targetId: string;
-    reportMode: string;
-    status: string;
-    effectiveAt: Date;
-    assessment: { id: string; title: string };
-  }> = [];
+  let recentJobs: RecentJob[] = [];
 
   try {
     [pendingJobs, recentJobs] = await Promise.all([
@@ -51,109 +53,163 @@ export default async function AdminOverviewPage() {
     recentJobs = [];
   }
 
+  const metrics: Array<{ label: string; value: string | number }> = [
+    { label: "Organisations", value: tenantCount },
+    { label: "Accounts total", value: userStats.usersTotal },
+    { label: "Participants", value: userStats.usersParticipants },
+    { label: "Admins", value: userStats.usersAdmins },
+    { label: "Assessments", value: assessmentCount },
+    { label: "Sessions", value: sessionCount },
+    { label: "Pending jobs", value: pendingJobs },
+  ];
+
+  const quickLinks: Array<{
+    href: string;
+    numeral: string;
+    eyebrow: string;
+    title: string;
+    body: string;
+  }> = [
+    {
+      href: "/admin/users",
+      numeral: "I",
+      eyebrow: "People",
+      title: "Users",
+      body: "Add, move, convert to solo, enroll directly, and inspect tests and access.",
+    },
+    {
+      href: "/admin/tenants",
+      numeral: "II",
+      eyebrow: "Structure",
+      title: "Organisations",
+      body: "Manage organisations, seat limits, archive state, and organisation-level enrollments.",
+    },
+    {
+      href: "/admin/assessments",
+      numeral: "III",
+      eyebrow: "Library",
+      title: "Assessments",
+      body: "Create global assessments, publish, assign access, and run unenroll workflows.",
+    },
+  ];
+
   return (
-    <div className="space-y-6">
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Organisations</p>
-          <p className="mt-2 text-2xl font-semibold">{tenantCount}</p>
+    <div>
+      <section
+        aria-label="Workspace metrics"
+        className="grid gap-y-8 border-y border-[#101114]/15 py-[var(--workspace-metric-py)] md:grid-cols-4 md:gap-x-10"
+      >
+        {metrics.map((metric, idx) => (
+          <div
+            key={metric.label}
+            className={`flex flex-col gap-3 md:gap-4 ${
+              idx > 0 && idx % 4 !== 0 ? "md:border-l md:border-[#101114]/10 md:pl-10" : ""
+            }`}
+          >
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
+              {metric.label}
+            </p>
+            <p className="font-display truncate text-[clamp(2.25rem,4.5vw,3.5rem)] leading-none tracking-[-0.02em] text-[#101114]">
+              {metric.value}
+            </p>
+          </div>
+        ))}
+      </section>
+
+      <section className="mt-8 grid gap-x-10 border-b border-[#101114]/15 pb-8 md:grid-cols-2 md:items-start">
+        <div>
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
+            User mix context
+          </p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Accounts (Total)</p>
-          <p className="mt-2 text-2xl font-semibold">{userStats.usersTotal}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Participants</p>
-          <p className="mt-2 text-2xl font-semibold">{userStats.usersParticipants}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Admins</p>
-          <p className="mt-2 text-2xl font-semibold">{userStats.usersAdmins}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Assessments</p>
-          <p className="mt-2 text-2xl font-semibold">{assessmentCount}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Sessions</p>
-          <p className="mt-2 text-2xl font-semibold">{sessionCount}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Pending Unenroll Jobs</p>
-          <p className="mt-2 text-2xl font-semibold">{pendingJobs}</p>
-        </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2 xl:col-span-5">
-          <p className="text-xs uppercase tracking-wide text-slate-500">User Mix Context</p>
-          <p className="mt-2 text-sm text-slate-700">
-            {userStats.usersInSoloTenants} user(s) in solo organisations,{" "}
-            {userStats.usersInArchivedTenants} user(s) in archived organisations.
+        <div>
+          <p className="text-sm leading-relaxed text-[#101114]/72">
+            {userStats.usersInSoloTenants} user
+            {userStats.usersInSoloTenants === 1 ? "" : "s"} in solo organisations,{" "}
+            {userStats.usersInArchivedTenants} user
+            {userStats.usersInArchivedTenants === 1 ? "" : "s"} in archived organisations.
           </p>
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-3">
-        <Link
-          href="/admin/users"
-          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5"
-        >
-          <h2 className="text-lg font-semibold">Users</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Add, move, convert to solo, enroll directly, and inspect tests/access.
-          </p>
-        </Link>
-        <Link
-          href="/admin/tenants"
-          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5"
-        >
-          <h2 className="text-lg font-semibold">Organisations</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Manage organisations, seat limits, archive state, and organisation-level enrollments.
-          </p>
-        </Link>
-        <Link
-          href="/admin/assessments"
-          className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5"
-        >
-          <h2 className="text-lg font-semibold">Assessments</h2>
-          <p className="mt-2 text-sm text-slate-600">
-            Create global assessments, publish, assign access, and run unenroll workflows.
-          </p>
-        </Link>
+      <section
+        aria-label="Console quick links"
+        className="mt-[var(--workspace-section-y)] grid gap-x-10 gap-y-12 md:grid-cols-3"
+      >
+        {quickLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className="group block border-t border-[#101114]/15 pt-8 transition-colors duration-200 hover:border-[#B5803C]/55"
+          >
+            <p className="flex items-center gap-3 text-[10px] font-medium uppercase tracking-[0.22em] text-[#B5803C]">
+              <span className="font-display text-base normal-case tracking-tight text-[#B5803C]">
+                {link.numeral}
+              </span>
+              <span>{link.eyebrow}</span>
+            </p>
+            <h2 className="font-display mt-4 text-[clamp(1.75rem,3.5vw,2.25rem)] leading-tight tracking-tight text-[#101114]">
+              {link.title}
+            </h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-[#101114]/68">
+              {link.body}
+            </p>
+            <span className="link-underline mt-6 inline-flex items-center gap-3 text-sm font-medium text-[#101114]">
+              Open
+              <span
+                aria-hidden
+                className="transition-transform duration-300 group-hover:translate-x-1"
+              >
+                →
+              </span>
+            </span>
+          </Link>
+        ))}
       </section>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5">
-        <h2 className="text-lg font-semibold">Recent Access Jobs</h2>
+      <section className="mt-[var(--workspace-section-y)]">
+        <div className="flex flex-wrap items-baseline justify-between gap-4">
+          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
+            Activity
+          </p>
+          <h2 className="font-display text-[clamp(1.5rem,2.6vw,1.875rem)] leading-tight tracking-tight text-[#101114]">
+            Recent access jobs
+          </h2>
+        </div>
+
         {recentJobs.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-600">No jobs yet.</p>
+          <p className="mt-6 border-t border-[#101114]/15 pt-6 text-sm text-[#101114]/68">
+            No jobs yet.
+          </p>
         ) : (
-          <div className="mt-3 overflow-auto rounded-xl border border-slate-200">
-            <table className="min-w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600">
+          <div className="mt-6 overflow-auto">
+            <table className="workspace-table">
+              <thead>
                 <tr>
-                  <th className="px-3 py-2">Assessment</th>
-                  <th className="px-3 py-2">Scope</th>
-                  <th className="px-3 py-2">Target</th>
-                  <th className="px-3 py-2">Mode</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Effective At</th>
+                  <th>Assessment</th>
+                  <th>Scope</th>
+                  <th>Target</th>
+                  <th>Mode</th>
+                  <th>Status</th>
+                  <th>Effective at</th>
                 </tr>
               </thead>
               <tbody>
                 {recentJobs.map((job) => (
-                  <tr key={job.id} className="border-t border-slate-100">
-                    <td className="px-3 py-2">
+                  <tr key={job.id}>
+                    <td>
                       <Link
                         href={`/admin/assessments/${job.assessmentId}`}
-                        className="font-medium text-slate-900 underline-offset-2 hover:underline"
+                        className="link-underline text-[#101114]"
                       >
                         {job.assessment.title}
                       </Link>
                     </td>
-                    <td className="px-3 py-2">{job.targetScope}</td>
-                    <td className="px-3 py-2">{job.targetId}</td>
-                    <td className="px-3 py-2">{job.reportMode}</td>
-                    <td className="px-3 py-2">{job.status}</td>
-                    <td className="px-3 py-2">{job.effectiveAt.toLocaleString()}</td>
+                    <td>{job.targetScope}</td>
+                    <td className="font-mono text-xs text-[#101114]/64">{job.targetId}</td>
+                    <td>{job.reportMode}</td>
+                    <td>{job.status}</td>
+                    <td>{job.effectiveAt.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

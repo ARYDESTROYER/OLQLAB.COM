@@ -1,27 +1,30 @@
 "use client";
 
 type EmptyStateProps = {
-    icon?: string;
-    title: string;
-    description?: string;
-    colSpan?: number;
+  icon?: string;
+  title: string;
+  description?: string;
+  colSpan?: number;
 };
 
 export default function EmptyState({
-    icon = "📭",
-    title,
-    description,
-    colSpan = 5,
+  title,
+  description,
+  colSpan = 5,
 }: EmptyStateProps) {
-    return (
-        <tr>
-            <td colSpan={colSpan} className="px-8 py-14 text-center">
-                <div className="text-3xl">{icon}</div>
-                <p className="mt-2 text-sm font-medium text-slate-600">{title}</p>
-                {description && (
-                    <p className="mt-1 text-xs text-slate-400">{description}</p>
-                )}
-            </td>
-        </tr>
-    );
+  return (
+    <tr>
+      <td colSpan={colSpan} className="px-6 py-14 text-center">
+        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#B5803C]">
+          Empty
+        </p>
+        <p className="font-display mt-3 text-lg tracking-tight text-[#101114]">
+          {title}
+        </p>
+        {description && (
+          <p className="mt-2 text-xs text-[#101114]/55">{description}</p>
+        )}
+      </td>
+    </tr>
+  );
 }
