@@ -5,22 +5,6 @@ import { db } from "@/lib/db";
 import { isMissingTableError } from "@/lib/prisma-errors";
 import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
-type UiStatus = "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED" | "RETAKE";
-
-function chipTone(status: UiStatus): "brass" | "warn" | "default" {
-  if (status === "SUBMITTED") return "brass";
-  if (status === "IN_PROGRESS") return "warn";
-  if (status === "RETAKE") return "warn";
-  return "default";
-}
-
-function statusLabel(status: UiStatus) {
-  if (status === "SUBMITTED") return "Completed";
-  if (status === "IN_PROGRESS") return "In progress";
-  if (status === "RETAKE") return "Retake available";
-  return "Not started";
-}
-
 export default async function CurrentAssessmentPage() {
   const session = await getServerAuthSession();
   if (!session?.user?.id) redirect("/signin");
@@ -196,126 +180,118 @@ export default async function CurrentAssessmentPage() {
   const tenantLabel = currentUser.tenant?.name || currentUser.tenantId;
 
   return (
-    <main className="mx-auto max-w-7xl px-6 pt-12 pb-24 md:px-10 md:pt-16 md:pb-32">
-      <section>
-        <p className="inline-flex items-center text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/55">
-          <span className="brass-dot" aria-hidden /> Assessment hub
-        </p>
-        <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.98] tracking-[-0.03em]">
-          Assessment Center<span className="brass-period">.</span>
-        </h1>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-[#101114]/64 md:text-base">
+    <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
+      <header className="rounded-3xl border border-cyan-200 bg-cyan-50/80 p-7 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-700">Assessment Hub</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">Assessment Center</h1>
+        <p className="mt-2 text-sm text-slate-700">
           Start and continue assessments where you have active access.
         </p>
-        <div className="mt-8 flex flex-wrap items-center gap-5">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/dashboard"
-            className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
           >
             Dashboard
           </Link>
           <Link
             href="/reports/current"
-            className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
           >
             My Reports
           </Link>
         </div>
-      </section>
+      </header>
 
       {eligibleAssessments.length === 0 ? (
-        <section className="mt-[var(--workspace-section-y)] border-t border-[#101114]/15 pt-12">
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#B5803C]">
-            No active access
-          </p>
-          <h2 className="font-display mt-4 text-[clamp(1.5rem,3vw,2rem)] leading-tight tracking-tight text-[#101114]">
-            Nothing assigned right now.
-          </h2>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-[#101114]/68">
+        <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">No active assessment access</h2>
+          <p className="mt-2 text-sm text-slate-600">
             You currently have no published assessments assigned from your organisation ({tenantLabel}).
           </p>
         </section>
       ) : (
-        <section
-          aria-label="Assessments"
-          className="mt-[var(--workspace-section-y)] border-t border-[#101114]/22"
-        >
-          {eligibleAssessments.map((assessment, idx) => {
+        <section className="space-y-4">
+          {eligibleAssessments.map((assessment) => {
             const mySession = assessment.sessions[0] || null;
             const myRetestEligibility = assessment.retestEligibilities[0] || null;
-            const rawStatus = mySession?.status || "NOT_STARTED";
+            const status = mySession?.status || "NOT_STARTED";
             const retestAvailableNow =
-              rawStatus === "SUBMITTED" &&
+              status === "SUBMITTED" &&
               Boolean(myRetestEligibility) &&
               new Date() >= myRetestEligibility.eligibleAt;
+            const statusLabel =
+              retestAvailableNow
+                ? "Retake Available"
+                : status === "SUBMITTED"
+                ? "Completed"
+                : status === "IN_PROGRESS"
+                ? "In Progress"
+                : "Not Started";
 
-            const uiStatus: UiStatus = retestAvailableNow
-              ? "RETAKE"
-              : rawStatus === "SUBMITTED"
-                ? "SUBMITTED"
-                : rawStatus === "IN_PROGRESS"
-                  ? "IN_PROGRESS"
-                  : "NOT_STARTED";
-
-            const actionHref = retestAvailableNow
-              ? `/assessment/${assessment.id}`
-              : rawStatus === "SUBMITTED"
+            const actionHref =
+              retestAvailableNow
+                ? `/assessment/${assessment.id}`
+                : status === "SUBMITTED"
                 ? `/reports/me/${assessment.id}`
                 : `/assessment/${assessment.id}`;
-            const actionLabel = retestAvailableNow
-              ? "Retake assessment"
-              : rawStatus === "SUBMITTED"
-                ? "View report"
-                : rawStatus === "IN_PROGRESS"
-                  ? "Resume"
-                  : "Start";
+            const actionLabel =
+              retestAvailableNow
+                ? "Retake Assessment"
+                : status === "SUBMITTED"
+                ? "View Report"
+                : status === "IN_PROGRESS"
+                ? "Resume"
+                : "Start";
 
             return (
               <article
                 key={assessment.id}
-                className="grid gap-x-10 gap-y-6 border-b border-[#101114]/12 py-[var(--workspace-row-y)] md:grid-cols-[auto_1fr_auto] md:items-start md:py-8"
+                className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm"
               >
-                <div className="flex items-center gap-4 md:flex-col md:items-start md:gap-2">
-                  <span className="font-display text-2xl tracking-tight text-[#B5803C] md:text-3xl">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <span className="workspace-chip" data-tone={chipTone(uiStatus) === "default" ? undefined : chipTone(uiStatus)}>
-                    {statusLabel(uiStatus)}
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Assessment</p>
+                    <h2 className="text-lg font-semibold text-slate-900">{assessment.title}</h2>
+                    <p className="mt-1 text-sm text-slate-600">{assessment.questions.length} questions</p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                      retestAvailableNow
+                        ? "bg-cyan-100 text-cyan-800"
+                        : status === "SUBMITTED"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : status === "IN_PROGRESS"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {statusLabel}
                   </span>
                 </div>
 
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
-                    Assessment
-                  </p>
-                  <h2 className="font-display mt-2 text-[clamp(1.5rem,2.6vw,1.875rem)] leading-tight tracking-tight text-[#101114]">
-                    {assessment.title}
-                  </h2>
-                  <p className="mt-2 text-sm text-[#101114]/64">
-                    {assessment.questions.length} questions
-                  </p>
-                  {uiStatus === "IN_PROGRESS" && mySession?.startedAt && (
-                    <p className="mt-2 text-xs text-[#101114]/60">
-                      Started {mySession.startedAt.toLocaleString()}
-                    </p>
-                  )}
-                  {rawStatus === "SUBMITTED" && mySession?.submittedAt && (
-                    <p className="mt-2 text-xs text-[#101114]/60">
-                      Submitted {mySession.submittedAt.toLocaleString()}
-                    </p>
-                  )}
-                  {rawStatus === "SUBMITTED" && myRetestEligibility && !retestAvailableNow && (
-                    <p className="mt-2 text-xs text-[#B5803C]">
-                      Retake unlocks {myRetestEligibility.eligibleAt.toLocaleString()}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-4 md:flex-col md:items-end md:gap-3">
-                  <Link href={actionHref} className="workspace-btn-primary">
-                    <span>{actionLabel}</span>
-                    <span aria-hidden>→</span>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link
+                    href={actionHref}
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+                  >
+                    {actionLabel}
                   </Link>
+                  {status === "IN_PROGRESS" && mySession?.startedAt && (
+                    <p className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600">
+                      Started: {mySession.startedAt.toLocaleString()}
+                    </p>
+                  )}
+                  {status === "SUBMITTED" && mySession?.submittedAt && (
+                    <p className="rounded-xl bg-slate-100 px-3 py-2 text-xs text-slate-600">
+                      Submitted: {mySession.submittedAt.toLocaleString()}
+                    </p>
+                  )}
+                  {status === "SUBMITTED" && myRetestEligibility && !retestAvailableNow && (
+                    <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                      Retake unlocks: {myRetestEligibility.eligibleAt.toLocaleString()}
+                    </p>
+                  )}
                 </div>
               </article>
             );

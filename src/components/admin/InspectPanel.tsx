@@ -3,212 +3,195 @@
 import { useEffect, useRef } from "react";
 
 type InspectPanelProps = {
-  open: boolean;
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
+    open: boolean;
+    title: string;
+    onClose: () => void;
+    children: React.ReactNode;
 };
 
 export default function InspectPanel({ open, title, onClose, children }: InspectPanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!open) return;
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [open, onClose]);
+    // Close on Escape
+    useEffect(() => {
+        if (!open) return;
+        function handleKey(e: KeyboardEvent) {
+            if (e.key === "Escape") onClose();
+        }
+        document.addEventListener("keydown", handleKey);
+        return () => document.removeEventListener("keydown", handleKey);
+    }, [open, onClose]);
 
-  // Lock body scroll when open
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
+    // Lock body scroll when open
+    useEffect(() => {
+        if (open) {
+            document.body.style.overflow = "hidden";
+        } else {
+            document.body.style.overflow = "";
+        }
+        return () => {
+            document.body.style.overflow = "";
+        };
+    }, [open]);
 
-  if (!open) return null;
+    if (!open) return null;
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 z-[9990] bg-[#101114]/30 backdrop-blur-[2px]"
-        onClick={onClose}
-      />
+    return (
+        <>
+            {/* Backdrop */}
+            <div
+                className="fixed inset-0 z-[9990] bg-black/30 backdrop-blur-[2px]"
+                onClick={onClose}
+            />
 
-      {/* Panel */}
-      <aside
-        ref={panelRef}
-        className="animate-slide-in-panel fixed right-0 top-0 z-[9991] flex h-full w-full max-w-lg flex-col border-l border-[#101114]/12 bg-[#EFE8DA] shadow-[0_24px_60px_-30px_rgba(16,17,20,0.55)]"
-      >
-        <div className="border-t-2 border-[#B5803C]" />
-        <div className="flex items-center justify-between border-b border-[#101114]/10 px-6 py-5">
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#B5803C]">
-              Inspect
-            </p>
-            <h2 className="font-display mt-1 text-lg tracking-tight text-[#101114]">{title}</h2>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center border border-[#101114]/15 bg-[#F4EEE0]/60 text-[#101114]/55 transition-colors duration-200 hover:border-[#B5803C]/55 hover:text-[#101114]"
-            aria-label="Close"
-          >
-            ✕
-          </button>
-        </div>
+            {/* Panel */}
+            <aside
+                ref={panelRef}
+                className="fixed right-0 top-0 z-[9991] flex h-full w-full max-w-lg flex-col border-l border-slate-200 bg-white shadow-2xl animate-slide-in-panel"
+            >
+                {/* Header */}
+                <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                    <h2 className="text-base font-semibold text-slate-900">{title}</h2>
+                    <button
+                        onClick={onClose}
+                        className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                        aria-label="Close"
+                    >
+                        ✕
+                    </button>
+                </div>
 
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
-      </aside>
-    </>
-  );
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-5">
+                    {children}
+                </div>
+            </aside>
+        </>
+    );
 }
 
 /* ─── Reusable sub-components for Tests / Access views ─── */
 
 type Session = {
-  id: string;
-  status: string;
-  startedAt: string;
-  submittedAt?: string | null;
-  assessment: { id: string; title: string };
+    id: string;
+    status: string;
+    startedAt: string;
+    submittedAt?: string | null;
+    assessment: { id: string; title: string };
 };
 
 export function TestsView({ sessions }: { sessions: Session[] }) {
-  return (
-    <div className="space-y-6">
-      <div>
-        <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
-          Assessment sessions ({sessions.length})
-        </p>
-        {sessions.length === 0 ? (
-          <p className="mt-3 text-xs text-[#101114]/55">No sessions found.</p>
-        ) : (
-          <div className="mt-3 overflow-auto">
-            <table className="workspace-table">
-              <thead>
-                <tr>
-                  <th>Assessment</th>
-                  <th>Status</th>
-                  <th>Started</th>
-                  <th>Submitted</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sessions.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.assessment.title}</td>
-                    <td>
-                      <span
-                        className="workspace-chip"
-                        data-tone={
-                          s.status === "SUBMITTED"
-                            ? "brass"
-                            : s.status === "IN_PROGRESS"
-                              ? "warn"
-                              : undefined
-                        }
-                      >
-                        {s.status}
-                      </span>
-                    </td>
-                    <td className="text-[#101114]/60">
-                      {new Date(s.startedAt).toLocaleDateString()}
-                    </td>
-                    <td className="text-[#101114]/60">
-                      {s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    return (
+        <div className="space-y-6">
+            <div>
+                <h3 className="text-sm font-semibold text-slate-700">Assessment Sessions ({sessions.length})</h3>
+                {sessions.length === 0 ? (
+                    <p className="mt-2 text-xs text-slate-400">No sessions found.</p>
+                ) : (
+                    <div className="mt-2 overflow-auto rounded-lg border border-slate-200">
+                        <table className="min-w-full text-left text-xs">
+                            <thead className="bg-slate-50 text-slate-500">
+                                <tr>
+                                    <th className="px-3 py-2">Assessment</th>
+                                    <th className="px-3 py-2">Status</th>
+                                    <th className="px-3 py-2">Started</th>
+                                    <th className="px-3 py-2">Submitted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {sessions.map((s) => (
+                                    <tr key={s.id} className="border-t border-slate-100">
+                                        <td className="px-3 py-2 font-medium">{s.assessment.title}</td>
+                                        <td className="px-3 py-2">
+                                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${s.status === "SUBMITTED"
+                                                    ? "bg-emerald-100 text-emerald-700"
+                                                    : s.status === "IN_PROGRESS"
+                                                        ? "bg-amber-100 text-amber-700"
+                                                        : "bg-slate-100 text-slate-600"
+                                                }`}>
+                                                {s.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-2 text-slate-500">{new Date(s.startedAt).toLocaleDateString()}</td>
+                                        <td className="px-3 py-2 text-slate-500">
+                                            {s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : "—"}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
 
 type AccessEntry = {
-  assessment: { id: string; title: string; isPublished: boolean };
-  hasActiveEnrollment?: boolean;
-  canStartAssessment?: boolean;
-  canViewAppReport?: boolean;
-  canViewViaLinkOnly?: boolean;
-  isRevoked?: boolean;
+    assessment: { id: string; title: string; isPublished: boolean };
+    hasActiveEnrollment?: boolean;
+    canStartAssessment?: boolean;
+    canViewAppReport?: boolean;
+    canViewViaLinkOnly?: boolean;
+    isRevoked?: boolean;
 };
 
 export function AccessView({ access }: { access: AccessEntry[] }) {
-  // Only show assessments where the user has some access relationship
-  const relevant = access.filter(
-    (a) => a.hasActiveEnrollment || a.canViewAppReport || a.canViewViaLinkOnly || a.isRevoked,
-  );
+    // Only show assessments where the user has some access relationship
+    const relevant = access.filter(
+        (a) => a.hasActiveEnrollment || a.canViewAppReport || a.canViewViaLinkOnly || a.isRevoked,
+    );
 
-  return (
-    <div>
-      <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
-        Assessment access ({relevant.length})
-      </p>
-      {relevant.length === 0 ? (
-        <p className="mt-3 text-xs text-[#101114]/55">
-          No assessment access found for this user.
-        </p>
-      ) : (
-        <div className="mt-3 overflow-auto">
-          <table className="workspace-table">
-            <thead>
-              <tr>
-                <th>Assessment</th>
-                <th>Enrolled</th>
-                <th>Can start</th>
-                <th>Report</th>
-              </tr>
-            </thead>
-            <tbody>
-              {relevant.map((entry) => (
-                <tr key={entry.assessment.id}>
-                  <td>
-                    <span>{entry.assessment.title}</span>
-                    {!entry.assessment.isPublished && (
-                      <span className="ml-2 text-[10px] uppercase tracking-[0.18em] text-[#101114]/45">
-                        Draft
-                      </span>
-                    )}
-                  </td>
-                  <td>{renderBool(entry.hasActiveEnrollment)}</td>
-                  <td>{renderBool(entry.canStartAssessment)}</td>
-                  <td>
-                    {entry.isRevoked ? (
-                      <span className="font-semibold text-[#101114]">Revoked</span>
-                    ) : entry.canViewViaLinkOnly ? (
-                      <span className="font-semibold text-[#B5803C]">Link only</span>
-                    ) : entry.canViewAppReport ? (
-                      <span className="font-semibold text-[#B5803C]">Full</span>
-                    ) : (
-                      <span className="text-[#101114]/45">—</span>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+    return (
+        <div>
+            <h3 className="text-sm font-semibold text-slate-700">Assessment Access ({relevant.length})</h3>
+            {relevant.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-400">No assessment access found for this user.</p>
+            ) : (
+                <div className="mt-2 overflow-auto rounded-lg border border-slate-200">
+                    <table className="min-w-full text-left text-xs">
+                        <thead className="bg-slate-50 text-slate-500">
+                            <tr>
+                                <th className="px-3 py-2">Assessment</th>
+                                <th className="px-3 py-2">Enrolled</th>
+                                <th className="px-3 py-2">Can Start</th>
+                                <th className="px-3 py-2">Report</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {relevant.map((entry) => (
+                                <tr key={entry.assessment.id} className="border-t border-slate-100">
+                                    <td className="px-3 py-2">
+                                        <span className="font-medium">{entry.assessment.title}</span>
+                                        {!entry.assessment.isPublished && (
+                                            <span className="ml-1.5 text-[10px] text-slate-400">(Draft)</span>
+                                        )}
+                                    </td>
+                                    <td className="px-3 py-2">{renderBool(entry.hasActiveEnrollment)}</td>
+                                    <td className="px-3 py-2">{renderBool(entry.canStartAssessment)}</td>
+                                    <td className="px-3 py-2">
+                                        {entry.isRevoked ? (
+                                            <span className="text-rose-500 font-semibold">Revoked</span>
+                                        ) : entry.canViewViaLinkOnly ? (
+                                            <span className="text-amber-600 font-semibold">Link only</span>
+                                        ) : entry.canViewAppReport ? (
+                                            <span className="text-emerald-600 font-semibold">Full</span>
+                                        ) : (
+                                            <span className="text-slate-400">—</span>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
-      )}
-    </div>
-  );
+    );
 }
 
 function renderBool(val?: boolean) {
-  if (val === true) return <span className="font-semibold text-[#B5803C]">Yes</span>;
-  if (val === false) return <span className="text-[#101114]/45">No</span>;
-  return <span className="text-[#101114]/45">—</span>;
+    if (val === true) return <span className="text-emerald-600 font-semibold">Yes</span>;
+    if (val === false) return <span className="text-slate-400">No</span>;
+    return <span className="text-slate-400">—</span>;
 }

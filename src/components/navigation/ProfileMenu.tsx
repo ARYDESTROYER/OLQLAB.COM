@@ -6,12 +6,6 @@ import { useEffect, useRef, useState } from "react";
 
 type Role = "ADMIN" | "EMPLOYEE" | "LEADER";
 
-function roleLabel(role: Role) {
-  if (role === "ADMIN") return "Admin";
-  if (role === "LEADER") return "Leader";
-  return "Participant";
-}
-
 export default function ProfileMenu({
   role,
   email,
@@ -42,73 +36,56 @@ export default function ProfileMenu({
       onMouseLeave={() => setOpen(false)}
     >
       <button
-        type="button"
+        className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-500"
         onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-        className="inline-flex items-center gap-2 rounded-full border border-[#101114]/15 bg-[#F4EEE0]/60 px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.22em] text-[#101114]/72 transition-colors duration-200 hover:border-[#B5803C]/55 hover:text-[#101114]"
+        type="button"
       >
-        <span className="brass-dot" aria-hidden />
-        <span>Profile</span>
+        Profile
       </button>
 
       {open && (
-        <div
-          role="menu"
-          className="absolute right-0 top-12 z-50 w-72 origin-top-right border border-[#101114]/10 bg-[#EFE8DA] p-2 shadow-[0_24px_60px_-30px_rgba(16,17,20,0.45)]"
-        >
-          <div className="border-b border-[#101114]/10 px-4 py-3">
-            <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#101114]/55">
-              Signed in
-            </p>
-            <p className="font-display mt-1 truncate text-base tracking-tight text-[#101114]">
-              {email || "Account"}
-            </p>
-            <p className="mt-1 text-[10px] font-medium uppercase tracking-[0.22em] text-[#B5803C]">
-              {roleLabel(role)}
-            </p>
+        <div className="absolute right-0 top-12 z-50 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.45)]">
+          <div className="mb-2 rounded-xl bg-slate-50 px-3 py-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Signed in</p>
+            <p className="mt-1 truncate text-sm text-slate-800">{email || "Account"}</p>
+            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.1em] text-cyan-800">{role}</p>
           </div>
 
-          <div className="grid gap-0.5 pt-2">
+          <div className="grid gap-1">
             <Link
               href="/dashboard"
-              role="menuitem"
+              className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
               onClick={() => setOpen(false)}
-              className="px-4 py-2 text-sm text-[#101114]/80 transition-colors duration-200 hover:bg-[#F4EEE0] hover:text-[#101114]"
             >
               Dashboard
             </Link>
             <Link
               href="/assessment/current"
-              role="menuitem"
+              className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
               onClick={() => setOpen(false)}
-              className="px-4 py-2 text-sm text-[#101114]/80 transition-colors duration-200 hover:bg-[#F4EEE0] hover:text-[#101114]"
             >
               Assessment Center
             </Link>
             <Link
               href="/reports/current"
-              role="menuitem"
+              className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
               onClick={() => setOpen(false)}
-              className="px-4 py-2 text-sm text-[#101114]/80 transition-colors duration-200 hover:bg-[#F4EEE0] hover:text-[#101114]"
             >
               My Reports
             </Link>
             {role === "ADMIN" && (
               <Link
                 href="/admin"
-                role="menuitem"
+                className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
                 onClick={() => setOpen(false)}
-                className="px-4 py-2 text-sm text-[#101114]/80 transition-colors duration-200 hover:bg-[#F4EEE0] hover:text-[#101114]"
               >
                 Admin Console
               </Link>
             )}
             <button
-              type="button"
-              role="menuitem"
+              className="rounded-lg px-3 py-2 text-left text-sm font-semibold text-rose-700 transition hover:bg-rose-50"
               onClick={() => signOut({ callbackUrl: "/" })}
-              className="mt-1 border-t border-[#101114]/10 px-4 py-2.5 text-left text-sm font-medium text-[#101114] transition-colors duration-200 hover:bg-[#F4EEE0]"
+              type="button"
             >
               Sign out
             </button>

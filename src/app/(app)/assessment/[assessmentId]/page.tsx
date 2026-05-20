@@ -58,18 +58,18 @@ export default async function AssessmentStartPage({
         <div className="mb-4">
           <Link
             href="/assessment/current"
-            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#101114]/82"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
           >
             Back to Assessment Center
           </Link>
         </div>
         <h1 className="text-3xl font-semibold tracking-tight">{assessment.title}</h1>
-        <p className="mt-3 text-[#101114]/82">{introDescription}</p>
+        <p className="mt-3 text-slate-700">{introDescription}</p>
       </section>
 
-      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-6">
+      <section className="rounded-2xl border border-slate-200 bg-white p-6">
         <h2 className="text-lg font-semibold">Before you start</h2>
-        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-[#101114]/82">
+        <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
           {introBullets.map((item) => (
             <li key={item}>{item}</li>
           ))}

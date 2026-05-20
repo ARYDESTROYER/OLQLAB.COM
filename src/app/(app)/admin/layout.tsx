@@ -1,15 +1,15 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { getServerAuthSession } from "@/lib/auth";
 import ToastContainer from "@/components/admin/Toast";
-import AdminSubNav from "@/components/admin/AdminSubNav";
 
 const links = [
-  { href: "/admin", label: "Overview", matchPrefix: "/admin", exact: true },
-  { href: "/admin/users", label: "Users", matchPrefix: "/admin/users", exact: false },
-  { href: "/admin/tenants", label: "Organisations", matchPrefix: "/admin/tenants", exact: false },
-  { href: "/admin/assessments", label: "Assessments", matchPrefix: "/admin/assessments", exact: false },
-  { href: "/admin/settings", label: "Settings", matchPrefix: "/admin/settings", exact: false },
+  { href: "/admin", label: "Overview" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/tenants", label: "Organisations" },
+  { href: "/admin/assessments", label: "Assessments" },
+  { href: "/admin/settings", label: "Settings" },
 ];
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
@@ -18,23 +18,35 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   if (session.user.role !== "ADMIN") redirect("/dashboard");
 
   return (
-    <main className="mx-auto max-w-7xl px-6 pt-12 pb-24 md:px-10 md:pt-16 md:pb-32">
-      <header>
-        <p className="inline-flex items-center text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/55">
-          <span className="brass-dot" aria-hidden /> Admin console
-        </p>
-        <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.98] tracking-[-0.03em]">
-          Operations<span className="brass-period">.</span>
-        </h1>
-        <p className="mt-5 max-w-2xl text-sm leading-relaxed text-[#101114]/64 md:text-base">
+    <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
+      <header className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-6 md:p-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-600">Admin Console</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Operations Center</h1>
+        <p className="mt-3 max-w-3xl text-sm text-slate-700">
           Manage users, organisations, global assessments, enrollments, and access lifecycle.
         </p>
-
-        <AdminSubNav links={links} />
+        <div className="mt-4 flex flex-wrap gap-2">
+          {links.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+            >
+              {item.label}
+            </Link>
+          ))}
+          <Link
+            href="/dashboard"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
+          >
+            Dashboard
+          </Link>
+        </div>
       </header>
 
-      <div className="mt-[var(--workspace-section-y)]">{children}</div>
+      {children}
       <ToastContainer />
     </main>
   );
 }
+

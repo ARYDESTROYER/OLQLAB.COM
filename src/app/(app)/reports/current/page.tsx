@@ -63,59 +63,45 @@ export default async function CurrentReportsPage() {
     .map((entry) => entry.item);
 
   return (
-    <main className="mx-auto max-w-7xl px-6 pt-12 pb-24 md:px-10 md:pt-16 md:pb-32">
-      <section>
-        <p className="inline-flex items-center text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/55">
-          <span className="brass-dot" aria-hidden /> Report hub
+    <main className="mx-auto max-w-5xl space-y-6 p-6 md:p-10">
+      <header className="rounded-3xl border border-slate-200 bg-white/88 p-7 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Report Hub</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">My Reports</h1>
+        <p className="mt-2 text-sm text-slate-700">
+          This page only lists completed assessments where app access is currently allowed.
         </p>
-        <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,6vw,4.5rem)] leading-[0.98] tracking-[-0.03em]">
-          My reports<span className="brass-period">.</span>
-        </h1>
-        <p className="mt-5 max-w-xl text-sm leading-relaxed text-[#101114]/64 md:text-base">
-          Completed assessments where app access is currently allowed. Reports for archived
-          access still live in shared link form if you have one.
-        </p>
-        <div className="mt-8 flex flex-wrap items-center gap-5">
+        <div className="mt-4 flex flex-wrap gap-2">
           <Link
             href="/dashboard"
-            className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
           >
             Dashboard
           </Link>
           <Link
             href="/assessment/current"
-            className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700"
           >
             Assessment Center
           </Link>
         </div>
-      </section>
+      </header>
 
       {visibleReports.length === 0 ? (
-        <section className="mt-[var(--workspace-section-y)] border-t border-[#101114]/15 pt-12">
-          <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#B5803C]">
-            Nothing yet
-          </p>
-          <h2 className="font-display mt-4 text-[clamp(1.5rem,3vw,2rem)] leading-tight tracking-tight text-[#101114]">
-            No app-visible reports.
-          </h2>
-          <p className="mt-3 max-w-md text-sm leading-relaxed text-[#101114]/68">
+        <section className="rounded-2xl border border-slate-200 bg-white/90 p-6 shadow-sm">
+          <h2 className="text-lg font-semibold">No app-visible reports yet</h2>
+          <p className="mt-2 text-sm text-slate-600">
             Complete an assessment or ask your admin to restore app report access.
           </p>
           <Link
             href="/assessment/current"
-            className="workspace-btn-primary mt-8"
+            className="mt-4 inline-block rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
           >
-            <span>Go to Assessment Center</span>
-            <span aria-hidden>→</span>
+            Go to Assessment Center
           </Link>
         </section>
       ) : (
-        <section
-          aria-label="Completed reports"
-          className="mt-[var(--workspace-section-y)] border-t border-[#101114]/22"
-        >
-          {visibleReports.map((item, idx) => {
+        <section className="space-y-4">
+          {visibleReports.map((item) => {
             const delayHours = item.assessment.policy?.resultReleaseDelayHours || 0;
             const showResults = item.assessment.policy?.showResultsToEmployee ?? true;
             const releaseAt =
@@ -125,58 +111,46 @@ export default async function CurrentReportsPage() {
             const isReleased = showResults && (!releaseAt || new Date() >= releaseAt);
 
             return (
-              <article
-                key={item.id}
-                className="grid gap-x-10 gap-y-6 border-b border-[#101114]/12 py-[var(--workspace-row-y)] md:grid-cols-[auto_1fr_auto] md:items-start md:py-8"
-              >
-                <div className="flex items-center gap-4 md:flex-col md:items-start md:gap-2">
-                  <span className="font-display text-2xl tracking-tight text-[#B5803C] md:text-3xl">
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                  <span className="workspace-chip" data-tone="brass">
+              <article key={item.id} className="rounded-2xl border border-slate-200 bg-white/90 p-5 shadow-sm">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Report</p>
+                    <h2 className="text-lg font-semibold text-slate-900">{item.assessment.title}</h2>
+                    <p className="mt-1 text-sm text-slate-600">
+                      Submitted: {item.submittedAt ? item.submittedAt.toLocaleString() : "-"}
+                    </p>
+                    {!showResults && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Result visibility is disabled by your organisation.
+                      </p>
+                    )}
+                    {showResults && releaseAt && !isReleased && (
+                      <p className="mt-1 text-xs text-amber-700">
+                        Report unlocks at: {releaseAt.toLocaleString()}
+                      </p>
+                    )}
+                  </div>
+                  <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
                     Completed
                   </span>
                 </div>
 
-                <div>
-                  <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
-                    Report
-                  </p>
-                  <h2 className="font-display mt-2 text-[clamp(1.5rem,2.6vw,1.875rem)] leading-tight tracking-tight text-[#101114]">
-                    {item.assessment.title}
-                  </h2>
-                  <p className="mt-2 text-sm text-[#101114]/64">
-                    Submitted {item.submittedAt ? item.submittedAt.toLocaleString() : "—"}
-                  </p>
-                  {!showResults && (
-                    <p className="mt-2 text-xs text-[#B5803C]">
-                      Result visibility is disabled by your organisation.
-                    </p>
-                  )}
-                  {showResults && releaseAt && !isReleased && (
-                    <p className="mt-2 text-xs text-[#B5803C]">
-                      Report unlocks at {releaseAt.toLocaleString()}.
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-4 md:flex-col md:items-end md:gap-3">
+                <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     href={`/reports/me/${item.assessment.id}`}
-                    className="workspace-btn-primary"
+                    className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white"
                   >
-                    <span>View report</span>
-                    <span aria-hidden>→</span>
+                    View Report
                   </Link>
                   <a
                     href={`/api/reports/me/${item.assessment.id}/pdf`}
-                    className={
+                    className={`rounded-xl border px-4 py-2 text-sm font-medium ${
                       isReleased
-                        ? "workspace-btn-secondary"
-                        : "workspace-btn-secondary pointer-events-none opacity-50"
-                    }
+                        ? "border-slate-300 bg-white text-slate-700"
+                        : "pointer-events-none border-slate-200 bg-slate-100 text-slate-400"
+                    }`}
                   >
-                    <span>Download PDF</span>
+                    Download PDF
                   </a>
                 </div>
               </article>

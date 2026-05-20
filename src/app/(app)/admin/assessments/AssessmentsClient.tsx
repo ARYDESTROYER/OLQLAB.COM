@@ -576,30 +576,30 @@ export default function AssessmentsClient() {
   return (
     <div className="space-y-6">
       {/* ── Create Assessment ── */}
-      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Create Assessment</h2>
-        <p className="mt-1 text-xs text-[#101114]/55">
+        <p className="mt-1 text-xs text-slate-500">
           Create a blank assessment or create one directly from a CSV import file.
         </p>
 
         <div className="mt-4 flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[280px]">
-            <label className="mb-1 block text-[11px] font-medium text-[#101114]/55 uppercase tracking-wide">Title</label>
+            <label className="mb-1 block text-[11px] font-medium text-slate-500 uppercase tracking-wide">Title</label>
             <input
-              className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
               placeholder="Assessment title"
               value={createTitle}
               onChange={(e) => setCreateTitle(e.target.value)}
             />
           </div>
           <button
-            className="rounded-xl bg-[#101114] px-5 py-2 text-sm font-medium text-white hover:bg-[#1b1c20] transition-colors"
+            className="rounded-xl bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 transition-colors"
             onClick={createAssessment}
           >
             Create
           </button>
           <button
-            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-4 py-2 text-sm font-medium text-[#101114]/82 hover:bg-[#F4EEE0]/60 transition-colors"
+            className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
             onClick={() => setCsvModalOpen(true)}
           >
             Create from CSV
@@ -608,17 +608,17 @@ export default function AssessmentsClient() {
       </section>
 
       {/* ── Assessment Library ── */}
-      <section className="rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5">
+      <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <div className="flex flex-wrap items-center gap-2">
           <input
-            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
             placeholder="Search assessments…"
           />
           <select
-            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as "" | "PUBLISHED" | "DRAFT")}
           >
@@ -627,7 +627,7 @@ export default function AssessmentsClient() {
             <option value="DRAFT">Draft</option>
           </select>
           <input
-            className="w-28 rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
+            className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm"
             type="number"
             min={0}
             max={100}
@@ -636,7 +636,7 @@ export default function AssessmentsClient() {
             onChange={(e) => setMinCompletionRate(e.target.value)}
           />
           <input
-            className="w-28 rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
+            className="w-28 rounded-xl border border-slate-300 px-3 py-2 text-sm"
             type="number"
             min={0}
             max={100}
@@ -645,7 +645,7 @@ export default function AssessmentsClient() {
             onChange={(e) => setMaxCompletionRate(e.target.value)}
           />
           <select
-            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={sortBy}
             onChange={(e) =>
               setSortBy(
@@ -665,7 +665,7 @@ export default function AssessmentsClient() {
             <option value="participants">Sort: Participants</option>
           </select>
           <select
-            className="rounded-xl border border-[#101114]/20 px-3 py-2 text-sm"
+            className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value as "asc" | "desc")}
           >
@@ -673,61 +673,61 @@ export default function AssessmentsClient() {
             <option value="asc">Ascending</option>
           </select>
           <button
-            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
             onClick={loadAssessments}
           >
             Refresh
           </button>
           <button
-            className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60 transition-colors"
+            className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors"
             onClick={clearAdvancedFilters}
           >
             Clear Filters
           </button>
           <button
-            className="rounded-xl border border-[#101114]/20 bg-[#101114] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b1c20] transition-colors"
+            className="rounded-xl border border-slate-300 bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 transition-colors"
             onClick={exportAssessmentsCsv}
           >
             Export CSV
           </button>
           <button
-            className="rounded-xl border border-[#B5803C]/55 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#B5803C] hover:bg-[#F4EEE0] transition-colors"
+            className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 transition-colors"
             onClick={() => setResultsExportOpen(true)}
           >
             Export Results
           </button>
         </div>
 
-        <div className="mt-4 overflow-auto rounded-xl border border-[#101114]/12">
+        <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
           {selectedAssessmentIds.length > 0 && (
-            <div className="border-b border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2">
+            <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-[#101114]/82">
+                <span className="text-xs font-semibold text-slate-700">
                   {selectedAssessmentIds.length} selected
                 </span>
                 <button
-                  className="rounded-lg border border-[#B5803C]/55 bg-[#F4EEE0] px-2.5 py-1 text-[11px] text-[#B5803C] hover:bg-[#F4EEE0] transition-colors disabled:opacity-50"
+                  className="rounded-lg border border-cyan-300 bg-cyan-50 px-2.5 py-1 text-[11px] text-cyan-800 hover:bg-cyan-100 transition-colors disabled:opacity-50"
                   onClick={() => bulkSetPublishState(true)}
                   disabled={bulkBusy}
                 >
                   Publish Selected
                 </button>
                 <button
-                  className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0]/60 transition-colors disabled:opacity-50"
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors disabled:opacity-50"
                   onClick={() => bulkSetPublishState(false)}
                   disabled={bulkBusy}
                 >
                   Unpublish Selected
                 </button>
                 <button
-                  className="rounded-lg border border-[#101114]/30 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0] transition-colors disabled:opacity-50"
+                  className="rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[11px] hover:bg-rose-100 transition-colors disabled:opacity-50"
                   onClick={bulkDeleteAssessments}
                   disabled={bulkBusy}
                 >
                   Delete Selected
                 </button>
                 <button
-                  className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0]/60 transition-colors"
+                  className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
                   onClick={() => setSelectedAssessmentIds([])}
                   disabled={bulkBusy}
                 >
@@ -737,7 +737,7 @@ export default function AssessmentsClient() {
             </div>
           )}
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-[#F4EEE0]/60 text-[#101114]/72">
+            <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">
                   <input
@@ -763,7 +763,7 @@ export default function AssessmentsClient() {
                 />
               ) : (
                 assessments.map((assessment) => (
-                  <tr key={assessment.id} className="border-t border-[#101114]/10 align-top">
+                  <tr key={assessment.id} className="border-t border-slate-100 align-top">
                     <td className="px-3 py-2">
                       <input
                         type="checkbox"
@@ -775,7 +775,7 @@ export default function AssessmentsClient() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="font-medium">{assessment.title}</div>
-                      <div className="mt-1 text-[11px] text-[#101114]/45">
+                      <div className="mt-1 text-[11px] text-slate-400">
                         {assessment._count?.questions || 0} questions · {assessment._count?.sessions || 0} sessions
                       </div>
                     </td>
@@ -783,22 +783,22 @@ export default function AssessmentsClient() {
                       {assessment.participantCounts ? (
                         <>
                           <div className="font-medium">{assessment.participantCounts.total}</div>
-                          <div className="text-[11px] text-[#101114]/45">
+                          <div className="text-[11px] text-slate-400">
                             {assessment.participantCounts.completed} done · {assessment.participantCounts.inProgress} active
                           </div>
-                          <div className="text-[11px] text-[#101114]/45">
+                          <div className="text-[11px] text-slate-400">
                             Completion {assessment.completionRate ?? 0}%
                           </div>
                         </>
                       ) : (
-                        <span className="text-[#101114]/45">—</span>
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
                     <td className="px-3 py-2">
                       <span
                         className={`rounded-full px-2 py-1 text-xs font-semibold ${assessment.isPublished
-                          ? "bg-[#F4EEE0] text-[#B5803C]"
-                          : "bg-[#F4EEE0] text-[#101114]/82"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-slate-700"
                           }`}
                       >
                         {assessment.isPublished ? "Published" : "Draft"}
@@ -808,7 +808,7 @@ export default function AssessmentsClient() {
                       <div className="flex flex-wrap justify-end gap-1.5">
                         <Link
                           href={`/admin/assessments/${assessment.id}`}
-                          className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-[11px] hover:bg-[#F4EEE0]/60 transition-colors"
+                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
                         >
                           Manage
                         </Link>
@@ -824,17 +824,17 @@ export default function AssessmentsClient() {
       </section>
 
       {csvModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#101114]/40 p-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5 shadow-xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between gap-2">
               <div>
                 <h3 className="text-lg font-semibold">Create Assessment from CSV</h3>
-                <p className="mt-1 text-xs text-[#101114]/55">
+                <p className="mt-1 text-xs text-slate-500">
                   Validate first, then import. Import is atomic and preserves source question codes.
                 </p>
               </div>
               <button
-                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-xs font-semibold text-[#101114]/72 hover:bg-[#F4EEE0]/60"
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 onClick={() => {
                   setCsvModalOpen(false);
                   resetCsvModalState();
@@ -847,11 +847,11 @@ export default function AssessmentsClient() {
 
             <div className="mt-4 grid gap-3 md:grid-cols-3">
               <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   Assessment Title
                 </label>
                 <input
-                  className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   value={csvCreateTitle}
                   onChange={(e) => setCsvCreateTitle(e.target.value)}
                   placeholder="CPR Exam - March 2026"
@@ -859,11 +859,11 @@ export default function AssessmentsClient() {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   Report Workflow
                 </label>
                 <select
-                  className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   value={csvCreateReportWorkflow}
                   onChange={(e) =>
                     setCsvCreateReportWorkflow(
@@ -877,13 +877,13 @@ export default function AssessmentsClient() {
                 </select>
               </div>
               <div>
-                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
+                <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
                   CSV File
                 </label>
                 <input
                   type="file"
                   accept=".csv,text/csv"
-                  className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                   onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
                   disabled={csvBusy}
                 />
@@ -892,21 +892,21 @@ export default function AssessmentsClient() {
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
-                className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60"
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50"
                 onClick={downloadCsvTemplate}
                 disabled={csvBusy}
               >
                 Download Template
               </button>
               <button
-                className="rounded-xl border border-[#B5803C]/55 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold text-[#B5803C] hover:bg-[#F4EEE0] disabled:opacity-50"
+                className="rounded-xl border border-cyan-300 bg-cyan-50 px-3 py-2 text-xs font-semibold text-cyan-800 hover:bg-cyan-100 disabled:opacity-50"
                 onClick={validateCreateFromCsv}
                 disabled={csvBusy}
               >
                 {csvBusy ? "Validating..." : "Validate CSV"}
               </button>
               <button
-                className="rounded-xl bg-[#101114] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b1c20] disabled:opacity-50"
+                className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 onClick={createAssessmentFromCsv}
                 disabled={csvBusy || !csvPreviewSummary || csvIssues.length > 0}
               >
@@ -915,8 +915,8 @@ export default function AssessmentsClient() {
             </div>
 
             {csvPreviewSummary && (
-              <div className="mt-4 rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3 text-xs text-[#101114]/72">
-                <p className="font-semibold text-[#101114]/82">
+              <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
+                <p className="font-semibold text-slate-700">
                   Summary: {csvPreviewSummary.questions} questions across {csvPreviewSummary.sections} sections
                 </p>
                 <p className="mt-1">
@@ -926,14 +926,14 @@ export default function AssessmentsClient() {
             )}
 
             {csvPreviewQuestions.length > 0 && (
-              <div className="mt-3 rounded-xl border border-[#101114]/12">
-                <div className="border-b border-[#101114]/12 bg-[#F4EEE0]/60 px-3 py-2 text-xs font-semibold text-[#101114]/72">
+              <div className="mt-3 rounded-xl border border-slate-200">
+                <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600">
                   Preview (first {csvPreviewQuestions.length} questions)
                 </div>
-                <ul className="max-h-36 overflow-auto px-3 py-2 text-xs text-[#101114]/72">
+                <ul className="max-h-36 overflow-auto px-3 py-2 text-xs text-slate-600">
                   {csvPreviewQuestions.map((item) => (
                     <li key={`${item.code}-${item.prompt}`} className="py-1">
-                      <span className="font-semibold text-[#101114]/82">{item.code}</span> · {item.section} · {item.type}
+                      <span className="font-semibold text-slate-700">{item.code}</span> · {item.section} · {item.type}
                     </li>
                   ))}
                 </ul>
@@ -941,7 +941,7 @@ export default function AssessmentsClient() {
             )}
 
             {csvIssues.length > 0 && (
-              <div className="mt-3 rounded-xl border border-[#101114]/20 bg-[#F4EEE0] p-3 text-xs text-[#101114]">
+              <div className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">
                 <p className="font-semibold">Validation issues ({csvIssues.length})</p>
                 <ul className="mt-1 max-h-32 list-disc overflow-auto pl-5">
                   {csvIssues.map((issue, index) => (
@@ -958,17 +958,17 @@ export default function AssessmentsClient() {
       )}
 
       {resultsExportOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#101114]/40 p-4">
-          <div className="w-full max-w-3xl rounded-2xl border border-[#101114]/12 bg-[#F4EEE0] p-5 shadow-xl">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 p-4">
+          <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">Export Assessment Results</h3>
-                <p className="mt-1 text-xs text-[#101114]/55">
+                <p className="mt-1 text-xs text-slate-500">
                   Export enrolled participants, attempt state, report readiness, and answer data.
                 </p>
               </div>
               <button
-                className="rounded-lg border border-[#101114]/20 bg-[#F4EEE0] px-2.5 py-1 text-xs font-semibold text-[#101114]/72 hover:bg-[#F4EEE0]/60"
+                className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
                 onClick={() => {
                   setResultsExportOpen(false);
                   resetResultsExportState();
@@ -980,27 +980,27 @@ export default function AssessmentsClient() {
             </div>
 
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-xl border border-[#101114]/12 bg-[#F4EEE0]/60 p-3">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-[#101114]/55">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                   Export Scope
                 </p>
-                <p className="mt-2 text-sm text-[#101114]/82">
+                <p className="mt-2 text-sm text-slate-700">
                   {selectedAssessmentIds.length > 0
                     ? `${selectedAssessmentIds.length} selected assessment${selectedAssessmentIds.length === 1 ? "" : "s"}`
                     : "All assessments matching the current filters (up to 5,000 rows in the assessment list query)."}
                 </p>
-                <p className="mt-2 text-xs text-[#101114]/55">
+                <p className="mt-2 text-xs text-slate-500">
                   Use row selection for a precise subset, or leave selection empty to export the current filtered set.
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Layout
                   </label>
                   <select
-                    className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     value={resultsExportLayout}
                     onChange={(e) => setResultsExportLayout(e.target.value as ResultsExportLayout)}
                     disabled={resultsExportBusy}
@@ -1011,11 +1011,11 @@ export default function AssessmentsClient() {
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Attempt Status
                   </label>
                   <select
-                    className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     value={resultsExportAttemptStatus}
                     onChange={(e) =>
                       setResultsExportAttemptStatus(
@@ -1032,11 +1032,11 @@ export default function AssessmentsClient() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-[#101114]/55">
+                  <label className="mb-1 block text-[11px] font-medium uppercase tracking-wide text-slate-500">
                     Report Status
                   </label>
                   <select
-                    className="w-full rounded-lg border border-[#101114]/20 px-3 py-2 text-sm"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
                     value={resultsExportReportStatus}
                     onChange={(e) =>
                       setResultsExportReportStatus(
@@ -1055,12 +1055,12 @@ export default function AssessmentsClient() {
               </div>
             </div>
 
-            <div className="mt-4 rounded-xl border border-[#101114]/12 p-4">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-[#101114]/55">
+            <div className="mt-4 rounded-xl border border-slate-200 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 Include Fields
               </p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <label className="flex items-start gap-2 rounded-lg border border-[#101114]/12 px-3 py-2 text-sm text-[#101114]/82">
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
                     checked={resultsExportInclude.participant}
@@ -1069,7 +1069,7 @@ export default function AssessmentsClient() {
                   />
                   <span>Participant columns: name, email, organisation, manager</span>
                 </label>
-                <label className="flex items-start gap-2 rounded-lg border border-[#101114]/12 px-3 py-2 text-sm text-[#101114]/82">
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
                     checked={resultsExportInclude.attempt}
@@ -1078,7 +1078,7 @@ export default function AssessmentsClient() {
                   />
                   <span>Attempt columns: status, started at, submitted at, duration</span>
                 </label>
-                <label className="flex items-start gap-2 rounded-lg border border-[#101114]/12 px-3 py-2 text-sm text-[#101114]/82">
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
                     checked={resultsExportInclude.report}
@@ -1087,7 +1087,7 @@ export default function AssessmentsClient() {
                   />
                   <span>Report columns: readiness label, raw report state, delivery data</span>
                 </label>
-                <label className="flex items-start gap-2 rounded-lg border border-[#101114]/12 px-3 py-2 text-sm text-[#101114]/82">
+                <label className="flex items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
                   <input
                     type="checkbox"
                     checked={resultsExportInclude.answers}
@@ -1097,21 +1097,21 @@ export default function AssessmentsClient() {
                   <span>Answer columns: selected option, scale value, or free-text response</span>
                 </label>
               </div>
-              <p className="mt-3 text-xs text-[#101114]/55">
+              <p className="mt-3 text-xs text-slate-500">
                 Wide layout produces one row per participant per assessment. Long layout expands each participant into one row per question.
               </p>
             </div>
 
             <div className="mt-4 flex flex-wrap items-center justify-end gap-2">
               <button
-                className="rounded-xl border border-[#101114]/20 bg-[#F4EEE0] px-3 py-2 text-xs font-semibold hover:bg-[#F4EEE0]/60"
+                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold hover:bg-slate-50"
                 onClick={resetResultsExportState}
                 disabled={resultsExportBusy}
               >
                 Reset Options
               </button>
               <button
-                className="rounded-xl bg-[#101114] px-3 py-2 text-xs font-semibold text-white hover:bg-[#1b1c20] disabled:opacity-50"
+                className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 onClick={exportAssessmentResultsCsv}
                 disabled={resultsExportBusy}
               >
