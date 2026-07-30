@@ -14,7 +14,7 @@ export function Eyebrow({
   tone?: "dark" | "light";
 }) {
   const toneClass =
-    tone === "light" ? "text-[#EFE8DA]/55" : "text-[#101114]/55";
+    tone === "light" ? "text-[#EFE8DA]/55" : "text-[#101114]/65";
   return (
     <p
       className={`text-[11px] font-medium uppercase tracking-[0.28em] ${toneClass} ${className}`}

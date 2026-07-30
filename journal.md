@@ -1452,3 +1452,34 @@ This file is the append-only engineering diary for implementation work in this r
 - Next step:
   - Review the large remediation diff, stage intended files by name (including `AGENTS.md`), commit coherently, and push to `staging`.
   - Wait for the Vercel deployment to become `READY`, repeat health/header/provider/magic-link/share/PDF/cron smoke tests against `staging.olqlab.com`, obtain legal approval, and only then update the standing `staging` to `main` production PR.
+
+## Entry 2026-07-31-01
+- Timestamp (UTC): 2026-07-30T20:48:37Z
+- Timestamp (Local): 2026-07-31 02:18:37 IST (+0530)
+- Task: Unblock the Hobby Vercel deployment and redesign the public landing page as a clean editorial leadership diagnostic.
+- Why: The staging commit was rejected before the application build because `vercel.json` requested a 15-minute cron cadence that the Vercel Hobby plan does not accept. The landing page also repeated several long list sections and competing motion effects, weakening the first impression and decision path.
+- What changed:
+  - `vercel.json`: changed the unenrollment sweep from `*/15 * * * *` to the Hobby-compatible daily schedule `0 0 * * *`.
+  - `guide.md` and `README.md`: documented that the synchronous access overlay still makes due authorization changes effective immediately, while the daily worker persists state and completes queued delivery; documented Pro or authenticated external scheduling as the faster-cadence options.
+  - `src/app/page.tsx`: replaced the former hero, marquee, manifesto, service, benefit, and journey sequence with six focused bands: a modular hero and CPR signal map, practice proposition, CPR framework, founder proof, growth path, and closing assessment action. All established public routes and static-rendering boundaries remain intact.
+  - `src/app/globals.css`: added the landing grid, high-contrast actions, responsive signal map, restrained reveal and signal motion, visible focus treatment, skip-link behavior, no-script content fallback, and reduced-motion final states. The 1024 px browser pass exposed a 15 px CTA overflow; the hero action grid now stacks inside the narrow 900-1279 px side column and remains two-column where space permits.
+  - `src/components/marketing/Editorial.tsx`: raised dark eyebrow text opacity from 55% to 65%, moving the small-label contrast from approximately 3.95:1 to 5.45:1 on the cream background.
+  - `journal.md`: recorded the failure diagnosis, implementation, and release evidence.
+- How:
+  - Followed the failed GitHub commit status to Vercel's cron usage/plan documentation and correlated it with the newly introduced schedule; GitHub Actions had already passed, so Prisma, environment validation, and the application build were not the failed stage.
+  - Used Mistral's disciplined modular grid, Anthropic's editorial restraint, and Linear's evidence-first hierarchy only as structural references. The visual artifact and copy remain specific to OLQ Lab's cream, ink, brass, serif, and CPR system; no third-party assets or interaction code were copied.
+  - Kept the homepage as a deterministic server page and left session resolution in the existing client header island, preserving CDN prerendering.
+- Validation/output:
+  - Node `22.13.1`; `npm run lint` and `npm run typecheck` passed with zero errors.
+  - `npm test` passed: 52 files and 162 tests.
+  - `npm run build` passed. `/` and all required marketing pages remained `○` Static; `/signin`, `/signin/confirm`, dashboard, assessment, report, admin, and API routes remained `ƒ` Dynamic; `ƒ Proxy (Middleware)` remained present.
+  - Production-like `npm run env:check` passed; `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities; `git diff --check` passed.
+  - Local production route smoke test returned HTTP 200 for `/`, all marketing/legal routes, `/signin`, and `/signin/confirm`; `/dashboard` returned the expected HTTP 307 anonymous redirect.
+  - In-app browser QA covered 320, 390, 768, 899, 900, 1024, 1279, 1280, and 1440 px widths. Every sampled width finished with `scrollWidth === innerWidth`; the founder image loaded at its intrinsic responsive size; the mobile menu opened with all four routes; the primary assessment CTA navigated correctly; shipped CSS contained the no-script and reduced-motion fallbacks; and the browser console remained empty.
+  - `CLAUDE.md` remains exactly one LF-terminated line: `@agents.md`.
+- Risks/unknowns:
+  - Daily scheduling can delay database persistence and queued email work until the next sweep, although due access remains immediately enforced by the synchronous resolver overlay. If near-real-time persistence/delivery is required, use a Pro-supported cadence or an external scheduler authenticated with `CRON_SECRET`.
+  - This checkout has not been committed, pushed, or redeployed, so the Vercel status cannot become `READY` until the reviewed files land on `staging`. Real provider credentials and the hosted cron invocation remain staging verification items.
+  - Final marketing copy and the revised visual direction still benefit from owner review; the implementation preserves route, auth, and accessibility contracts if wording is adjusted later.
+- Next step:
+  - Review and commit the intended files, push to `staging`, wait for Vercel to reach `READY`, and repeat the public-route, environment, auth, and cron smoke checks against `staging.olqlab.com` before merging to production.

@@ -515,7 +515,9 @@ Execution modes:
 - synchronous read overlay: participant/report authorization treats a due job as
   effective immediately without mutating database state
 - scheduled worker: Vercel cron calls
-  `GET /api/internal/jobs/unenrollments/run` every 15 minutes
+  `GET /api/internal/jobs/unenrollments/run` once daily on the Hobby-compatible
+  repository schedule. The synchronous read overlay still makes due access changes
+  effective immediately; the sweep persists state and completes queued delivery work.
 - operator fallback: an authenticated admin or internal secret can run one job
   explicitly
 
@@ -842,10 +844,13 @@ Architecture scenarios to validate manually:
   - UI, docs, and surfaced API messages say `Organisation`.
   - Internal storage/contracts may still say `tenant`.
   - Avoid mixing both terms in the same user-facing flow unless a technical field name is being shown verbatim.
-- Vercel cron is configured in `vercel.json` for `*/15 * * * *`. Confirm the
-  deployed Vercel plan supports that schedule before release; otherwise use a
-  supported cadence or external scheduler without weakening the synchronous
-  effective-time authorization overlay.
+- Vercel cron is configured in `vercel.json` for the Hobby-compatible daily
+  schedule `0 0 * * *`. Hobby rejects more-frequent cron expressions during
+  deployment. The synchronous effective-time authorization overlay remains the
+  immediate access-control boundary; the daily worker persists due state and
+  completes queued delivery work. If the project moves to Pro and needs faster
+  persistence/email delivery, change the schedule back to `*/15 * * * *` or use
+  an external scheduler that sends `Authorization: Bearer <CRON_SECRET>`.
 - `NEXTAUTH_URL` and `REPORT_SHARE_BASE_URL` must be environment-specific HTTPS
   origins. `DATABASE_URL` is the pooled runtime URL and `DIRECT_DATABASE_URL` is the
   direct migration URL.

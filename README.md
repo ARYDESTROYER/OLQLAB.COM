@@ -57,8 +57,10 @@ The platform now follows a global-assessment model:
   - `GET /api/internal/jobs/unenrollments/run` (Vercel Cron)
   - `POST /api/internal/jobs/unenrollments/run`
   - `POST /api/internal/jobs/unenrollments/:id/run`
-- Vercel cron invokes the due-job endpoint every 15 minutes, with checkpointed
-  recipient work and a hard function deadline.
+- Vercel cron invokes the due-job endpoint once daily on the Hobby-compatible
+  repository schedule, with checkpointed recipient work and a hard function
+  deadline. Due access changes are still enforced immediately by the synchronous
+  resolver overlay; Pro deployments may opt into a more frequent sweep.
 - Assessment competencies moved to assessment scope (`AssessmentCompetency`) and scoring supports new mapping.
 - Backfill and rollback scripts for migration support.
 
