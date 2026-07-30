@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 /**
  * Scroll-triggered reveal driver.
@@ -21,8 +22,10 @@ import { useEffect } from "react";
  * reveal targets.
  */
 export default function ScrollReveal() {
+  const pathname = usePathname();
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (/^\/(?:dashboard|admin|assessment|reports)(?:\/|$)/.test(pathname)) return;
 
     const SELECTOR =
       ".reveal-on-scroll, .scale-on-scroll, .image-mask, .reveal-words";
@@ -71,7 +74,7 @@ export default function ScrollReveal() {
       observer.disconnect();
       mutation.disconnect();
     };
-  }, []);
+  }, [pathname]);
 
   return null;
 }

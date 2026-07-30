@@ -33,6 +33,27 @@ export default function ContinueButton({ tokenUrl }: { tokenUrl: string }) {
         redirect: "follow",
       });
 
+      const destination = new URL(response.url || SAFE_FALLBACK_URL, window.location.origin);
+      const failedDestination =
+        destination.origin !== window.location.origin ||
+        destination.pathname === "/signin" ||
+        destination.pathname.startsWith("/api/auth/error") ||
+        destination.pathname.startsWith("/api/auth/callback/");
+      if (!response.ok || failedDestination) {
+        throw new Error("The sign-in link is invalid or has already been used.");
+      }
+
+      const sessionResponse = await fetch("/api/auth/session", {
+        credentials: "include",
+        cache: "no-store",
+      });
+      const sessionData = (await sessionResponse.json().catch(() => null)) as
+        | { user?: { id?: string } }
+        | null;
+      if (!sessionResponse.ok || !sessionData?.user?.id) {
+        throw new Error("The sign-in session was not created.");
+      }
+
       const elapsed = Date.now() - startedAt;
       if (elapsed < MIN_HOLD_MS) {
         await new Promise((resolve) => setTimeout(resolve, MIN_HOLD_MS - elapsed));
@@ -41,7 +62,7 @@ export default function ContinueButton({ tokenUrl }: { tokenUrl: string }) {
       setState("completing");
       await new Promise((resolve) => setTimeout(resolve, COMPLETE_HOLD_MS));
 
-      window.location.assign(response.url || SAFE_FALLBACK_URL);
+      window.location.assign(destination.pathname + destination.search + destination.hash);
     } catch {
       setState("error");
       await new Promise((resolve) => setTimeout(resolve, ERROR_HOLD_MS));

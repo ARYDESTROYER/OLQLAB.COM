@@ -7,6 +7,14 @@ import {
 } from "@/components/marketing/Editorial";
 import Magnetic from "@/components/effects/Magnetic";
 import CprTriangle from "@/components/marketing/CprTriangle";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Leadership assessments",
+  description:
+    "Understand leadership patterns across strategic thinking, relational impact, resilience, and practical workplace decisions.",
+  path: "/assessments",
+});
 
 const assessmentRegions: {
   code: "C" | "P" | "R" | "CP" | "PR" | "CR" | "CPR";

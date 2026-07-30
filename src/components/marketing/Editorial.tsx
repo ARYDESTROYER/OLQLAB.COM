@@ -255,6 +255,8 @@ export function EditorialFooter() {
             links={[
               { label: "Get in touch", href: "/contact" },
               { label: "Sign in", href: "/signin" },
+              { label: "Privacy", href: "/privacy" },
+              { label: "Terms", href: "/terms" },
             ]}
           />
         </div>

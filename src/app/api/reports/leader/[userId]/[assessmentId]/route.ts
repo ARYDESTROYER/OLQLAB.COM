@@ -1,74 +1,111 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { requireSession } from "@/lib/api-auth";
+import { requireLeaderOrAdmin } from "@/lib/api-auth";
+import { evaluateReportRelease } from "@/lib/report-release";
+import { isAssessmentParticipantRole } from "@/lib/assessment-access";
+import {
+  parseReportNarrative,
+  resolveCanonicalReportHtml,
+} from "@/lib/report-content";
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ userId: string; assessmentId: string }> },
 ) {
-  const check = await requireSession();
+  const check = await requireLeaderOrAdmin();
   if ("error" in check) return check.error;
-
   const { userId, assessmentId } = await params;
-  if (!["LEADER", "ADMIN"].includes(check.session.user.role)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
 
-  const employee = await db.user.findUnique({ where: { id: userId } });
-  if (!employee) {
+  const employee = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      tenantId: true,
+      managerId: true,
+      role: true,
+    },
+  });
+  if (!employee || !isAssessmentParticipantRole(employee.role)) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  if (check.session.user.role === "LEADER") {
-    const sameTenant = employee.tenantId === check.session.user.tenantId;
-    const isManager = employee.managerId === check.session.user.id;
+  if (check.liveUser.role === "LEADER") {
+    const sameTenant = employee.tenantId === check.liveUser.tenantId;
+    const isManager = employee.managerId === check.liveUser.id;
     if (!sameTenant || !isManager) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
   }
 
-  const assessment = await db.assessment.findUnique({
-    where: { id: assessmentId },
-    select: { id: true, title: true, policy: true },
-  });
-
-  if (!assessment) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const [assessment, report, session] = await Promise.all([
+    db.assessment.findUnique({
+      where: { id: assessmentId },
+      select: { id: true, title: true, policy: true },
+    }),
+    db.report.findUnique({
+      where: { assessmentId_userId: { assessmentId, userId } },
+      include: { pdfAsset: { select: { id: true } } },
+    }),
+    db.quizSession.findUnique({
+      where: { assessmentId_userId: { assessmentId, userId } },
+      select: { status: true, submittedAt: true },
+    }),
+  ]);
+  if (!assessment || !session || session.status !== "SUBMITTED") {
+    return NextResponse.json({ error: "Submitted report not found." }, { status: 404 });
   }
 
-  if (!assessment?.policy?.leaderCanViewFullReport) {
-    return NextResponse.json({ error: "Leader access disabled" }, { status: 403 });
+  const policy = assessment.policy || {
+    reportWorkflow: "AI_STANDARD" as const,
+    leaderCanViewFullReport: true,
+    showResultsToEmployee: true,
+    resultReleaseDelayHours: 0,
+  };
+  const decision = evaluateReportRelease({
+    audience: "LEADER",
+    report: report
+      ? {
+          status: report.status,
+          availableAt: report.availableAt,
+          hasManualPdf: Boolean(report.pdfAsset),
+        }
+      : null,
+    policy,
+    submittedAt: session.submittedAt,
+  });
+  if (!decision.ready) {
+    return NextResponse.json(
+      { error: decision.message, code: decision.code },
+      { status: decision.status, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
-  const score = await db.score.findUnique({
-    where: { assessmentId_userId: { assessmentId, userId } },
-  });
-  const report = await db.report.findUnique({
-    where: { assessmentId_userId: { assessmentId, userId } },
-  });
-  const session = await db.quizSession.findUnique({
-    where: {
-      assessmentId_userId: {
-        assessmentId,
-        userId,
-      },
-    },
-    select: { submittedAt: true },
-  });
+  const participantName =
+    `${employee.firstName} ${employee.lastName}`.trim() || "Participant";
+  const narrative = policy.reportWorkflow === "AI_STANDARD" && report
+    ? parseReportNarrative(report.narrativeJson)
+    : null;
+  if (policy.reportWorkflow === "AI_STANDARD" && !narrative) {
+    return NextResponse.json({ error: "Report content is unavailable." }, { status: 500 });
+  }
 
-  return NextResponse.json({
-    employee: {
-      id: employee.id,
-      email: employee.email,
-      firstName: employee.firstName,
-      lastName: employee.lastName,
+  return NextResponse.json(
+    {
+      employee: { firstName: employee.firstName, lastName: employee.lastName },
+      assessment: { id: assessment.id, title: assessment.title },
+      submittedAt: session.submittedAt,
+      reportWorkflow: policy.reportWorkflow,
+      manualPdfReady: Boolean(report?.pdfAsset),
+      canonicalHtml:
+        policy.reportWorkflow === "AI_STANDARD" && narrative
+          ? resolveCanonicalReportHtml(narrative, {
+              assessmentTitle: assessment.title,
+              participantName,
+            })
+          : null,
     },
-    assessment: {
-      id: assessment.id,
-      title: assessment.title,
-    },
-    submittedAt: session?.submittedAt || null,
-    score,
-    narrative: report && report.status === "PUBLISHED" ? JSON.parse(report.narrativeJson) : null,
-  });
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }

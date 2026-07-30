@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
 import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
 import { buildAssessmentCsvTemplate } from "@/lib/assessment-question-csv";
+import { ASSESSMENT_EXPORT_LIMITS } from "@/lib/export-limits";
 
 type Assessment = {
   id: string;
@@ -74,8 +75,26 @@ type ResultsExportInclude = {
   answers: boolean;
 };
 
+type AssessmentListMeta = {
+  returned: number;
+  limit: number;
+  totalMatchingFilters: number | null;
+  totalCandidates: number;
+  hasMore: boolean;
+  truncated: boolean;
+};
+
 export default function AssessmentsClient() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [listMeta, setListMeta] = useState<AssessmentListMeta>({
+    returned: 0,
+    limit: 100,
+    totalMatchingFilters: 0,
+    totalCandidates: 0,
+    hasMore: false,
+    truncated: false,
+  });
+  const [listLimit, setListLimit] = useState(100);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"" | "PUBLISHED" | "DRAFT">("");
   const [minCompletionRate, setMinCompletionRate] = useState("");
@@ -87,6 +106,7 @@ export default function AssessmentsClient() {
   const [busyAssessmentId, setBusyAssessmentId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selectedAssessmentIds, setSelectedAssessmentIds] = useState<string[]>([]);
+  const assessmentRequestRef = useRef<AbortController | null>(null);
 
   const [createTitle, setCreateTitle] = useState("");
   const [csvModalOpen, setCsvModalOpen] = useState(false);
@@ -133,24 +153,50 @@ export default function AssessmentsClient() {
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
       if (options?.format) params.set("format", options.format);
-      if (typeof options?.limit === "number") params.set("limit", String(options.limit));
+      params.set("limit", String(options?.limit ?? listLimit));
       return params;
     },
-    [maxCompletionRate, minCompletionRate, query, sortBy, sortOrder, statusFilter],
+    [listLimit, maxCompletionRate, minCompletionRate, query, sortBy, sortOrder, statusFilter],
   );
 
   const loadAssessments = useCallback(async () => {
-    const res = await fetch(`/api/admin/assessments?${buildAssessmentQueryParams().toString()}`);
-    const data = await res.json();
-    const rows = data.assessments || [];
-    setAssessments(rows);
-    setSelectedAssessmentIds((prev) =>
-      prev.filter((id) => rows.some((row: Assessment) => row.id === id)),
-    );
+    assessmentRequestRef.current?.abort();
+    const controller = new AbortController();
+    assessmentRequestRef.current = controller;
+    try {
+      const res = await fetch(
+        `/api/admin/assessments?${buildAssessmentQueryParams().toString()}`,
+        { signal: controller.signal },
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to load assessments.");
+      }
+      if (assessmentRequestRef.current !== controller) return;
+      const rows = (data as { assessments?: Assessment[] }).assessments || [];
+      setAssessments(rows);
+      setListMeta(
+        (data as { meta?: AssessmentListMeta }).meta || {
+          returned: rows.length,
+          limit: 100,
+          totalMatchingFilters: rows.length,
+          totalCandidates: rows.length,
+          hasMore: false,
+          truncated: false,
+        },
+      );
+      setSelectedAssessmentIds((prev) =>
+        prev.filter((id) => rows.some((row) => row.id === id)),
+      );
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast(error instanceof Error ? error.message : "Failed to load assessments.", "error");
+    }
   }, [buildAssessmentQueryParams]);
 
   useEffect(() => {
-    loadAssessments();
+    void loadAssessments();
+    return () => assessmentRequestRef.current?.abort();
   }, [loadAssessments]);
 
   function handleSearchKeyDown(e: React.KeyboardEvent) {
@@ -163,6 +209,7 @@ export default function AssessmentsClient() {
     setMinCompletionRate("");
     setMaxCompletionRate("");
     setSortBy("createdAt");
+    setListLimit(100);
     setSortOrder("desc");
   }
 
@@ -212,39 +259,27 @@ export default function AssessmentsClient() {
     }));
   }
 
-  async function resolveResultsAssessmentIds() {
-    if (selectedAssessmentIds.length > 0) {
-      return selectedAssessmentIds;
-    }
-
-    const params = buildAssessmentQueryParams({ limit: 5000 });
-    const res = await fetch(`/api/admin/assessments?${params.toString()}`);
-    const data = await res.json().catch(() => ({}));
-
-    if (!res.ok) {
-      throw new Error((data as { error?: string }).error || "Failed to resolve assessments.");
-    }
-
-    const ids = ((data as { assessments?: Assessment[] }).assessments || []).map(
-      (assessment) => assessment.id,
-    );
-    return ids;
-  }
-
   async function exportAssessmentResultsCsv() {
     const includeValues = Object.values(resultsExportInclude);
     if (!includeValues.some(Boolean)) {
       toast("Select at least one field group to export.", "error");
       return;
     }
+    if (selectedAssessmentIds.length === 0) {
+      toast("Select at least one assessment before exporting results.", "error");
+      return;
+    }
+    if (selectedAssessmentIds.length > ASSESSMENT_EXPORT_LIMITS.assessments) {
+      toast(
+        `Select no more than ${ASSESSMENT_EXPORT_LIMITS.assessments} assessments per results export.`,
+        "error",
+      );
+      return;
+    }
 
     setResultsExportBusy(true);
     try {
-      const assessmentIds = await resolveResultsAssessmentIds();
-      if (assessmentIds.length === 0) {
-        toast("No assessments match the current export scope.", "error");
-        return;
-      }
+      const assessmentIds = selectedAssessmentIds;
 
       const res = await fetch("/api/admin/assessments/export-results", {
         method: "POST",
@@ -447,14 +482,7 @@ export default function AssessmentsClient() {
       const res = await fetch(`/api/admin/assessments/${assessment.id}/publish`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          isPublished: !assessment.isPublished,
-          showResultsToEmployee: assessment.policy?.showResultsToEmployee ?? true,
-          resultReleaseDelayHours: assessment.policy?.resultReleaseDelayHours ?? 0,
-          postSubmitMessage:
-            assessment.policy?.postSubmitMessage || "Thanks for completing your assessment.",
-          leaderCanViewFullReport: assessment.policy?.leaderCanViewFullReport ?? true,
-        }),
+        body: JSON.stringify({ isPublished: !assessment.isPublished }),
       });
       const data = await res.json();
       if (res.ok) {
@@ -528,30 +556,34 @@ export default function AssessmentsClient() {
         const res = await fetch(`/api/admin/assessments/${assessment.id}/publish`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            isPublished: nextPublished,
-            showResultsToEmployee: assessment.policy?.showResultsToEmployee ?? true,
-            resultReleaseDelayHours: assessment.policy?.resultReleaseDelayHours ?? 0,
-            postSubmitMessage:
-              assessment.policy?.postSubmitMessage || "Thanks for completing your assessment.",
-            leaderCanViewFullReport: assessment.policy?.leaderCanViewFullReport ?? true,
-          }),
+          body: JSON.stringify({ isPublished: nextPublished }),
         });
         return res.ok;
       },
     );
   }
 
-  async function bulkDeleteAssessments() {
-    const confirmed = window.confirm(
-      `Delete ${selectedAssessmentIds.length} selected assessments? This cannot be undone.`,
-    );
-    if (!confirmed) return;
-
-    await runBulkAssessmentAction("Bulk delete", async (assessment) => {
-      const res = await fetch(`/api/admin/assessments/${assessment.id}`, { method: "DELETE" });
-      return res.ok;
+  function bulkDeleteAssessments() {
+    setConfirmState({
+      open: true,
+      title: "Delete selected assessments?",
+      message: `Permanently delete ${selectedAssessmentIds.length} selected assessments and their associated data? This cannot be undone.`,
+      variant: "danger",
+      busy: false,
+      onConfirm: () => void executeBulkDeleteAssessments(),
     });
+  }
+
+  async function executeBulkDeleteAssessments() {
+    setConfirmState((prev) => ({ ...prev, busy: true }));
+    try {
+      await runBulkAssessmentAction("Bulk delete", async (assessment) => {
+        const res = await fetch(`/api/admin/assessments/${assessment.id}`, { method: "DELETE" });
+        return res.ok;
+      });
+    } finally {
+      setConfirmState((prev) => ({ ...prev, open: false, busy: false }));
+    }
   }
 
   function getRowActions(assessment: Assessment): ActionItem[] {
@@ -697,6 +729,26 @@ export default function AssessmentsClient() {
             Export Results
           </button>
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          {listMeta.totalMatchingFilters === null
+            ? `Showing ${assessments.length} assessment(s) from a bounded window of ${listMeta.totalCandidates} candidates.`
+            : `Showing ${assessments.length} of ${listMeta.totalMatchingFilters} matching assessment(s).`}
+        </p>
+        {listMeta.hasMore ? (
+          <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p>This list does not cover every matching record. CSV export will refuse an incomplete file.</p>
+            {listMeta.limit < 500 ? (
+              <button
+                className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold hover:bg-amber-100"
+                onClick={() => setListLimit((current) => Math.min(500, current + 100))}
+              >
+                Load 100 more
+              </button>
+            ) : (
+              <span className="font-medium">Narrow the filters to inspect the remaining records.</span>
+            )}
+          </div>
+        ) : null}
 
         <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
           {selectedAssessmentIds.length > 0 && (
@@ -987,11 +1039,16 @@ export default function AssessmentsClient() {
                 <p className="mt-2 text-sm text-slate-700">
                   {selectedAssessmentIds.length > 0
                     ? `${selectedAssessmentIds.length} selected assessment${selectedAssessmentIds.length === 1 ? "" : "s"}`
-                    : "All assessments matching the current filters (up to 5,000 rows in the assessment list query)."}
+                    : "No assessments selected."}
                 </p>
                 <p className="mt-2 text-xs text-slate-500">
-                  Use row selection for a precise subset, or leave selection empty to export the current filtered set.
+                  Select between 1 and {ASSESSMENT_EXPORT_LIMITS.assessments} assessments in the table before downloading results.
                 </p>
+                {selectedAssessmentIds.length > ASSESSMENT_EXPORT_LIMITS.assessments ? (
+                  <p className="mt-2 text-xs font-medium text-rose-700">
+                    Reduce the selection by {selectedAssessmentIds.length - ASSESSMENT_EXPORT_LIMITS.assessments} assessment(s).
+                  </p>
+                ) : null}
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
@@ -1113,7 +1170,11 @@ export default function AssessmentsClient() {
               <button
                 className="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
                 onClick={exportAssessmentResultsCsv}
-                disabled={resultsExportBusy}
+                disabled={
+                  resultsExportBusy ||
+                  selectedAssessmentIds.length === 0 ||
+                  selectedAssessmentIds.length > ASSESSMENT_EXPORT_LIMITS.assessments
+                }
               >
                 {resultsExportBusy ? "Preparing Export..." : "Download CSV"}
               </button>

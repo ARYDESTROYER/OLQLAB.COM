@@ -5,33 +5,56 @@ import { usePathname } from "next/navigation";
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import ProfileMenu from "@/components/navigation/ProfileMenu";
-
-type Role = "ADMIN" | "EMPLOYEE" | "LEADER";
+import {
+  getFocusedSessionNavigation,
+  hasParticipantWorkspaceAccess,
+  type WorkspaceRole,
+} from "@/lib/workspace-navigation";
 
 export default function AppShell({
   role,
   email,
   children,
 }: {
-  role: Role;
+  role: WorkspaceRole;
   email?: string | null;
   children: ReactNode;
 }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const focusedSession = pathname.startsWith("/assessment/session/");
+  const focusedNavigation = getFocusedSessionNavigation(pathname, role);
 
   const links = useMemo(() => {
-    const base = [
-      { href: "/dashboard", label: "Dashboard", matchPrefix: "/dashboard" },
-      { href: "/assessment/current", label: "Assessment Center", matchPrefix: "/assessment" },
-      { href: "/reports/current", label: "My Reports", matchPrefix: "/reports" },
-      { href: "/", label: "Landing", matchPrefix: "/" },
-    ];
+    const base = [{ href: "/dashboard", label: "Dashboard", matchPrefixes: ["/dashboard"] }];
 
-    if (role === "ADMIN") {
-      base.splice(3, 0, { href: "/admin", label: "Admin", matchPrefix: "/admin" });
+    if (hasParticipantWorkspaceAccess(role)) {
+      base.push(
+        {
+          href: "/assessment/current",
+          label: "Assessment Center",
+          matchPrefixes: ["/assessment"],
+        },
+        {
+          href: "/reports/current",
+          label: "My Reports",
+          matchPrefixes: ["/reports/current", "/reports/me"],
+        },
+      );
     }
+
+    if (role === "LEADER") {
+      base.push({
+        href: "/reports/team",
+        label: "Team Reports",
+        matchPrefixes: ["/reports/team", "/reports/leader"],
+      });
+    }
+    if (role === "ADMIN") {
+      base.push({ href: "/admin", label: "Admin", matchPrefixes: ["/admin"] });
+    }
+
+    base.push({ href: "/", label: "Landing", matchPrefixes: ["/"] });
 
     return base;
   }, [role]);
@@ -50,17 +73,19 @@ export default function AppShell({
 
             <div className="flex items-center gap-2">
               <Link
-                href="/assessment/current"
+                href={focusedNavigation.exitHref}
                 className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
               >
-                Exit Assessment
+                {focusedNavigation.exitLabel}
               </Link>
-              <Link
-                href="/reports/current"
-                className="hidden rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 md:inline-block"
-              >
-                My Reports
-              </Link>
+              {focusedNavigation.showMyReports && (
+                <Link
+                  href="/reports/current"
+                  className="hidden rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 md:inline-block"
+                >
+                  My Reports
+                </Link>
+              )}
               <ProfileMenu role={role} email={email} />
             </div>
           </div>
@@ -88,7 +113,9 @@ export default function AppShell({
                 key={item.href}
                 href={item.href}
                 className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  (item.matchPrefix === "/" ? pathname === "/" : pathname.startsWith(item.matchPrefix))
+                  item.matchPrefixes.some((prefix) =>
+                    prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
+                  )
                     ? "bg-slate-900 text-white"
                     : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                 }`}
@@ -118,7 +145,9 @@ export default function AppShell({
                   key={item.href}
                   href={item.href}
                   className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                    (item.matchPrefix === "/" ? pathname === "/" : pathname.startsWith(item.matchPrefix))
+                    item.matchPrefixes.some((prefix) =>
+                      prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
+                    )
                       ? "bg-slate-900 text-white"
                       : "text-slate-700 hover:bg-slate-100"
                   }`}

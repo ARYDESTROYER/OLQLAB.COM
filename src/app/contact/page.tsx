@@ -5,6 +5,14 @@ import {
   SecondaryCTA,
   MailLink,
 } from "@/components/marketing/Editorial";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Contact",
+  description:
+    "Contact OLQ Lab about leadership assessments, coaching, cohort size, goals, and programme timelines.",
+  path: "/contact",
+});
 
 export default function ContactPage() {
   return (

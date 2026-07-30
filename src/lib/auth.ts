@@ -1,10 +1,10 @@
 import { cache } from "react";
+import { headers } from "next/headers";
 import { getServerSession, type NextAuthOptions } from "next-auth";
 import type { Adapter } from "next-auth/adapters";
-import EmailProvider from "next-auth/providers/email";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
-import { getResend } from "@/lib/resend";
+import { sendEmailOrThrow } from "@/lib/resend";
 import {
   formatMagicLinkExpiryLabel,
   getAuthSignInSettings,
@@ -12,6 +12,12 @@ import {
   renderSignInEmailTemplate,
 } from "@/lib/admin-auth-settings";
 import { buildMagicLinkContinueUrl } from "@/lib/magic-link-continue";
+import {
+  consumeMagicLinkRateLimit,
+  extractClientIp,
+  isMagicLinkRecipientEligible,
+  resolveVerificationRequestDecision,
+} from "@/lib/auth-security";
 
 function escapeHtml(input: string) {
   return input
@@ -25,6 +31,128 @@ function escapeHtml(input: string) {
 const baseAuthAdapter = PrismaAdapter(db) as Adapter;
 const createVerificationToken = baseAuthAdapter.createVerificationToken?.bind(baseAuthAdapter);
 
+async function findEligibleMagicLinkRecipient(identifier: string) {
+  const email = identifier.trim().toLowerCase();
+  const user = await db.user.findUnique({
+    where: { email },
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      tenantId: true,
+      tenant: {
+        select: {
+          type: true,
+          isArchived: true,
+        },
+      },
+    },
+  });
+
+  if (!user) return null;
+
+  const seat = await db.seat.findUnique({
+    where: {
+      tenantId_userEmail: {
+        tenantId: user.tenantId,
+        userEmail: email,
+      },
+    },
+    select: {
+      id: true,
+      assigned: true,
+    },
+  });
+
+  const eligible = isMagicLinkRecipientEligible({
+    hasUser: true,
+    hasSeat: Boolean(seat),
+    tenantArchived: user.tenant.isArchived,
+    tenantType: user.tenant.type,
+    role: user.role,
+  });
+
+  return eligible ? { ...user, seat } : null;
+}
+
+type VerificationRequest = {
+  identifier: string;
+  url: string;
+  provider: {
+    from: string;
+  };
+};
+
+const emailFrom = process.env.EMAIL_FROM || "";
+
+const emailProvider = {
+  id: "email" as const,
+  type: "email" as const,
+  name: "Email" as const,
+  server: "",
+  from: emailFrom,
+  maxAge: 24 * 60 * 60,
+  options: {
+    from: emailFrom,
+  },
+  async sendVerificationRequest({ identifier, url, provider }: VerificationRequest) {
+    const email = identifier.trim().toLowerCase();
+    const existingUser = await findEligibleMagicLinkRecipient(email);
+    if (!existingUser) return;
+
+    const fullName =
+      `${existingUser.firstName || ""} ${existingUser.lastName || ""}`.trim() || "there";
+    const safeFullName = escapeHtml(fullName);
+    const firstName = (existingUser.firstName || "there").trim() || "there";
+    const lastName = (existingUser.lastName || "").trim();
+
+    const settings = await getAuthSignInSettings().catch((error) => {
+      console.error("Failed to load auth sign-in settings for email rendering.", error);
+      return getDefaultAuthSignInSettings();
+    });
+    const expiryLabel = formatMagicLinkExpiryLabel(settings.magicLinkExpiryMinutes);
+    const continueSignInUrl = buildMagicLinkContinueUrl({
+      verificationUrl: url,
+      email,
+    });
+
+    const renderedSubject = renderSignInEmailTemplate({
+      template: settings.emailSubjectTemplate,
+      firstName,
+      lastName,
+      fullName,
+      magicLinkUrl: continueSignInUrl,
+      expiryLabel,
+    });
+    const renderedText = renderSignInEmailTemplate({
+      template: settings.emailTextTemplate,
+      firstName,
+      lastName,
+      fullName,
+      magicLinkUrl: continueSignInUrl,
+      expiryLabel,
+    });
+    const renderedHtml = renderSignInEmailTemplate({
+      template: settings.emailHtmlTemplate,
+      firstName: escapeHtml(firstName),
+      lastName: escapeHtml(lastName),
+      fullName: safeFullName,
+      magicLinkUrl: continueSignInUrl,
+      expiryLabel: escapeHtml(expiryLabel),
+    });
+
+    await sendEmailOrThrow({
+      from: provider.from,
+      to: email,
+      subject: renderedSubject,
+      text: renderedText,
+      html: renderedHtml,
+    });
+  },
+};
+
 export const authOptions: NextAuthOptions = {
   adapter: {
     ...baseAuthAdapter,
@@ -33,122 +161,71 @@ export const authOptions: NextAuthOptions = {
         throw new Error("Auth adapter is missing createVerificationToken implementation.");
       }
 
+      // Email sign-in runs token persistence and delivery concurrently. Do the same
+      // recipient eligibility check here so unknown/unseated attempts do not leave
+      // usable verification-token rows behind.
+      const recipient = await findEligibleMagicLinkRecipient(token.identifier);
+
       try {
         const settings = await getAuthSignInSettings();
         const expires = new Date(Date.now() + settings.magicLinkExpiryMinutes * 60_000);
+        if (!recipient) return { ...token, expires };
         return await createVerificationToken({ ...token, expires });
       } catch (error) {
         console.error("Failed to apply dynamic sign-in token expiry. Using fallback expiry.", error);
         const fallback = getDefaultAuthSignInSettings();
         const expires = new Date(Date.now() + fallback.magicLinkExpiryMinutes * 60_000);
+        if (!recipient) return { ...token, expires };
         return await createVerificationToken({ ...token, expires });
       }
     },
   },
   session: { strategy: "jwt" },
-  providers: [
-    EmailProvider({
-      from: process.env.EMAIL_FROM,
-      sendVerificationRequest: async ({ identifier, url, provider }) => {
-        const existingUser = await db.user.findUnique({
-          where: { email: identifier.toLowerCase() },
-          select: {
-            firstName: true,
-            lastName: true,
-          },
-        });
-        const fullName =
-          `${existingUser?.firstName || ""} ${existingUser?.lastName || ""}`.trim() || "there";
-        const safeFullName = escapeHtml(fullName);
-        const firstName = (existingUser?.firstName || "there").trim() || "there";
-        const lastName = (existingUser?.lastName || "").trim();
-
-        const settings = await getAuthSignInSettings().catch((error) => {
-          console.error("Failed to load auth sign-in settings for email rendering.", error);
-          return getDefaultAuthSignInSettings();
-        });
-        const expiryLabel = formatMagicLinkExpiryLabel(settings.magicLinkExpiryMinutes);
-        const continueSignInUrl = buildMagicLinkContinueUrl({
-          verificationUrl: url,
-          email: identifier,
-        });
-
-        const renderedSubject = renderSignInEmailTemplate({
-          template: settings.emailSubjectTemplate,
-          firstName,
-          lastName,
-          fullName,
-          magicLinkUrl: continueSignInUrl,
-          expiryLabel,
-        });
-        const renderedText = renderSignInEmailTemplate({
-          template: settings.emailTextTemplate,
-          firstName,
-          lastName,
-          fullName,
-          magicLinkUrl: continueSignInUrl,
-          expiryLabel,
-        });
-        const renderedHtml = renderSignInEmailTemplate({
-          template: settings.emailHtmlTemplate,
-          firstName: escapeHtml(firstName),
-          lastName: escapeHtml(lastName),
-          fullName: safeFullName,
-          magicLinkUrl: continueSignInUrl,
-          expiryLabel: escapeHtml(expiryLabel),
-        });
-
-        const resend = getResend();
-        await resend.emails.send({
-          from: provider.from as string,
-          to: identifier,
-          subject: renderedSubject,
-          text: renderedText,
-          html: renderedHtml,
-        });
-      },
-    }),
-  ],
+  providers: [emailProvider],
   pages: {
     signIn: "/signin",
   },
   callbacks: {
-    async signIn({ user }) {
+    async signIn({ user, email: verification }) {
       if (!user.email) return false;
       const email = user.email.toLowerCase();
-      const existingUser = await db.user.findUnique({
-        where: { email },
-      });
-      if (!existingUser) return false;
 
-      const invitedSeat = await db.seat.findUnique({
-        where: {
-          tenantId_userEmail: {
-            tenantId: existingUser.tenantId,
-            userEmail: email,
-          },
-        },
-      });
-      if (!invitedSeat) return false;
+      if (verification?.verificationRequest) {
+        const requestHeaders = await headers();
+        const [rateLimitPassed, recipient] = await Promise.all([
+          consumeMagicLinkRateLimit({
+            email,
+            ip: extractClientIp(requestHeaders),
+          }),
+          findEligibleMagicLinkRecipient(email),
+        ]);
 
-      if (!invitedSeat.assigned) {
-        await db.seat.update({
-          where: {
-            tenantId_userEmail: {
-              tenantId: existingUser.tenantId,
-              userEmail: email,
-            },
-          },
-          data: { assigned: true },
+        return resolveVerificationRequestDecision({
+          rateLimitPassed,
+          recipientEligible: Boolean(recipient),
+          authOrigin: process.env.NEXTAUTH_URL || "http://localhost:3000",
         });
       }
+
+      const existingUser = await findEligibleMagicLinkRecipient(email);
+      if (!existingUser) return false;
+
+      await db.seat.updateMany({
+        where: {
+          tenantId: existingUser.tenantId,
+          userEmail: email,
+          assigned: false,
+        },
+        data: { assigned: true },
+      });
 
       return true;
     },
     async jwt({ token, user }) {
-      // First call after sign-in: `user` is the freshly authenticated User row.
-      // Fetch role/tenantId/firstName/lastName once and bake them into the JWT
-      // so subsequent reads (every authenticated page render) don't hit the DB.
+      // First call after sign-in: persist identity hints in the signed JWT for
+      // NextAuth compatibility and client-side display. Authorization never trusts
+      // these claims alone; authenticated layouts and API guards reload the live
+      // user/organisation through getLiveSession().
       if (user?.id) {
         const dbUser = await db.user.findUnique({
           where: { id: user.id },
@@ -168,10 +245,9 @@ export const authOptions: NextAuthOptions = {
       return token;
     },
     async session({ session, token }) {
-      // Decode the signed JWT into the session object. Pure in-memory work,
-      // no DB roundtrip. Token claims are populated in the `jwt` callback above
-      // at sign-in time. Role changes in the database do NOT propagate until the
-      // user signs out + back in (documented trade-off of jwt session strategy).
+      // Decode JWT identity hints into NextAuth's session object. Callers making an
+      // authorization decision must use getLiveSession()/require* so database role,
+      // deletion, seat, and organisation changes take effect on the next request.
       if (session.user && token) {
         session.user.id = (token.sub as string) || "";
         session.user.role = (token.role as "ADMIN" | "EMPLOYEE" | "LEADER") || "EMPLOYEE";
@@ -185,9 +261,7 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
 };
 
-// Wrapped in React's `cache()` so multiple calls within the same request
-// (e.g. (app)/layout.tsx + page.tsx) dedupe to one underlying invocation.
-// Pairs with the jwt session strategy above: session reads are now pure
-// cookie-decode in the warm path, and cache() ensures we don't even repeat
-// the cookie-decode within a single render.
+// Wrapped in React's `cache()` so multiple calls within one server render dedupe the
+// NextAuth cookie decode. Live authorization is separately request-cached in
+// src/lib/api-auth.ts.
 export const getServerAuthSession = cache(() => getServerSession(authOptions));

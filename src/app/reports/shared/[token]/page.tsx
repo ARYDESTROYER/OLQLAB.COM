@@ -1,151 +1,187 @@
-import { db } from "@/lib/db";
-import { lookupReportShareToken } from "@/lib/unenroll-jobs";
+import type { Metadata } from "next";
 import Image from "next/image";
+import { cookies } from "next/headers";
+import { db } from "@/lib/db";
+import { getEnv } from "@/lib/env";
+import { lookupReportShareToken } from "@/lib/unenroll-jobs";
+import { evaluateReportRelease } from "@/lib/report-release";
+import {
+  parseReportNarrative,
+  resolveCanonicalReportHtml,
+} from "@/lib/report-content";
+import {
+  reportShareGrantCookieName,
+  verifyReportShareGrant,
+} from "@/lib/report-share-grant";
 
-function resolveSharedNarrativeHtml(narrative: Record<string, unknown> | null) {
-  if (!narrative) return "";
+export const metadata: Metadata = {
+  title: "Secure leadership report | OLQ Lab",
+  robots: { index: false, follow: false, nocache: true },
+};
 
-  const adminEditedHtml = narrative.adminEditedHtml;
-  if (typeof adminEditedHtml === "string" && adminEditedHtml.trim()) {
-    return adminEditedHtml;
-  }
+function unavailable(message: string) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <h1 className="text-2xl font-semibold text-slate-900">Report unavailable</h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">{message}</p>
+      </section>
+    </main>
+  );
+}
 
-  const aiNarrative = narrative.aiNarrative;
-  if (typeof aiNarrative === "string" && aiNarrative.trim()) {
-    return aiNarrative;
-  }
-
-  if (aiNarrative && typeof aiNarrative === "object") {
-    const ai = aiNarrative as {
-      executiveSummary?: string;
-      strengthsNarrative?: string;
-      developmentNarrative?: string;
-      managerCoaching?: string;
-    };
-
-    const blocks = [
-      ai.executiveSummary,
-      ai.strengthsNarrative,
-      ai.developmentNarrative,
-      ai.managerCoaching,
-    ].filter((item): item is string => Boolean(item && item.trim()));
-
-    if (blocks.length) {
-      return blocks.map((block) => `<p>${block}</p>`).join("");
-    }
-  }
-
-  return "";
+function activationLanding(token: string, unavailableLink: boolean) {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <section className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <Image
+          src="/logo.png"
+          alt="OLQ Lab"
+          width={48}
+          height={48}
+          className="mx-auto rounded-full"
+        />
+        <h1 className="mt-5 text-2xl font-semibold text-slate-900">
+          Secure leadership report
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          {unavailableLink
+            ? "This secure link is unavailable. Ask the sender for a new report link."
+            : "To protect private report content from automated email scanners, confirm below before opening it."}
+        </p>
+        {!unavailableLink ? (
+          <form
+            method="post"
+            action={`/api/reports/shared/${encodeURIComponent(token)}/activate`}
+            className="mt-6"
+          >
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+            >
+              Open secure report
+            </button>
+          </form>
+        ) : null}
+      </section>
+    </main>
+  );
 }
 
 export default async function SharedReportPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ unavailable?: string }>;
 }) {
   const { token } = await params;
-  const tokenRow = await lookupReportShareToken(token);
+  const query = await searchParams;
+  const cookieStore = await cookies();
+  const hasGrant = verifyReportShareGrant({
+    token,
+    value: cookieStore.get(reportShareGrantCookieName(token))?.value,
+    secret: getEnv().NEXTAUTH_SECRET,
+  });
+  if (!hasGrant) return activationLanding(token, query.unavailable === "1");
 
+  const tokenRow = await lookupReportShareToken(token);
   if (!tokenRow) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white p-8 rounded-xl shadow border border-gray-200 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <svg className="w-8 h-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Link Expired or Invalid</h1>
-          <p className="text-gray-500 mb-6">This secure report link has expired, been revoked, or reached its maximum download limit.</p>
-        </div>
-      </div>
+    return unavailable(
+      "This secure link has expired, been revoked, or reached its download limit.",
     );
   }
 
   const report = await db.report.findUnique({
+    where: { id: tokenRow.reportId },
+    include: { pdfAsset: { select: { id: true, fileName: true } } },
+  });
+  if (
+    !report ||
+    report.assessmentId !== tokenRow.assessmentId ||
+    report.userId !== tokenRow.userId
+  ) {
+    return unavailable("The report linked here no longer exists.");
+  }
+  const session = await db.quizSession.findUnique({
     where: {
       assessmentId_userId: {
-        assessmentId: tokenRow.assessmentId,
-        userId: tokenRow.userId,
+        assessmentId: report.assessmentId,
+        userId: report.userId,
       },
     },
-    include: {
-      assessment: {
-        select: {
-          policy: {
-            select: {
-              reportWorkflow: true,
-            },
-          },
-        },
-      },
-      pdfAsset: {
-        select: {
-          id: true,
-          fileName: true,
-        },
-      },
-    },
+    select: { status: true, submittedAt: true },
   });
+  if (!session || session.status !== "SUBMITTED") {
+    return unavailable("The report linked here no longer exists.");
+  }
 
-  const isManualWorkflow = report?.assessment.policy?.reportWorkflow === "MANUAL_PDF_UPLOAD";
-  const narrative = report ? (JSON.parse(report.narrativeJson) as Record<string, unknown>) : null;
-  const renderedHtml = resolveSharedNarrativeHtml(narrative);
+  const policy = tokenRow.assessment.policy || {
+    reportWorkflow: "AI_STANDARD" as const,
+    showResultsToEmployee: true,
+    resultReleaseDelayHours: 0,
+    leaderCanViewFullReport: true,
+  };
+  const decision = evaluateReportRelease({
+    audience: "SHARED",
+    report: {
+      status: report.status,
+      availableAt: report.availableAt,
+      hasManualPdf: Boolean(report.pdfAsset),
+    },
+    policy,
+    submittedAt: session.submittedAt,
+  });
+  if (!decision.ready) return unavailable(decision.message);
+
+  const participantName =
+    `${tokenRow.user.firstName} ${tokenRow.user.lastName}`.trim() || "Participant";
+  const isManual = policy.reportWorkflow === "MANUAL_PDF_UPLOAD";
+  const narrative = !isManual ? parseReportNarrative(report.narrativeJson) : null;
+  if (!isManual && !narrative) return unavailable("Report content is unavailable.");
+  const canonicalHtml = !isManual && narrative
+    ? resolveCanonicalReportHtml(narrative, {
+        assessmentTitle: tokenRow.assessment.title,
+        participantName,
+      })
+    : "";
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex justify-between items-center">
-          <div className="flex items-center space-x-4">
-            <Image src="/logo.png" alt="Logo" width={32} height={32} className="rounded-full" />
-            <div>
-              <h1 className="text-sm md:text-base font-bold text-gray-900 leading-tight truncate max-w-[200px] sm:max-w-xs md:max-w-sm">
-                {tokenRow.assessment.title}
-              </h1>
-              <p className="text-xs text-gray-500">
-                Prepared for {tokenRow.user.firstName} {tokenRow.user.lastName}
-              </p>
+    <main className="min-h-screen bg-slate-50 pb-16">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="OLQ Lab"
+              width={36}
+              height={36}
+              className="rounded-full"
+            />
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-semibold text-slate-900 sm:text-base">{tokenRow.assessment.title}</h1>
+              <p className="truncate text-xs text-slate-500">Prepared for {participantName}</p>
             </div>
           </div>
-          <a
-            href={`/api/reports/shared/${token}/pdf`}
-            download
-            className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-          >
-            <svg className="mr-2 -ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-            </svg>
-            Download PDF
-          </a>
+          <a href={`/api/reports/shared/${encodeURIComponent(token)}/pdf`} className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-medium text-white">Download PDF</a>
         </div>
-      </div>
+      </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 pb-24">
-        <div className="bg-white shadow-sm rounded-xl border border-gray-200 overflow-hidden relative min-h-[800px]">
-          <div className="p-8 md:p-16 lg:px-24 prose prose-sm sm:prose-base lg:prose-lg max-w-none text-gray-900">
-            {isManualWorkflow ? (
-              <div className="not-prose rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
-                <h2 className="text-xl font-semibold text-slate-900">Manual PDF Report</h2>
-                <p className="mt-2 text-sm text-slate-600">
-                  This report is delivered as a PDF document. Use the download button to access the full report.
-                </p>
-                {report?.pdfAsset?.fileName ? (
-                  <p className="mt-2 text-xs text-slate-500">File: {report.pdfAsset.fileName}</p>
-                ) : null}
-              </div>
-            ) : renderedHtml ? (
-              <div dangerouslySetInnerHTML={{ __html: renderedHtml }} />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <svg className="w-12 h-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="text-gray-500 text-lg">Report content is not available.</p>
-              </div>
-            )}
-          </div>
-        </div>
+      <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 md:py-10">
+        <section className="min-h-[28rem] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8 md:p-12">
+          {isManual ? (
+            <div className="mx-auto max-w-xl rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
+              <h2 className="text-xl font-semibold text-slate-900">PDF report</h2>
+              <p className="mt-2 text-sm text-slate-600">Use the download button to open this administrator-reviewed report.</p>
+              {report?.pdfAsset?.fileName ? <p className="mt-2 text-xs text-slate-500">File: {report.pdfAsset.fileName}</p> : null}
+            </div>
+          ) : canonicalHtml ? (
+            <article className="report-document" dangerouslySetInnerHTML={{ __html: canonicalHtml }} />
+          ) : (
+            <p className="text-slate-600">Report content is unavailable.</p>
+          )}
+        </section>
       </div>
-    </div>
+    </main>
   );
 }

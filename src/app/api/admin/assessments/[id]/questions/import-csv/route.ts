@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
 import {
   parseAssessmentQuestionCsv,
   type CsvIssue,
@@ -10,6 +11,10 @@ import {
   findExistingQuestionCodeConflicts,
   type QuestionImportMode,
 } from "@/lib/assessment-csv-import-persist";
+import {
+  assessmentHasAttemptHistory,
+  lockAssessmentContent,
+} from "@/lib/assessment-content-lock";
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024;
 
@@ -118,9 +123,44 @@ export async function POST(
     });
   }
 
-  const importResult = await db.$transaction((tx) =>
-    applyAssessmentQuestionRows(tx, assessmentId, parsed.rows, mode),
-  );
+  const importOutcome = await db.$transaction(async (tx) => {
+    await lockAssessmentContent(tx, assessmentId);
+    if (await assessmentHasAttemptHistory(tx, assessmentId)) {
+      return { conflict: true as const };
+    }
+
+    const importResult = await applyAssessmentQuestionRows(
+      tx,
+      assessmentId,
+      parsed.rows,
+      mode,
+    );
+    await recordAuditLog(
+      {
+        tenantId: check.liveUser.tenantId,
+        actorId: check.liveUser.id,
+        action: "ASSESSMENT_QUESTIONS_IMPORTED",
+        metadata: {
+          assessmentId,
+          mode,
+          rowCount: parsed.rows.length,
+          importResult,
+        },
+      },
+      tx,
+    );
+    return { conflict: false as const, importResult };
+  });
+
+  if (importOutcome.conflict) {
+    return NextResponse.json(
+      {
+        error:
+          "This assessment already has attempt history. Clone it before importing questions so historical responses remain interpretable.",
+      },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,
@@ -130,6 +170,6 @@ export async function POST(
     },
     mode,
     summary: parsed.summary,
-    importResult,
+    importResult: importOutcome.importResult,
   });
 }

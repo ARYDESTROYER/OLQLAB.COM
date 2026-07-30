@@ -165,17 +165,18 @@ export function validateAuthSignInSettings(input: unknown) {
     };
   }
 
-  const allTemplateContent = [
-    normalized.emailSubjectTemplate,
-    normalized.emailTextTemplate,
-    normalized.emailHtmlTemplate,
-  ].join("\n");
+  const missingLinkTemplates = [
+    ["emailTextTemplate", normalized.emailTextTemplate],
+    ["emailHtmlTemplate", normalized.emailHtmlTemplate],
+  ].filter(([, template]) => !template.includes("{{magicLinkUrl}}"));
 
-  if (!allTemplateContent.includes("{{magicLinkUrl}}")) {
+  if (missingLinkTemplates.length > 0) {
     return {
       ok: false as const,
       error: {
-        formErrors: ["Templates must include {{magicLinkUrl}}."],
+        formErrors: [
+          "Both the text and HTML email templates must include {{magicLinkUrl}}.",
+        ],
         fieldErrors: {},
       },
     };

@@ -57,6 +57,23 @@ Guards:
 - participant endpoints use `requireSession()`
 - internal job endpoints require `INTERNAL_JOB_SECRET` unless admin-authenticated route variant is used
 
+Session-security rules:
+- JWT role and tenant claims are navigation hints, not an authorization source.
+- `requireSession()`, `requireAdmin()`, `requireLeaderOrAdmin()`, and authenticated
+  server layouts resolve the current user and organisation from Postgres on every
+  request. Deleted users, archived organisations, and role changes therefore take
+  effect without waiting for a user to sign out.
+- `ADMIN` accounts are administration-only. They are rejected from participant
+  enrollments and assessment sessions, and promotion to `ADMIN` removes participant
+  enrollment/access state in the same transaction.
+- Demoting a `LEADER` clears every participant whose `managerId` points to that
+  account in the same identity-update transaction. The system does not guess a
+  replacement manager; an admin must explicitly assign one later.
+- Magic-link requests use a database-backed fixed-window limiter keyed by hashed
+  email and client IP. Eligible and ineligible addresses receive the same outward
+  verification-request response; only an eligible existing user with a matching seat
+  receives a stored token and email.
+
 ## 4. Access Model and Resolution
 
 Single source of truth:
@@ -80,6 +97,11 @@ Rules:
 - `canStartAssessment` requires published assessment and active enrollment.
 - Restrictive override applies only when no active enrollment.
 - Precedence: active enrollment wins over restrictive override.
+- A due unenroll job is reflected synchronously in access decisions at
+  `effectiveAt`, even if the scheduled worker has not persisted the job yet.
+- Access resolution is read-only: it never runs job side effects from a page or API
+  request. The scheduled/internal job route owns persistence, notifications, and
+  share-link issuance.
 
 ## 5. Data Model (Prisma)
 
@@ -89,6 +111,7 @@ Rules:
 - `ReportAccessMode`: `KEEP_APP_ACCESS | LINK_ONLY | REVOKE`
 - `AssessmentQuestionPresentationMode`: `ALL_AT_ONCE | ONE_AT_A_TIME`
 - `UnenrollJobStatus`: `PENDING | COMPLETED | FAILED | CANCELLED`
+- `InviteDeliveryState`: `IN_FLIGHT | UNKNOWN | SENT`
 
 ### 5.2 Updated existing models
 - `Tenant`
@@ -105,6 +128,18 @@ Rules:
 - `OptionImpact`
   - added `assessmentCompetencyId`
   - legacy `competencyId` made optional
+- `Report`
+  - added: `status`, `availableAt`, `deliveryMethod`, `updatedAt`
+  - `publicationGeneration` increments for each newly published artifact, even
+    when the stable report row is reused
+  - database/default and admin-regenerated reports start `DRAFT`; a report can
+    become `PUBLISHED` only after a validated submitted attempt, either as the
+    configured automatic submission transition or an explicit admin action
+- `Invite`
+  - durable delivery state, claim ID/time, attempt count, and provider delivery ID
+    allow the same reservation to be retried without minting a second provider key
+- enrollment records
+  - added: `reportMode`, `reportDelayHours`
 
 ### 5.3 New models
 - `AssessmentCompetency`
@@ -113,6 +148,13 @@ Rules:
 - `AssessmentUnenrollJob`
 - `AssessmentReportAccessOverride`
 - `AssessmentReportShareToken`
+- `AssessmentPreviewSession` (isolated, expiring admin previews)
+- `AuthRateLimitBucket` (durable magic-link throttling)
+- `ReportArchive` (attempt and manual-PDF history)
+  - attempt archives embed a versioned copy of every answered question's full
+    scalar definition, including section/order and `imageUrl` / `imageAlt` /
+    `imageCaption`, so a retest never erases the evidence used by the prior attempt
+- `AuditLog` (security-sensitive admin and job actions)
 
 ## 6. Migration and backfill strategy
 
@@ -120,8 +162,32 @@ Applied migration:
 - `prisma/migrations/20260224100000_global_assessment_enrollments/migration.sql`
 - `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`
 - `prisma/migrations/20260308153000_question_image_support/migration.sql`
+- `prisma/migrations/20260729201000_reconcile_schema_and_runtime_safety/migration.sql`
+- `prisma/migrations/20260730160000_bind_report_publications/migration.sql`
+- `prisma/migrations/20260730170000_invite_delivery_claims/migration.sql`
 
-It adds new enums/tables/columns, makes `Assessment.tenantId` nullable, and sets `ownerTenantId` from legacy tenant linkage.
+The full tracked chain contains eleven migrations. The reconciliation migration adds
+the report delivery/release fields missing from historical migration state, the
+preview-session and persistent rate-limit tables, and current runtime indexes and
+constraints. It also adds a durable, short-lived submission claim to `QuizSession`
+so parallel submit requests cannot each invoke the report model. Existing reports
+are preserved as `PUBLISHED` during reconciliation; new reports use the safe
+`DRAFT` default. Legacy report-share tokens cannot be proven to belong to a
+particular attempt, so the migration invalidates them instead of binding an old URL
+to whichever report happens to be current. Required links must be reissued after
+deployment.
+The publication-binding migration gives existing published reports generation 1,
+revokes pre-binding share links, and requires every new link to carry the exact
+publication-version key it was issued against. A revoked legacy link must be
+reissued; it is never rebound to replacement content.
+The invite-delivery migration preserves all existing Invite rows as `SENT` and
+adds a durable claim lease for new sends. Ambiguous or crashed sends can therefore
+replay the same Invite ID/provider idempotency key without opening a duplicate
+concurrent delivery.
+
+CI applies the complete chain to a fresh PostgreSQL 16 database, runs the seed, and
+uses `prisma migrate diff --exit-code` against `prisma/schema.prisma`. A schema change
+is not deployable until that reconstruction remains clean.
 
 Backfill script:
 - `prisma/scripts/backfill-global-assessment-enrollments.ts`
@@ -178,6 +244,9 @@ Recommended Vercel procedure for this repo:
 For the latest assessment content changes, the required migrations are:
 - `prisma/migrations/20260308120000_assessment_question_presentation_mode/migration.sql`
 - `prisma/migrations/20260308153000_question_image_support/migration.sql`
+- `prisma/migrations/20260309113000_assessment_intro_customization/migration.sql`
+- `prisma/migrations/20260729201000_reconcile_schema_and_runtime_safety/migration.sql`
+- `prisma/migrations/20260730160000_bind_report_publications/migration.sql`
 
 Practical Vercel settings check:
 - `Framework Preset`: `Next.js` -> correct
@@ -200,8 +269,13 @@ Neon environment-variable layout:
     - `q`, `status`, `minCompletionRate`, `maxCompletionRate`
     - `sortBy` (`createdAt|updatedAt|title|completionRate|participants`), `sortOrder`, `limit`
   - supports CSV export via `format=csv`
+  - participant totals and status buckets describe the same current resolved
+    enrollment population. Attempts belonging only to unenrolled participants
+    remain in history but do not inflate current completed/in-progress counts;
+    completed + in progress + not started always equals total.
 - `POST /api/admin/assessments/export-results`
   - exports participant attempt data as CSV for one or more selected assessments
+  - requires an explicit selection of 1 to 20 assessments
   - supports layout options:
     - `WIDE`: one row per participant attempt with dynamic question columns
     - `LONG`: one row per question response
@@ -209,7 +283,14 @@ Neon environment-variable layout:
     - `attemptStatus` (`ALL|NOT_STARTED|IN_PROGRESS|SUBMITTED`)
     - `reportStatus` (`ALL|NOT_UPLOADED_YET|UPLOADED|AWAITING_DELIVERY_TIMER|DELIVERED_TO_USER`)
   - supports include toggles for participant, attempt, report, and answer field groups
+  - applies row/column/byte preflights before hydrating answer data; answer and
+    question rows are not loaded when answer fields are excluded
 - `POST /api/admin/assessments` (tenant not required)
+  - title-only and nested JSON definitions are supported
+  - nested writes, policy, enrollments, compatibility records, and audit log are
+    committed atomically
+  - JSON definitions are capped at 2 MiB, 1,000 questions, 200 competencies,
+    100 sections, 20 options per question, and 50 impacts per option
 - `GET /api/admin/assessments/:id`
 - `PATCH /api/admin/assessments/:id`
 - `DELETE /api/admin/assessments/:id`
@@ -232,11 +313,25 @@ Neon environment-variable layout:
     - one selected organisation
     - per-row solo participant creation
   - supports dry-run preview via `?dryRun=1`
+  - commit mode locks the selected Organisation's seat inventory and applies the
+    seat limit to every new Seat, including repair of an existing User row whose
+    Seat is missing
 - `PATCH /api/admin/users/:id`
+  - demoting a Leader atomically clears that account from all direct reports
 - `DELETE /api/admin/users/:id`
 - `GET /api/admin/users/:id/tests`
+  - returns current attempts plus immutable `ReportArchive` history
 - `GET /api/admin/users/:id/access`
 - `POST /api/admin/users/:id/enrollments`
+- `POST /api/admin/invites/send`
+  - reserves each invite before contacting the provider and uses the invite ID as
+    the provider idempotency key
+  - new, ambiguous, and stale in-flight reservations are claimed under the tenant
+    lock with a unique five-minute lease; the provider call runs outside the
+    transaction and all final state transitions are conditional on that claim ID
+  - an ambiguous transport/no-receipt failure becomes `UNKNOWN` and the next batch
+    safely replays the same Invite ID/idempotency key; a definitive rejection may
+    delete the reservation, while success persists `SENT` and the provider receipt
 
 ### 7.3 Tenants
 - `GET /api/admin/tenants`
@@ -251,12 +346,27 @@ Neon environment-variable layout:
 - `POST /api/admin/tenants/:id/enrollments`
 
 ### 7.4 Jobs, Links, and Reports
+- `GET /api/internal/jobs/unenrollments/run` (Vercel Cron + `CRON_SECRET`)
 - `POST /api/internal/jobs/unenrollments/run`
 - `POST /api/internal/jobs/unenrollments/:id/run`
+- `GET /api/reports/leader`
+  - cursor-paginates a leader's direct-report submissions in pages of 30
+- `GET /api/reports/leader/:userId/:assessmentId`
+- `GET /api/reports/leader/:userId/:assessmentId/pdf`
 - `GET /api/reports/shared/:token`
+- `POST /api/reports/shared/:token/activate`
 - `GET /api/reports/shared/:token/pdf`
 - `PATCH /api/admin/reports/:reportId` (Save Draft)
 - `POST /api/admin/reports/:reportId/send` (Publish/Email)
+- `POST /api/admin/reports/:reportId/manual-pdf` (Upload/replace manual PDF)
+- `DELETE /api/admin/reports/:reportId/manual-pdf` (Archive/remove manual PDF)
+
+Admin users, organisations, and assessments lists default to 100 rows and may be
+expanded to 500 in the UI. Their JSON responses expose `hasMore`, truncation, and
+candidate-count metadata instead of silently looking complete. List CSV exports
+evaluate up to 5,000 matching rows and return `413` when the file would be
+incomplete or exceed 4 MiB; operators must narrow the filters rather than receive
+a partial export.
 
 ### 7.5 Admin Settings
 - `GET /api/admin/settings/auth-signin`
@@ -320,10 +430,25 @@ Question content contract (used by JSON creation flows and internally by CSV imp
 ```
 
 Rules for question media:
-- `imageUrl` is optional and can be either a public-path reference such as `/question-images/example.png` or another image URL the client can load directly.
+- `imageUrl` is optional and may use only a root-relative
+  `/question-images/*` path or an OLQ Lab-managed Vercel Blob HTTPS URL whose
+  path is also under `/question-images/*`.
+- Arbitrary external URLs are rejected during JSON/CSV/manual authoring and
+  suppressed when reading legacy data so an assessment cannot turn a participant's
+  browser into a third-party tracking request.
 - `imageAlt` and `imageCaption` are optional, but they are only meaningful when `imageUrl` exists.
 - Media does not change answer semantics; answer behavior still depends only on `questionType`.
 - This is intentionally additive so existing LIKERT, SJT, and FREE_TEXT questions keep working without migration-time content rewrites.
+- The first participant `QuizSession` freezes the assessment question version.
+  Direct creation, scored-content edits, `imageUrl` changes, CSV question imports,
+  image replacement/removal, and question deletion return `409` after attempt
+  history exists. Clone the assessment for a new question version. The first
+  session creation and every question-evidence write share an assessment-scoped
+  database lock so the freeze cannot be bypassed by concurrent requests.
+- Direct question POST/PATCH and full JSON assessment authoring share the same
+  bounded integer scale contract (`0..100`, maximum span `20`, max not below
+  min). A partial PATCH validates the combined result while preserving the
+  stored counterpart when only `scaleMin` or `scaleMax` is supplied.
 
 ## 9. Participant runtime updates
 
@@ -334,6 +459,19 @@ Updated runtime behavior:
 - `/reports/current` lists only submitted reports with app access allowed.
 - `/api/reports/me/:assessmentId` and `/pdf` enforce override/report-mode logic.
 - participant session rendering supports optional question reference images below the prompt and above the answer controls without changing scoring, submit validation, or access rules.
+- participant session responses never include score weights, reverse-scoring flags,
+  competency impacts, or other answer-key metadata.
+- answer writes validate that the question belongs to the session assessment and
+  that the value matches its response type/range. Per-session database locks and an
+  answer snapshot compare-and-set make concurrent answer/submit requests deterministic.
+- locally edited free-text answers remain explicitly `unsaved` until their exact
+  edit version is acknowledged by the answer API. Pending, dirty, or failed saves
+  install unload and same-origin navigation guards; internal navigation requires
+  an explicit discard confirmation, and a failed save is never labelled saved.
+- AI report submission first acquires a durable five-minute lease for the exact
+  answer snapshot. A second submit receives retryable `409` without invoking the
+  model, answer edits are blocked while the lease is live, and failures clear only
+  the claim they own.
 
 Leader/admin visibility:
 - participant self-access restrictions do not automatically remove leader/admin-level visibility gates.
@@ -342,10 +480,20 @@ Admin preview/testing:
 - admins can launch a preview session for any assessment directly from the assessment detail page
 - preview sessions reuse the live participant answering UI so admins can inspect real look-and-feel, question presentation mode, navigation, and image rendering
 - preview launch does not require enrollment and can be used on draft assessments
+- preview answers live only in `AssessmentPreviewSession`, expire automatically, and
+  never create or mutate participant sessions, answers, scores, reports, retest
+  eligibility, enrollment, or report access
 - preview submission does not generate participant scores or reports and returns the admin to the assessment detail page
+- admin workspace navigation omits participant Assessment Centre/My Reports links;
+  preview mode instead provides an explicit return to assessment management
 
 Retest/reset/regeneration:
-- existing behaviors remain, but participant validity checks now rely on enrollment/participation logic rather than legacy tenant coupling.
+- participant validity checks rely on enrollment/participation logic rather than
+  legacy tenant coupling
+- reset and regeneration serialize on the participant's session lock; regeneration
+  snapshots the submitted timestamp and answers before model work, then revalidates
+  both under that lock before archive/score/report writes. A reset or retest that
+  wins during generation produces `409 ATTEMPT_CHANGED` and no stale report write.
 
 ## 10. Unenroll execution engine
 
@@ -353,30 +501,73 @@ Implementation:
 - `src/lib/unenroll-jobs.ts`
 
 Job execution flow (`runDueUnenrollJobs`):
-1. fetch due jobs (`PENDING` + `effectiveAt <= now`) or forced job
+1. claim due jobs (`PENDING` + `effectiveAt <= now`) or a forced job
 2. deactivate matching enrollment records
-3. compute impacted users snapshot
-4. upsert `AssessmentReportAccessOverride`
-5. for `LINK_ONLY`, mint signed tokens in `AssessmentReportShareToken`
-6. optionally send email (Resend)
-7. mark job as `COMPLETED` or `FAILED`
+3. compute and checkpoint the impacted-user snapshot
+4. upsert `AssessmentReportAccessOverride` per recipient
+5. for `LINK_ONLY`, mint an attempt-bound token only when a published report is
+   currently releasable
+6. optionally send email (Resend) and persist an idempotent recipient receipt
+7. checkpoint between recipients and yield before the function deadline
+8. mark the job `COMPLETED`, or retain retry/checkpoint state for a bounded retry
 
 Execution modes:
-- lazy: participant/report access routes trigger due-job checks
-- fallback: internal cron endpoint processes due jobs
+- synchronous read overlay: participant/report authorization treats a due job as
+  effective immediately without mutating database state
+- scheduled worker: Vercel cron calls
+  `GET /api/internal/jobs/unenrollments/run` every 15 minutes
+- operator fallback: an authenticated admin or internal secret can run one job
+  explicitly
+
+Delivery guarantees:
+- only one worker claim may own a job at a time
+- recipient effects are idempotent and checkpointed, so a timeout/retry does not
+  send already-recorded notifications again
+- the route has a 60-second maximum duration and the worker stops accepting more
+  work before that hard deadline
 
 ## 11. Share-link security model
 
 Token table:
 - hash only stored (`tokenHash`), never plaintext
+- token is bound to the exact report/attempt it was issued for, not merely the
+  user-assessment pair
+- token also stores the exact publication-version key (report id, publication
+  generation, workflow, canonical narrative, and manual-PDF content). Lookup,
+  activation, HTML, reservation, and final PDF revalidation reject a key mismatch.
 - expiration (`expiresAt`)
 - revocation (`revokedAt`)
 - download cap (`maxDownloads`, `downloadsUsed`)
 
 Validation rules:
 - invalid, expired, revoked, or exhausted tokens are denied
-- token-bound payload is restricted to its assessment/user
-- `/pdf` consumes a download and returns downloadable PDF bytes
+- token issuance, lookup, HTML display, and PDF download all re-evaluate the
+  persisted report-access override and release policy
+- only `LINK_ONLY` from the source job or current active enrollment may authorize a
+  link; a completed `REVOKE` cannot be bypassed by an older token
+- reset/retest revokes live tokens, and deleting the bound report invalidates the
+  token even across issuance/reset races
+- unpublish, narrative edits, PDF replace/remove, regeneration, and a new
+  publication revoke prior live tokens. Reverting to old text later cannot revive
+  an old URL because republishing increments `publicationGeneration`.
+- `/pdf` reserves one download atomically before expensive hydration/rendering,
+  releases that exact reservation if rendering fails, and revalidates the bound
+  report, grant, token, release policy, and access immediately before returning
+  the bytes
+- email contains only a scanner-safe landing URL. The initial GET returns no report
+  content; an explicit same-origin POST issues a short-lived signed, HttpOnly grant
+  bound to that token. Shared HTML, JSON, and PDF routes all require the grant, and
+  email never embeds a direct PDF URL.
+- report-publication email retries derive one stable content-version key for both
+  the share token and Resend idempotency. Definitive provider rejection revokes an
+  undelivered link; an ambiguous transport failure leaves it valid because the
+  provider may already have accepted the email.
+- an explicit "deliver again" action supplies a stable UUID for that operator
+  attempt. It derives a fresh token/provider key (and therefore a fresh download
+  quota), while retrying the same ambiguous redelivery reuses the UUID, token,
+  expiry, and already-consumed quota instead of silently extending access.
+  Reissuing an actually expired deterministic link starts a new expiry window and
+  resets its bounded quota; an active retry never does.
 
 ## 12. Admin UX behavior details
 
@@ -390,6 +581,10 @@ Validation rules:
   - bulk create solo participants (one solo organisation per row)
   - dry-run preview with importable rows and per-row issues before commit
   - template download and CSV file load/paste workflow in the users admin page
+  - missing-Seat repairs consume capacity exactly like any other new Seat and are
+    skipped with `seat_limit_reached` when the Organisation is full
+- demoting a Leader leaves their former direct reports unassigned; reassignment is
+  always an explicit admin action
 - solo participants can be grouped into an organisation later via Move
 - delete user (non-admin, with confirmation dialog)
 - move user between organisations (seat checks)
@@ -428,7 +623,7 @@ Validation rules:
   - `Export CSV` for the assessment library rows themselves
   - `Export Results` for participant attempt/report/answer data
 - results export modal supports:
-  - selected assessments if rows are checked, otherwise the current filtered assessment set
+  - an explicit selection of 1 to 20 assessments
   - layout choice (`WIDE` or `LONG`)
   - attempt-status filtering
   - report-readiness filtering
@@ -519,8 +714,21 @@ Primary quality gates:
 
 ```bash
 npm run lint
+npm run typecheck
+npm test
+npm audit --omit=dev --audit-level=low
 npm run build
 ```
+
+Release infrastructure gates:
+- use Node `22.x` (`.nvmrc` and `package.json#engines`)
+- install exactly from the committed lockfile with `npm ci`
+- run `npm run env:check` with environment-specific deployment values
+- apply and seed the full migration chain on fresh PostgreSQL 16
+- require zero Prisma schema drift
+- smoke-test `/api/health` and `/api/health/ready`
+- inspect the build manifest: marketing/legal pages remain `○` static while
+  sign-in, participant, leader, admin, and API routes remain `ƒ` dynamic
 
 Architecture scenarios to validate manually:
 1. migration integrity for legacy assessments and impacts
@@ -537,9 +745,12 @@ Architecture scenarios to validate manually:
   - confirm solo admin creation is blocked
 10. bulk user CSV import behavior:
   - organisation mode respects seat limits and archived-organisation guards
+  - an existing same-organisation user with a missing Seat cannot bypass a full
+    Organisation's seat limit
   - solo mode creates one solo organisation per valid row
   - duplicate emails in the same file are skipped clearly
   - emails already attached to other organisations are skipped clearly
+  - demoting a Leader clears all of their direct reports atomically
 11. assessment access user search behavior:
   - searching by participant name returns matching users beyond the first 100 records
   - searching by email returns the correct participant quickly
@@ -548,6 +759,9 @@ Architecture scenarios to validate manually:
   - `ALL_AT_ONCE` preserves the existing full assessment flow and submit gating
   - `ONE_AT_A_TIME` restores the first unanswered question on resume and keeps previous/next navigation stable
   - free-text answers persist when leaving a question and again during final submit
+  - locally edited or failed free-text saves show unsaved/failed state, warn on
+    reload, and require explicit confirmation before same-origin navigation can
+    discard them
 13. shared row-action menu click behavior:
   - open `Actions` on a user row and confirm `View Tests` opens the inspect panel
   - open `Actions` on a user row and confirm `View Access` opens the inspect panel
@@ -578,6 +792,47 @@ Architecture scenarios to validate manually:
   - `/signin/confirm` displays greeting + `Continue to Sign-in` CTA and does not auto-consume token
   - submitting continue form reaches `/api/auth/continue` and then redirects to `/api/auth/callback/email`
   - malformed `tokenUrl` values are rejected and redirected safely to `/signin?error=invalid_link`
+  - unknown, unseated, archived-organisation, and throttled addresses receive the
+    same outward response without a verification token or email
+  - a deleted user, archived organisation, or demoted admin loses access on the
+    next request despite stale JWT claims
+19. report release and privacy behavior:
+  - database-default, regenerated, and manual reports remain `DRAFT`; configured
+    automatic reports publish only as part of a validated submission
+  - publication is rejected without a submitted attempt and, for manual workflow,
+    without a structurally valid uploaded PDF
+  - self, leader, shared HTML, and shared PDF paths all enforce audience policy,
+    availability delay, current access override, and publication state
+  - reset/retest invalidates attempt-bound share links; an old URL cannot expose a
+    later attempt
+  - repeated/concurrent manual-PDF replacement/removal archives every displaced
+    document rather than silently overwriting it
+  - long paragraphs and Unicode text render across PDF pages without clipping
+20. concurrency and atomicity behavior:
+  - concurrent participant/admin/CSV user creation cannot oversubscribe an
+    organisation seat limit
+  - nested assessment creation and CSV imports are all-or-nothing
+  - concurrent answer/submit requests cannot publish from a stale answer snapshot
+  - parallel AI submit requests share a durable database lease, so at most one
+    report-model call owns a live answer snapshot; edits receive a retryable `409`
+    while the lease is live and a stale lease can be recovered
+  - concurrent share downloads cannot exceed `maxDownloads`
+  - first-session creation (from participant start or an admin reset) and
+    question/image writes serialize on the same assessment lock; once history
+    exists, direct create/edit/delete, CSV import, and dedicated image
+    replace/remove paths all reject definition changes
+  - an ambiguous invite-provider failure remains retryable with the same provider
+    idempotency key; a live claim blocks concurrent replay, stale claims recover
+    after five minutes, and an older worker cannot overwrite a newer claim
+21. browser matrix:
+  - public marketing, legal, sign-in, and legacy `/singin` redirect
+  - admin, participant, and leader navigation/authorization
+  - participant start, resume, every answer type, submit, report, and PDF
+  - admin preview isolation, report editing/dirty-navigation prompt, manual report,
+    enrollment, and user/organisation inspection
+  - secure shared HTML/PDF link including invalid and exhausted tokens
+  - repeat essential navigation at desktop and mobile viewports and inspect browser
+    console errors
 
 ## 14. Operational notes
 
@@ -587,16 +842,26 @@ Architecture scenarios to validate manually:
   - UI, docs, and surfaced API messages say `Organisation`.
   - Internal storage/contracts may still say `tenant`.
   - Avoid mixing both terms in the same user-facing flow unless a technical field name is being shown verbatim.
-- Future hardening:
-  - move internal job execution to scheduled infrastructure (e.g., Vercel cron)
-  - add background retry and alerting for failed job notifications
-  - complete deprecation pass of any remaining legacy admin UI surfaces
+- Vercel cron is configured in `vercel.json` for `*/15 * * * *`. Confirm the
+  deployed Vercel plan supports that schedule before release; otherwise use a
+  supported cadence or external scheduler without weakening the synchronous
+  effective-time authorization overlay.
+- `NEXTAUTH_URL` and `REPORT_SHARE_BASE_URL` must be environment-specific HTTPS
+  origins. `DATABASE_URL` is the pooled runtime URL and `DIRECT_DATABASE_URL` is the
+  direct migration URL.
+- `INTERNAL_JOB_SECRET` and `CRON_SECRET` are both at least 32 characters and must
+  differ. Vercel Cron authenticates with `CRON_SECRET`.
+- CI and Dependabot are defined under `.github/`; production dependency audit is a
+  blocking CI gate.
+- Remaining operational hardening is external monitoring/alerting for repeated job
+  or delivery failures and final deprecation of legacy compatibility surfaces.
 
 ## 14.1 Question image asset guidance
 
 Recommended asset strategy:
 - Place product-owned static image assets under `public/question-images/*` and reference them with root-relative paths such as `/question-images/q31.png`.
-- If using externally hosted URLs, confirm the host is stable and publicly accessible to participant browsers.
+- Managed uploads may use only the project's public Vercel Blob hostname and
+  `/question-images/*` key space. Third-party hosts are not supported.
 - Prefer compressed PNG or JPEG assets sized for assessment readability; avoid excessively large files that slow session rendering.
 - For admin uploads in this repo, the preferred managed storage target is Vercel Blob rather than database bytes.
 
@@ -607,9 +872,10 @@ Authoring guidance:
 - Do not create a separate `QuestionType` just to represent visual media. Existing answer types remain the canonical behavior contract.
 
 Admin upload guidance:
-- Manual `imageUrl` entry remains supported for copy-paste workflows and CSV-driven content.
+- Manual `imageUrl` entry remains supported for safe local or managed-Blob URLs and CSV-driven content.
 - Saved question rows can upload images directly via drag-and-drop or file picker.
-- Upload validation currently allows `jpg`, `png`, and `webp` up to 5 MB.
+- Upload validation allows signature-matching `jpg`, `png`, and `webp` up to 4 MiB;
+  the multipart envelope is capped below Vercel's 4.5 MB request limit.
 - Removing an uploaded image clears `imageUrl`, `imageAlt`, and `imageCaption` together.
 
 ## 15. Journal policy
@@ -702,8 +968,34 @@ Manual workflow behavior:
 2. Report remains `DRAFT`; participant sees pending-notification message.
 3. Selected admins receive completion email with direct response-review link.
 4. Admin reviews canonical question order, participant answers, and any question reference images/captions.
-5. Admin uploads PDF (`/api/admin/reports/:reportId/manual-pdf`) and can notify immediately or later.
+5. Admin uploads a structurally valid PDF of at most 4 MiB
+   (`/api/admin/reports/:reportId/manual-pdf`) and can notify immediately or later.
 6. When published, participant can download PDF in app and via secure no-login share links.
+
+Release and history rules:
+- report rows default to `DRAFT`
+- upload with `notifyNow` cannot publish until the assessment session is submitted
+- email notification failures return a failure status while preserving the already
+  uploaded/published state for safe operator retry
+- manual PDF replace/remove takes a database lock, re-reads current state inside the
+  transaction, and archives the displaced bytes before mutation
+- editor PATCH, publish/send, upload/replace, and removal use the same per-report
+  transaction lock. Publication readiness, current PDF state, participant, and
+  submission state are re-read after the lock; email occurs only after commit and
+  revalidates publication/access before issuing a link.
+- saving changed narrative content from a published report atomically revokes its
+  links and returns it to `DRAFT`; edits are not audience-visible until a deliberate
+  republish creates the next publication generation.
+- report narrative requests and canonical JSON are capped at 256 KiB. Generated
+  PDFs reject canonical input beyond 100,000 characters or 50 pages, and long-word
+  wrapping is linear-time. Manual PDF uploads remain capped at 4 MiB.
+- every AI-report publish transition runs the same canonical PDF renderer as a
+  preflight before opening the mutation transaction. Character/page-limit failures
+  return `413 PDF_RENDER_LIMIT` with an instruction to shorten the report; a
+  concurrent narrative/title/participant/workflow change returns retryable
+  `409 REPORT_CHANGED`. Manual workflow publication skips this generated-PDF
+  preflight and continues to rely on the structurally validated uploaded PDF.
+- the admin `View Tests` panel exposes current attempt state and report archives
 
 New/updated API surface:
 - `GET /api/admin/assessments/:id/participants/:userId/responses`
@@ -750,8 +1042,11 @@ Managed upload flow:
 1. Admin creates or opens an existing saved question row in Assessment Content.
 2. Admin either pastes a URL manually or drops/selects an image file.
 3. Upload route stores the image in Vercel Blob under a question-scoped path.
-4. Blob public URL is written back to `Question.imageUrl`.
-5. Participant and admin-review UIs consume the same `imageUrl` field as before.
+4. A per-question database lock re-reads the current asset before replacement or
+   removal, so concurrent admins cannot delete the winning upload.
+5. Blob public URL is written back to `Question.imageUrl`; only the exact displaced
+   managed object is removed, and a failed database write cleans up its orphan.
+6. Participant and admin-review UIs consume the same `imageUrl` field as before.
 
 API surface for managed uploads:
 - `POST /api/admin/assessments/:id/questions/:questionId/image`
@@ -926,6 +1221,14 @@ Auth integration details:
 - NextAuth verification-token expiry is overridden at adapter token-creation time
 - sign-in email subject/text/HTML are rendered from templates using supported variables
 - template rendering supports optional whitespace inside `{{ ... }}` markers
+- admin invitations are issued only to eligible, seated users in the selected
+  active Organisation; orphaned, cross-Organisation, and admin-only rows are
+  skipped explicitly. Invite email links prefill `/signin?email=...` without
+  changing the generic outward magic-link response.
+- delivery uses a durable Invite claim rather than holding a database transaction
+  across the provider call. `UNKNOWN` and stale `IN_FLIGHT` rows are reported as
+  remaining work and retried with `invite:<Invite.id>`; `SENT` rows are never
+  selected again.
 
 Operational notes:
 - this feature can be rolled out with a normal push and deploy; there is no migration gate
@@ -950,7 +1253,7 @@ Implementation details:
   - validates callback URLs before rendering/continuing
 - confirm page: `src/app/(auth)/signin/confirm/page.tsx`
   - performs defensive token-url validation before rendering
-  - best-effort name lookup by email for greeting
+  - renders a generic greeting without an account lookup or enumeration side channel
   - never auto-redirects to the callback URL
 - continue route: `src/app/api/auth/continue/route.ts`
   - accepts `POST` only for token consumption flow
@@ -963,6 +1266,13 @@ Security/robustness notes:
 - callback URL allowlist validation enforces expected path: `/api/auth/callback/email`
 - callback URL origin must match configured public auth origin
 - invalid token-url input is handled safely and does not become an open redirect
+- the explicit Continue action verifies that NextAuth created a live session before
+  routing to the dashboard
+- the confirm page issues a short-lived same-site nonce bound to the token URL;
+  `/api/auth/continue` requires and consumes it and rejects cross-site form posts,
+  preventing login-CSRF/session-swap attacks
+- verification requests are persistently rate-limited by hashed email and IP and
+  fail closed if the limiter datastore is unavailable
 - this is intentionally scanner-resistance hardening, not a complete anti-automation system
 - CSRF/dwell-time/OTP fallback can be layered later if needed
 

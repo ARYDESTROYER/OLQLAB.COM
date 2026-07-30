@@ -4,6 +4,7 @@ import "./globals.css";
 import CustomCursor from "@/components/effects/CustomCursor";
 import ScrollProgress from "@/components/effects/ScrollProgress";
 import ScrollReveal from "@/components/effects/ScrollReveal";
+import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-metadata";
 
 const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -24,9 +25,39 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OLQLAB — Leadership begins within",
-  description:
-    "OLQLAB is a leadership development practice grounded in behavioral science and military-tested wisdom.",
+  metadataBase: new URL(SITE_URL),
+  title: {
+    default: "OLQ Lab — Leadership begins within",
+    template: `%s | ${SITE_NAME}`,
+  },
+  description: DEFAULT_DESCRIPTION,
+  applicationName: SITE_NAME,
+  category: "Leadership development",
+  alternates: {
+    canonical: "/",
+  },
+  manifest: "/manifest.webmanifest",
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title: "OLQ Lab — Leadership begins within",
+    description: DEFAULT_DESCRIPTION,
+    url: "/",
+    images: [
+      {
+        url: "/opengraph-image",
+        width: 1200,
+        height: 630,
+        alt: "OLQ Lab — Leadership begins within",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "OLQ Lab — Leadership begins within",
+    description: DEFAULT_DESCRIPTION,
+    images: ["/opengraph-image"],
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

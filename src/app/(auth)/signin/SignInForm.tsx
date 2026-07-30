@@ -3,8 +3,8 @@
 import { FormEvent, useState } from "react";
 import { signIn } from "next-auth/react";
 
-export default function SignInForm() {
-  const [email, setEmail] = useState("");
+export default function SignInForm({ initialEmail = "" }: { initialEmail?: string }) {
+  const [email, setEmail] = useState(initialEmail);
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
   async function onSubmit(e: FormEvent) {

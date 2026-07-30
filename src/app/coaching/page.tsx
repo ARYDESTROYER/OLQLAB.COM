@@ -5,6 +5,14 @@ import {
   TextLink,
 } from "@/components/marketing/Editorial";
 import StepperFlow from "@/components/marketing/StepperFlow";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Leadership coaching",
+  description:
+    "Convert assessment insight into sustained leadership behavior through diagnostic, blindspot, action, and recalibration work.",
+  path: "/coaching",
+});
 
 const steps = [
   {

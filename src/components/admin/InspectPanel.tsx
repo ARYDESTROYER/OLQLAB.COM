@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { formatReportArchiveReason } from "@/lib/report-archive-history";
 
 type InspectPanelProps = {
     open: boolean;
@@ -80,7 +81,30 @@ type Session = {
     assessment: { id: string; title: string };
 };
 
-export function TestsView({ sessions }: { sessions: Session[] }) {
+type ReportArchiveSummary = {
+    id: string;
+    assessmentId: string;
+    assessmentTitle: string;
+    submittedAt?: string | null;
+    archivedAt: string;
+    archiveReason?: string | null;
+};
+
+type TestsViewProps = {
+    sessions: Session[];
+    archives: ReportArchiveSummary[];
+    sessionsHasMore?: boolean;
+    archivesHasMore?: boolean;
+    historyLimit?: number;
+};
+
+export function TestsView({
+    sessions,
+    archives,
+    sessionsHasMore = false,
+    archivesHasMore = false,
+    historyLimit = 100,
+}: TestsViewProps) {
     return (
         <div className="space-y-6">
             <div>
@@ -122,6 +146,61 @@ export function TestsView({ sessions }: { sessions: Session[] }) {
                         </table>
                     </div>
                 )}
+                {sessionsHasMore ? (
+                    <p className="mt-2 text-xs text-amber-700">
+                        Showing the newest {historyLimit} live sessions.
+                    </p>
+                ) : null}
+            </div>
+
+            <div>
+                <h3 className="text-sm font-semibold text-slate-700">
+                    Archived Reports ({archives.length}{archivesHasMore ? "+" : ""})
+                </h3>
+                <p className="mt-1 text-xs text-slate-500">
+                    Preserved report snapshots from retests, resets, regeneration, and PDF replacement.
+                </p>
+                {archives.length === 0 ? (
+                    <p className="mt-2 text-xs text-slate-400">No archived reports found.</p>
+                ) : (
+                    <div className="mt-2 overflow-auto rounded-lg border border-slate-200">
+                        <table className="min-w-full text-left text-xs">
+                            <thead className="bg-slate-50 text-slate-500">
+                                <tr>
+                                    <th className="px-3 py-2">Assessment</th>
+                                    <th className="px-3 py-2">Reason</th>
+                                    <th className="px-3 py-2">Submitted</th>
+                                    <th className="px-3 py-2">Archived</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {archives.map((archive) => (
+                                    <tr key={archive.id} className="border-t border-slate-100">
+                                        <td className="px-3 py-2 font-medium">
+                                            {archive.assessmentTitle}
+                                        </td>
+                                        <td className="px-3 py-2 text-slate-600">
+                                            {formatReportArchiveReason(archive.archiveReason)}
+                                        </td>
+                                        <td className="px-3 py-2 text-slate-500">
+                                            {archive.submittedAt
+                                                ? new Date(archive.submittedAt).toLocaleDateString()
+                                                : "—"}
+                                        </td>
+                                        <td className="px-3 py-2 text-slate-500">
+                                            {new Date(archive.archivedAt).toLocaleDateString()}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+                {archivesHasMore ? (
+                    <p className="mt-2 text-xs text-amber-700">
+                        Showing the newest {historyLimit} archived reports.
+                    </p>
+                ) : null}
             </div>
         </div>
     );

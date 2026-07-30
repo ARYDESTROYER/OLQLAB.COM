@@ -1,7 +1,24 @@
 import { db } from "@/lib/db";
 import { getEnv } from "@/lib/env";
-import { getResend } from "@/lib/resend";
-import { issueReportShareToken } from "@/lib/unenroll-jobs";
+import { EmailDeliveryError, sendEmailOrThrow } from "@/lib/resend";
+import {
+  issueReportShareToken,
+  revokeReportShareToken,
+} from "@/lib/unenroll-jobs";
+import { buildScannerResistantReportLinkHtml } from "@/lib/report-share-grant";
+import {
+  buildPublishedReportDeliveryIdempotencyKey,
+  buildPublishedReportRedeliveryIdempotencyKey,
+} from "@/lib/report-delivery-idempotency";
+
+function escapeHtml(input: string) {
+  return input
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
 function resolveBaseUrl() {
   const env = getEnv();
@@ -17,12 +34,20 @@ function formatDurationMs(durationMs: number) {
   return `${hours} hr ${minutes} min`;
 }
 
+export function isDefinitiveReportEmailRejection(error: unknown) {
+  return (
+    error instanceof EmailDeliveryError &&
+    error.providerCode !== "missing_delivery_id"
+  );
+}
+
 export async function sendPublishedReportEmail(input: {
   assessmentId: string;
   userId: string;
   ttlHours?: number;
+  redeliveryKey?: string;
 }) {
-  const [user, assessment] = await Promise.all([
+  const [user, report] = await Promise.all([
     db.user.findUnique({
       where: { id: input.userId },
       select: {
@@ -30,39 +55,88 @@ export async function sendPublishedReportEmail(input: {
         email: true,
       },
     }),
-    db.assessment.findUnique({
-      where: { id: input.assessmentId },
+    db.report.findUnique({
+      where: {
+        assessmentId_userId: {
+          assessmentId: input.assessmentId,
+          userId: input.userId,
+        },
+      },
       select: {
-        title: true,
+        id: true,
+        publicationGeneration: true,
+        narrativeJson: true,
+        pdfAsset: {
+          select: {
+            id: true,
+            pdfBytes: true,
+          },
+        },
+        assessment: {
+          select: {
+            title: true,
+            policy: { select: { reportWorkflow: true } },
+          },
+        },
       },
     }),
   ]);
 
-  if (!user || !assessment) return false;
+  if (!user || !report) return false;
+
+  const publicationKey = buildPublishedReportDeliveryIdempotencyKey({
+    reportId: report.id,
+    publicationGeneration: report.publicationGeneration,
+    reportWorkflow: report.assessment.policy?.reportWorkflow || "AI_STANDARD",
+    narrativeJson: report.narrativeJson,
+    manualPdf: report.pdfAsset,
+  });
+  const deliveryKey = input.redeliveryKey
+    ? buildPublishedReportRedeliveryIdempotencyKey({
+        publicationVersionKey: publicationKey,
+        redeliveryKey: input.redeliveryKey,
+      })
+    : publicationKey;
 
   const tokenData = await issueReportShareToken({
     assessmentId: input.assessmentId,
     userId: input.userId,
     ttlHours: input.ttlHours ?? 168,
+    idempotencyKey: deliveryKey,
+    expectedPublicationVersionKey: publicationKey,
   });
   if (!tokenData) return false;
 
   const env = getEnv();
   const baseUrl = resolveBaseUrl();
-  const reportUrl = `${baseUrl}/reports/shared/${encodeURIComponent(tokenData.token)}`;
-  const pdfUrl = `${baseUrl}/api/reports/shared/${encodeURIComponent(tokenData.token)}/pdf`;
-
-  const resend = getResend();
-  await resend.emails.send({
-    from: env.EMAIL_FROM,
-    to: user.email,
-    subject: `Your assessment report is ready: ${assessment.title}`,
-    html: `<p>Hi ${user.firstName},</p>
-<p>Your report for <strong>${assessment.title}</strong> has been published and is now available.</p>
-<p><a href="${reportUrl}">View your report online</a></p>
-<p><a href="${pdfUrl}">Download PDF version</a></p>
-<p>This secure link will expire in 7 days. No sign-in is required to view your report.</p>`,
+  const reportLink = buildScannerResistantReportLinkHtml({
+    baseUrl,
+    token: tokenData.token,
   });
+
+  try {
+    await sendEmailOrThrow(
+      {
+        from: env.EMAIL_FROM,
+        to: user.email,
+        subject: `Your assessment report is ready: ${report.assessment.title}`,
+        html: `<p>Hi ${escapeHtml(user.firstName)},</p>
+<p>Your report for <strong>${escapeHtml(report.assessment.title)}</strong> has been published and is now available.</p>
+${reportLink}
+<p>This secure link expires on ${escapeHtml(tokenData.expiresAt.toLocaleString())}. No sign-in is required to view your report.</p>`,
+      },
+      {
+        idempotencyKey: deliveryKey,
+      },
+    );
+  } catch (error) {
+    if (isDefinitiveReportEmailRejection(error)) {
+      await revokeReportShareToken(tokenData.token).catch((revokeError) => {
+        console.error("Failed to revoke a rejected report link.", revokeError);
+      });
+    }
+    throw error;
+  }
 
   return true;
 }
@@ -139,19 +213,20 @@ export async function sendManualSubmissionAlertEmails(input: {
   const baseUrl = resolveBaseUrl();
   const reviewUrl = `${baseUrl}/admin/assessments/${assessment.id}/participants/${participant.id}/responses`;
 
-  const resend = getResend();
   const env = getEnv();
 
   await Promise.all(
     adminRecipients.map((admin) =>
-      resend.emails.send({
+      sendEmailOrThrow({
         from: env.EMAIL_FROM,
         to: admin.email,
         subject: `${participantName} completed ${assessment.title}`,
-        html: `<p>Hey ${admin.firstName || "Admin"},</p>
-<p>${participantName}${orgLabel} has completed <strong>${assessment.title}</strong> on <strong>${completedAt}</strong> within <strong>${duration}</strong>.</p>
+        html: `<p>Hey ${escapeHtml(admin.firstName || "Admin")},</p>
+<p>${escapeHtml(participantName)}${escapeHtml(orgLabel)} has completed <strong>${escapeHtml(assessment.title)}</strong> on <strong>${escapeHtml(completedAt)}</strong> within <strong>${escapeHtml(duration)}</strong>.</p>
 <p>Kindly review their inputs and upload the report in the admin center.</p>
 <p><a href="${reviewUrl}">Review participant inputs</a></p>`,
+      }, {
+        idempotencyKey: `manual-submission:${input.assessmentId}:${input.userId}:${input.submittedAt.toISOString()}:${admin.id}`,
       }),
     ),
   );

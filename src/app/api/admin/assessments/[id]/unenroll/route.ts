@@ -1,9 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ReportAccessMode } from "@prisma/client";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
 import { db } from "@/lib/db";
+import {
+  IdentityPolicyError,
+  validateUnenrollDelivery,
+} from "@/lib/identity-policy";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
-import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
+import {
+  assertLinkOnlyReportRecipientsReady,
+  listUnenrollImpactedUsers,
+  lockUnenrollTarget,
+  runDueUnenrollJobs,
+} from "@/lib/unenroll-jobs";
 
 type UnenrollBody = {
   scope?: "USER" | "TENANT";
@@ -14,40 +24,6 @@ type UnenrollBody = {
   linkTtlHours?: number;
   dryRun?: boolean;
 };
-
-async function resolveImpactedUsers(
-  scope: "USER" | "TENANT",
-  targetId: string,
-) {
-  if (scope === "USER") {
-    return db.user.findMany({
-      where: {
-        id: targetId,
-      },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-      },
-    });
-  }
-
-  return db.user.findMany({
-    where: {
-      tenantId: targetId,
-      role: { in: ["EMPLOYEE", "LEADER"] },
-    },
-    select: {
-      id: true,
-      email: true,
-      firstName: true,
-      lastName: true,
-      role: true,
-    },
-  });
-}
 
 export async function POST(
   req: NextRequest,
@@ -71,7 +47,11 @@ export async function POST(
 
   const assessment = await db.assessment.findUnique({
     where: { id: assessmentId },
-    select: { id: true, title: true },
+    select: {
+      id: true,
+      title: true,
+      policy: { select: { reportWorkflow: true } },
+    },
   });
   if (!assessment) {
     return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
@@ -102,7 +82,37 @@ export async function POST(
     }
   }
 
-  const impactedUsers = await resolveImpactedUsers(scope, targetId);
+  const effectiveAt = body?.effectiveAt ? new Date(body.effectiveAt) : new Date();
+  if (Number.isNaN(effectiveAt.getTime())) {
+    return NextResponse.json({ error: "effectiveAt is invalid." }, { status: 400 });
+  }
+
+  const reportMode =
+    body?.reportMode && Object.values(ReportAccessMode).includes(body.reportMode)
+      ? body.reportMode
+      : ReportAccessMode.KEEP_APP_ACCESS;
+  const notifyByEmail = Boolean(body?.notifyByEmail);
+  const linkTtlHours = body?.linkTtlHours ?? null;
+  const impactedUsers = await listUnenrollImpactedUsers({
+    assessmentId,
+    targetScope: scope,
+    targetId,
+  });
+
+  try {
+    validateUnenrollDelivery({ reportMode, notifyByEmail, linkTtlHours });
+    if (reportMode === ReportAccessMode.LINK_ONLY) {
+      await assertLinkOnlyReportRecipientsReady({
+        assessmentId,
+        userIds: impactedUsers.map((user) => user.id),
+        reportWorkflow: assessment.policy?.reportWorkflow || "AI_STANDARD",
+      });
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Invalid unenrollment settings.";
+    const status = error instanceof IdentityPolicyError ? error.status : 409;
+    return NextResponse.json({ error: message }, { status });
+  }
 
   if (body?.dryRun) {
     return NextResponse.json({
@@ -116,30 +126,49 @@ export async function POST(
     });
   }
 
-  const effectiveAt = body?.effectiveAt ? new Date(body.effectiveAt) : new Date();
-  if (Number.isNaN(effectiveAt.getTime())) {
-    return NextResponse.json({ error: "effectiveAt is invalid." }, { status: 400 });
-  }
-
-  const reportMode =
-    body?.reportMode && Object.values(ReportAccessMode).includes(body.reportMode)
-      ? body.reportMode
-      : ReportAccessMode.KEEP_APP_ACCESS;
-
   let job;
   try {
-    job = await db.assessmentUnenrollJob.create({
-      data: {
-        assessmentId,
-        targetScope: scope,
-        targetId,
-        effectiveAt,
-        reportMode,
-        notifyByEmail: Boolean(body?.notifyByEmail),
-        linkTtlHours: body?.linkTtlHours && body.linkTtlHours > 0 ? body.linkTtlHours : null,
-        createdByAdminId: check.session.user.id,
-        status: "PENDING",
-      },
+    const auditTenantId =
+      scope === "TENANT"
+        ? targetId
+        : impactedUsers[0]?.tenantId || check.session.user.tenantId;
+    job = await db.$transaction(async (tx) => {
+      await lockUnenrollTarget(tx, { assessmentId, targetScope: scope, targetId });
+      const created = await tx.assessmentUnenrollJob.create({
+        data: {
+          assessmentId,
+          targetScope: scope,
+          targetId,
+          effectiveAt,
+          reportMode,
+          notifyByEmail,
+          linkTtlHours:
+            reportMode === ReportAccessMode.LINK_ONLY
+              ? linkTtlHours || 168
+              : null,
+          createdByAdminId: check.session.user.id,
+          status: "PENDING",
+        },
+      });
+      await recordAuditLog(
+        {
+          tenantId: auditTenantId,
+          actorId: check.session.user.id,
+          action: "unenroll.job.scheduled",
+          metadata: {
+            jobId: created.id,
+            assessmentId,
+            scope,
+            targetId,
+            effectiveAt: effectiveAt.toISOString(),
+            reportMode,
+            notifyByEmail,
+            impactedUsers: impactedUsers.length,
+          },
+        },
+        tx,
+      );
+      return created;
     });
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;
@@ -151,7 +180,11 @@ export async function POST(
 
   let execution = null;
   if (effectiveAt <= new Date()) {
-    execution = await runDueUnenrollJobs({ forceJobId: job.id });
+    execution = await runDueUnenrollJobs({
+      forceJobId: job.id,
+      executionActorId: check.session.user.id,
+      trigger: "admin",
+    });
   }
 
   return NextResponse.json({

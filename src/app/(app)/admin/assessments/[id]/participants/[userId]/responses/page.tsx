@@ -200,6 +200,8 @@ export default function ParticipantResponsesPage() {
                 <img
                   src={response.imageUrl}
                   alt={response.imageAlt || "Question reference image"}
+                  crossOrigin={response.imageUrl.startsWith("https://") ? "anonymous" : undefined}
+                  referrerPolicy="no-referrer"
                   className="max-h-[24rem] w-full object-contain bg-white"
                 />
                 {response.imageCaption ? (

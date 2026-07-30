@@ -1125,6 +1125,114 @@ pre, code, textarea {
 .animate-slide-in-menu  { animation: slide-in-menu 180ms ease-out both; }
 .animate-slide-in-panel { animation: slide-in-panel 260ms ease-out both; }
 
+/* Canonical leadership reports ------------------------------- */
+
+.report-document {
+  color: rgb(51, 65, 85);
+  font-size: 0.9375rem;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+}
+
+.report-document > :first-child {
+  margin-top: 0;
+}
+
+.report-document > :last-child {
+  margin-bottom: 0;
+}
+
+.report-document h1,
+.report-document h2,
+.report-document h3 {
+  color: rgb(15, 23, 42);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+.report-document h1 {
+  margin: 0 0 1.25rem;
+  border-bottom: 1px solid rgb(226, 232, 240);
+  padding-bottom: 1rem;
+  font-size: 1.65rem;
+}
+
+.report-document h2 {
+  margin: 2.25rem 0 0.8rem;
+  font-size: 1.35rem;
+}
+
+.report-document h3 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.report-document p {
+  margin: 0.75rem 0;
+}
+
+.report-document ul,
+.report-document ol {
+  margin: 0.9rem 0;
+  padding-left: 1.5rem;
+}
+
+.report-document ul {
+  list-style: disc;
+}
+
+.report-document ol {
+  list-style: decimal;
+}
+
+.report-document li {
+  padding-left: 0.25rem;
+}
+
+.report-document li + li {
+  margin-top: 0.55rem;
+}
+
+.report-document strong {
+  color: rgb(15, 23, 42);
+  font-weight: 650;
+}
+
+.report-document hr {
+  margin: 1.75rem 0;
+  border: 0;
+  border-top: 1px solid rgb(203, 213, 225);
+}
+
+.report-document blockquote {
+  margin: 1.5rem 0;
+  border-left: 3px solid rgb(181, 128, 60);
+  background: rgb(248, 250, 252);
+  padding: 0.9rem 1rem;
+  color: rgb(71, 85, 105);
+  font-style: italic;
+}
+
+@media (min-width: 640px) {
+  .report-document {
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+
+  .report-document h1 {
+    font-size: 2rem;
+  }
+
+  .report-document h2 {
+    font-size: 1.55rem;
+  }
+
+  .report-document h3 {
+    font-size: 1.15rem;
+  }
+}
+
 /* Sign-in overlay --------------------------------------------- */
 
 .signin-overlay {

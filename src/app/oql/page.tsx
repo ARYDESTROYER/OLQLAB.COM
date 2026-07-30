@@ -1,5 +1,13 @@
 import { MarketingChrome } from "@/components/marketing/MarketingChrome";
 import { Eyebrow, PrimaryCTA, TextLink } from "@/components/marketing/Editorial";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Officer-like qualities",
+  description:
+    "See how military-tested officer-like qualities translate into modern leadership, communication, responsibility, and adaptability.",
+  path: "/oql",
+});
 
 const olqs = [
   "Effective Intelligence",

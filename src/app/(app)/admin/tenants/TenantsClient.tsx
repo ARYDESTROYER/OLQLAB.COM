@@ -6,6 +6,7 @@ import { toast } from "@/components/admin/Toast";
 import EmptyState from "@/components/admin/EmptyState";
 import InspectPanel from "@/components/admin/InspectPanel";
 import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
 type Tenant = {
   id: string;
@@ -21,9 +22,27 @@ type Tenant = {
   seatState?: "HAS_ROOM" | "AT_CAPACITY" | "OVER_CAPACITY";
 };
 
+type TenantListMeta = {
+  returned: number;
+  limit: number;
+  totalMatchingFilters: number | null;
+  totalCandidates: number;
+  hasMore: boolean;
+  truncated: boolean;
+};
+
 export default function TenantsClient() {
   const searchParams = useSearchParams();
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [listMeta, setListMeta] = useState<TenantListMeta>({
+    returned: 0,
+    limit: 100,
+    totalMatchingFilters: 0,
+    totalCandidates: 0,
+    hasMore: false,
+    truncated: false,
+  });
+  const [listLimit, setListLimit] = useState(100);
   const [query, setQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [typeFilter, setTypeFilter] = useState<"" | "ORGANIZATION" | "SOLO">("ORGANIZATION");
@@ -37,6 +56,11 @@ export default function TenantsClient() {
   const [busyTenantId, setBusyTenantId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
+  const [archiveConfirm, setArchiveConfirm] = useState({
+    open: false,
+    targetArchived: false,
+    busy: false,
+  });
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -63,11 +87,22 @@ export default function TenantsClient() {
     if (seatStateFilter) params.set("seatState", seatStateFilter);
     params.set("sortBy", sortBy);
     params.set("sortOrder", sortOrder);
+    params.set("limit", String(listLimit));
 
     const res = await fetch(`/api/admin/tenants?${params.toString()}`);
     const data = await res.json();
     const rows = data.tenants || [];
     setTenants(rows);
+    setListMeta(
+      (data.meta as TenantListMeta | undefined) || {
+        returned: rows.length,
+        limit: 100,
+        totalMatchingFilters: rows.length,
+        totalCandidates: rows.length,
+        hasMore: false,
+        truncated: false,
+      },
+    );
     setSelectedTenantIds((prev) => prev.filter((id) => rows.some((row: Tenant) => row.id === id)));
 
     setEditByTenant((prev) => {
@@ -83,7 +118,7 @@ export default function TenantsClient() {
       }
       return next;
     });
-  }, [includeArchived, query, seatStateFilter, sortBy, sortOrder, typeFilter]);
+  }, [includeArchived, listLimit, query, seatStateFilter, sortBy, sortOrder, typeFilter]);
 
   useEffect(() => {
     loadTenants();
@@ -238,17 +273,16 @@ export default function TenantsClient() {
     });
   }
 
-  async function runBulkArchive(targetArchived: boolean) {
+  function runBulkArchive(targetArchived: boolean) {
     if (selectedTenantIds.length === 0) {
       toast("Select at least one organisation.", "error");
       return;
     }
 
-    const confirmed = window.confirm(
-      `${targetArchived ? "Archive" : "Unarchive"} ${selectedTenantIds.length} selected organisations?`,
-    );
-    if (!confirmed) return;
+    setArchiveConfirm({ open: true, targetArchived, busy: false });
+  }
 
+  async function executeBulkArchive(targetArchived: boolean) {
     setBulkBusy(true);
     let successCount = 0;
     let failCount = 0;
@@ -429,6 +463,26 @@ export default function TenantsClient() {
             Export CSV
           </button>
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          {listMeta.totalMatchingFilters === null
+            ? `Showing ${tenants.length} organisation(s) from a bounded window of ${listMeta.totalCandidates} candidates.`
+            : `Showing ${tenants.length} of ${listMeta.totalMatchingFilters} matching organisation(s).`}
+        </p>
+        {listMeta.hasMore ? (
+          <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p>This list does not cover every matching record. CSV export will refuse an incomplete file.</p>
+            {listMeta.limit < 500 ? (
+              <button
+                className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold hover:bg-amber-100"
+                onClick={() => setListLimit((current) => Math.min(500, current + 100))}
+              >
+                Load 100 more
+              </button>
+            ) : (
+              <span className="font-medium">Narrow the filters to inspect the remaining records.</span>
+            )}
+          </div>
+        ) : null}
 
         <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
           {selectedTenantIds.length > 0 && (
@@ -605,6 +659,25 @@ export default function TenantsClient() {
           )
         ) : null}
       </InspectPanel>
+
+      <ConfirmDialog
+        open={archiveConfirm.open}
+        title={`${archiveConfirm.targetArchived ? "Archive" : "Unarchive"} Organisations`}
+        message={`${archiveConfirm.targetArchived ? "Archive" : "Unarchive"} ${selectedTenantIds.length} selected organisations?`}
+        confirmLabel={archiveConfirm.targetArchived ? "Archive" : "Unarchive"}
+        variant={archiveConfirm.targetArchived ? "danger" : "default"}
+        busy={archiveConfirm.busy}
+        onConfirm={() => {
+          const targetArchived = archiveConfirm.targetArchived;
+          setArchiveConfirm((prev) => ({ ...prev, busy: true }));
+          void executeBulkArchive(targetArchived).finally(() => {
+            setArchiveConfirm({ open: false, targetArchived: false, busy: false });
+          });
+        }}
+        onCancel={() =>
+          setArchiveConfirm({ open: false, targetArchived: false, busy: false })
+        }
+      />
     </div>
   );
 }

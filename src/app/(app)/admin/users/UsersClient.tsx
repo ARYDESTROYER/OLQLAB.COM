@@ -20,6 +20,11 @@ type OrganizationSummary = {
 type UsersMeta = {
   scope: "ALL" | "PARTICIPANTS";
   totalMatchingFilters: number;
+  totalCandidates: number;
+  returned: number;
+  limit: number;
+  hasMore: boolean;
+  truncated: boolean;
   totalAllAccounts: number;
   totalParticipants: number;
   totalAdmins: number;
@@ -98,10 +103,16 @@ export default function UsersClient() {
   const [meta, setMeta] = useState<UsersMeta>({
     scope: "ALL",
     totalMatchingFilters: 0,
+    totalCandidates: 0,
+    returned: 0,
+    limit: 100,
+    hasMore: false,
+    truncated: false,
     totalAllAccounts: 0,
     totalParticipants: 0,
     totalAdmins: 0,
   });
+  const [listLimit, setListLimit] = useState(100);
   const [scope, setScope] = useState<"ALL" | "PARTICIPANTS">("ALL");
   const [query, setQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
@@ -163,7 +174,23 @@ export default function UsersClient() {
     onConfirm: () => void;
     variant: "danger" | "default";
     busy: boolean;
-  }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
+    confirmLabel: string;
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: () => { },
+    variant: "default",
+    busy: false,
+    confirmLabel: "Confirm",
+  });
+
+  function runConfirmed(action: () => Promise<void>) {
+    setConfirmState((prev) => ({ ...prev, busy: true }));
+    void action().finally(() => {
+      setConfirmState((prev) => ({ ...prev, open: false, busy: false }));
+    });
+  }
 
   // Inspect panel
   const [inspectPanel, setInspectPanel] = useState<{
@@ -208,7 +235,7 @@ export default function UsersClient() {
       if (selectedTenantArchived === "ARCHIVED") params.set("tenantArchived", "1");
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
-      if (options?.limit) params.set("limit", String(options.limit));
+      params.set("limit", String(options?.limit ?? listLimit));
       if (options?.format) params.set("format", options.format);
       return params;
     },
@@ -222,6 +249,7 @@ export default function UsersClient() {
       selectedManagerFilter,
       sortBy,
       sortOrder,
+      listLimit,
     ],
   );
 
@@ -237,6 +265,11 @@ export default function UsersClient() {
       (data.meta as UsersMeta | undefined) || {
         scope: "ALL",
         totalMatchingFilters: rows.length,
+        totalCandidates: rows.length,
+        returned: rows.length,
+        limit: 100,
+        hasMore: false,
+        truncated: false,
         totalAllAccounts: rows.length,
         totalParticipants: rows.filter((row) => row.role !== "ADMIN").length,
         totalAdmins: rows.filter((row) => row.role === "ADMIN").length,
@@ -441,26 +474,22 @@ export default function UsersClient() {
     setConfirmState({
       open: true,
       title: "Delete User",
-      message: `Are you sure you want to delete "${displayName}" (${user.email})? This action cannot be undone.`,
+      message: `Are you sure you want to delete "${displayName}" (${user.email})? This permanently deletes sessions, answers, scores, reports, enrollments, overrides, share links, auth sessions, and the user record. This cannot be undone.`,
       variant: "danger",
       busy: false,
-      onConfirm: () => executeDeleteUser(user.id),
+      confirmLabel: "Delete Everything",
+      onConfirm: () => runConfirmed(() => executeDeleteUser(user.id)),
     });
   }
 
   async function executeDeleteUser(userId: string) {
-    setConfirmState((prev) => ({ ...prev, busy: true }));
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok) {
-        toast("User deleted.", "success");
-        await loadUsers();
-      } else {
-        toast(data.error || "Failed to delete user.", "error");
-      }
-    } finally {
-      setConfirmState((prev) => ({ ...prev, open: false, busy: false }));
+    const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (res.ok) {
+      toast("User deleted.", "success");
+      await loadUsers();
+    } else {
+      toast(data.error || "Failed to delete user.", "error");
     }
   }
 
@@ -490,17 +519,24 @@ export default function UsersClient() {
     }
   }
 
-  async function makeUserSolo(user: UserRow) {
+  function makeUserSolo(user: UserRow) {
     if (user.tenant?.type === "SOLO") {
       toast("User is already solo.", "error");
       return;
     }
 
-    const confirmed = window.confirm(
-      `Convert ${user.email} to a solo participant organisation? This will move them out of their current organisation.`,
-    );
-    if (!confirmed) return;
+    setConfirmState({
+      open: true,
+      title: "Convert to Solo Participant",
+      message: `Convert ${user.email} to a solo participant Organisation? This moves them out of their current Organisation and clears cross-Organisation manager links.`,
+      variant: "default",
+      busy: false,
+      confirmLabel: "Convert to Solo",
+      onConfirm: () => runConfirmed(() => executeMakeUserSolo(user)),
+    });
+  }
 
+  async function executeMakeUserSolo(user: UserRow) {
     setBusyUserId(user.id);
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
@@ -569,14 +605,21 @@ export default function UsersClient() {
     }
   }
 
-  async function promoteUserToAdmin(user: UserRow) {
+  function promoteUserToAdmin(user: UserRow) {
     if (user.role === "ADMIN") return;
 
-    const confirmed = window.confirm(
-      `Promote ${user.email} to admin? They will gain global admin access.`,
-    );
-    if (!confirmed) return;
+    setConfirmState({
+      open: true,
+      title: "Promote to Admin",
+      message: `Promote ${user.email} to admin? They will gain global admin access.`,
+      variant: "default",
+      busy: false,
+      confirmLabel: "Promote to Admin",
+      onConfirm: () => runConfirmed(() => executePromoteUserToAdmin(user)),
+    });
+  }
 
+  async function executePromoteUserToAdmin(user: UserRow) {
     setBusyUserId(user.id);
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
@@ -641,6 +684,7 @@ export default function UsersClient() {
     setSortOrder("desc");
     setSelectedTenantId("");
     setQuery("");
+    setListLimit(100);
   }
 
   function toggleAllSelectable(checked: boolean) {
@@ -743,12 +787,23 @@ export default function UsersClient() {
     });
   }
 
-  async function bulkMakeSoloUsers() {
-    const confirmed = window.confirm(
-      `Convert ${selectedRows.length} selected users into solo participants?`,
-    );
-    if (!confirmed) return;
+  function bulkMakeSoloUsers() {
+    if (selectedRows.length === 0) {
+      toast("Select at least one user.", "error");
+      return;
+    }
+    setConfirmState({
+      open: true,
+      title: "Convert Selected Users",
+      message: `Convert ${selectedRows.length} selected users into solo participants? Each user will move into a separate Solo Organisation.`,
+      variant: "default",
+      busy: false,
+      confirmLabel: "Convert Selected",
+      onConfirm: () => runConfirmed(executeBulkMakeSoloUsers),
+    });
+  }
 
+  async function executeBulkMakeSoloUsers() {
     await runBulkAction("Bulk solo conversion", async (user) => {
       if (user.role === "ADMIN") {
         return { ok: false, error: `${user.email}: admin users cannot be converted.` };
@@ -771,12 +826,23 @@ export default function UsersClient() {
     });
   }
 
-  async function bulkDeleteUsers() {
-    const confirmed = window.confirm(
-      `Delete ${selectedRows.length} selected users and all associated data? This cannot be undone.`,
-    );
-    if (!confirmed) return;
+  function bulkDeleteUsers() {
+    if (selectedRows.length === 0) {
+      toast("Select at least one user.", "error");
+      return;
+    }
+    setConfirmState({
+      open: true,
+      title: "Delete Selected Users",
+      message: `Delete ${selectedRows.length} selected users and all associated sessions, answers, reports, enrollment, and authentication data? This cannot be undone.`,
+      variant: "danger",
+      busy: false,
+      confirmLabel: "Delete Selected",
+      onConfirm: () => runConfirmed(executeBulkDeleteUsers),
+    });
+  }
 
+  async function executeBulkDeleteUsers() {
     await runBulkAction("Bulk delete", async (user) => {
       if (user.role === "ADMIN") {
         return { ok: false, error: `${user.email}: admin users cannot be deleted.` };
@@ -1216,6 +1282,25 @@ export default function UsersClient() {
             {" "}
             {meta.totalAllAccounts} accounts, {meta.totalParticipants} participants, {meta.totalAdmins} admins.
           </p>
+          {meta.hasMore ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p>
+                This list is limited to {meta.limit} rows. CSV export will refuse an incomplete file.
+              </p>
+              {meta.limit < 500 ? (
+                <button
+                  className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold hover:bg-amber-100"
+                  onClick={() => setListLimit((current) => Math.min(500, current + 100))}
+                >
+                  Load 100 more
+                </button>
+              ) : (
+                <span className="font-medium">
+                  Narrow the filters to inspect all {meta.totalCandidates} matching users.
+                </span>
+              )}
+            </div>
+          ) : null}
 
           {showAdvancedFilters && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
@@ -1511,6 +1596,14 @@ export default function UsersClient() {
           inspectPanel.type === "tests" ? (
             <TestsView
               sessions={(inspectPanel.data.testsTaken || []) as never[]}
+              archives={(inspectPanel.data.reportArchives || []) as never[]}
+              sessionsHasMore={inspectPanel.data.testsTakenHasMore === true}
+              archivesHasMore={inspectPanel.data.reportArchivesHasMore === true}
+              historyLimit={
+                typeof inspectPanel.data.historyLimit === "number"
+                  ? inspectPanel.data.historyLimit
+                  : undefined
+              }
             />
           ) : (
             <AccessView access={(inspectPanel.data.access || []) as never[]} />
@@ -1522,8 +1615,8 @@ export default function UsersClient() {
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}
-        message={`${confirmState.message} This will permanently delete sessions, answers, scores, reports, enrollments, overrides, share links, auth sessions, and the user record.`}
-        confirmLabel="Delete Everything"
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
         variant={confirmState.variant}
         busy={confirmState.busy}
         onConfirm={confirmState.onConfirm}

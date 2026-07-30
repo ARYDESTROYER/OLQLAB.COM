@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { normalizeQuestionImageUrl } from "@/lib/question-image-policy";
 
 function computeDurationMs(startedAt: Date | null, submittedAt: Date | null) {
   if (!startedAt || !submittedAt) return null;
@@ -108,13 +109,14 @@ export async function GET(
       ? question.options.find((option) => option.id === answer.optionId) || null
       : null;
 
+    const imageUrl = normalizeQuestionImageUrl(question.imageUrl);
     return {
       id: question.id,
       code: question.code,
       prompt: question.prompt,
-      imageUrl: question.imageUrl,
-      imageAlt: question.imageAlt,
-      imageCaption: question.imageCaption,
+      imageUrl,
+      imageAlt: imageUrl ? question.imageAlt : null,
+      imageCaption: imageUrl ? question.imageCaption : null,
       questionType: question.questionType,
       section: question.section,
       options: question.options,

@@ -1,19 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
-import { QuestionType } from "@prisma/client";
+import { Prisma, QuestionType } from "@prisma/client";
 import { requireAdmin } from "@/lib/api-auth";
-import { listResolvedAssessmentUsers } from "@/lib/assessment-access";
-import { buildCsv, type CsvRow } from "@/lib/csv";
+import {
+  listResolvedAssessmentUsers,
+  ResolvedAssessmentUsersLimitError,
+} from "@/lib/assessment-access";
+import { buildCsv, getCsvValueByteLength, type CsvRow } from "@/lib/csv";
 import { db } from "@/lib/db";
+import {
+  estimateAggregatedCsvTextBytes,
+  resolveAssessmentExportReportStatus,
+  type AssessmentExportReportStatus,
+} from "@/lib/assessment-export";
+import {
+  ASSESSMENT_EXPORT_LIMITS,
+  getAssessmentExportLimitError,
+} from "@/lib/export-limits";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
 type ExportLayout = "WIDE" | "LONG";
 type AttemptStatusFilter = "ALL" | "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED";
-type ReportStatusFilter =
-  | "ALL"
-  | "NOT_UPLOADED_YET"
-  | "UPLOADED"
-  | "AWAITING_DELIVERY_TIMER"
-  | "DELIVERED_TO_USER";
+type ReportStatusFilter = "ALL" | AssessmentExportReportStatus;
 
 type ExportInclude = {
   participant: boolean;
@@ -36,6 +43,8 @@ type AssessmentWithQuestions = {
   isPublished: boolean;
   policy: {
     reportWorkflow: "AI_STANDARD" | "MANUAL_PDF_UPLOAD";
+    showResultsToEmployee: boolean;
+    resultReleaseDelayHours: number;
   } | null;
   questions: Array<{
     id: string;
@@ -56,12 +65,13 @@ type SessionRecord = {
   status: "IN_PROGRESS" | "SUBMITTED";
   startedAt: Date;
   submittedAt: Date | null;
-  answers: Array<{
-    questionId: string;
-    optionId: string | null;
-    value: number | null;
-    textValue: string | null;
-  }>;
+};
+
+type AnswerRecord = {
+  questionId: string;
+  optionId: string | null;
+  value: number | null;
+  textValue: string | null;
 };
 
 type ReportRecord = {
@@ -88,14 +98,21 @@ type ExportRecord = {
   } | null;
   session: SessionRecord | null;
   report: ReportRecord | null;
-  answerByQuestionId: Map<string, SessionRecord["answers"][number]>;
+  answerByQuestionId: Map<string, AnswerRecord>;
   attemptStatus: "NOT_STARTED" | "IN_PROGRESS" | "SUBMITTED";
   reportStatus: ReportStatusFilter | null;
 };
 
-function normalizeAssessmentIds(input: string[] | undefined) {
+function normalizeAssessmentIds(input: unknown) {
   if (!Array.isArray(input)) return [];
-  return Array.from(new Set(input.map((item) => item.trim()).filter(Boolean)));
+  return Array.from(
+    new Set(
+      input
+        .filter((item): item is string => typeof item === "string")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
 }
 
 function normalizeLayout(input: string | undefined): ExportLayout {
@@ -137,30 +154,6 @@ function matchesAttemptStatus(
   return filter === "ALL" || attemptStatus === filter;
 }
 
-function resolveReportStatus(record: {
-  session: SessionRecord | null;
-  report: ReportRecord | null;
-  now: Date;
-}): ReportStatusFilter | null {
-  if (!record.session || record.session.status !== "SUBMITTED") {
-    return null;
-  }
-
-  if (!record.report) {
-    return "NOT_UPLOADED_YET";
-  }
-
-  if (record.report.status !== "PUBLISHED") {
-    return record.report.hasManualPdf ? "UPLOADED" : "NOT_UPLOADED_YET";
-  }
-
-  if (record.report.availableAt && record.report.availableAt > record.now) {
-    return "AWAITING_DELIVERY_TIMER";
-  }
-
-  return "DELIVERED_TO_USER";
-}
-
 function matchesReportStatus(
   reportStatus: ExportRecord["reportStatus"],
   filter: ReportStatusFilter,
@@ -200,7 +193,7 @@ function buildQuestionHeader(
 
 function formatAnswerValue(
   question: AssessmentWithQuestions["questions"][number],
-  answer: SessionRecord["answers"][number] | undefined,
+  answer: AnswerRecord | undefined,
 ) {
   if (!answer) return "";
 
@@ -354,6 +347,182 @@ function buildBaseRow(record: ExportRecord, include: ExportInclude): CsvRow {
   return row;
 }
 
+function estimateCsvRowBytes(values: CsvRow, totalColumns: number) {
+  const contentBytes = values.reduce<number>(
+    (total, value) => total + getCsvValueByteLength(value),
+    0,
+  );
+  // A row has totalColumns - 1 commas and one trailing newline.
+  return contentBytes + Math.max(totalColumns, 1);
+}
+
+function maximumWideAnswerBytes(
+  question: AssessmentWithQuestions["questions"][number],
+) {
+  if (question.questionType === "FREE_TEXT") return 0;
+  if (question.questionType === "SJT_SINGLE") {
+    return question.options.reduce((maximum, option) => {
+      const rendered = option.code ? `${option.code}. ${option.text}` : option.text;
+      return Math.max(maximum, getCsvValueByteLength(rendered));
+    }, 0);
+  }
+  return 16;
+}
+
+function maximumLongOptionBytes(
+  question: AssessmentWithQuestions["questions"][number],
+) {
+  if (question.questionType !== "SJT_SINGLE") return 0;
+  return question.options.reduce(
+    (maximum, option) =>
+      Math.max(
+        maximum,
+        getCsvValueByteLength(option.code) + getCsvValueByteLength(option.text),
+      ),
+    0,
+  );
+}
+
+function estimateExportResponseBytes(input: {
+  headers: string[];
+  records: ExportRecord[];
+  include: ExportInclude;
+  layout: ExportLayout;
+  escapedAnswerTextBytes: number;
+}) {
+  let total = estimateCsvRowBytes(input.headers, input.headers.length);
+
+  for (const record of input.records) {
+    const baseRow = buildBaseRow(record, input.include);
+    if (!input.include.answers || input.layout === "WIDE") {
+      total += estimateCsvRowBytes(baseRow, input.headers.length);
+      if (input.include.answers) {
+        total += record.assessment.questions.reduce(
+          (answerBytes, question) =>
+            answerBytes + maximumWideAnswerBytes(question),
+          0,
+        );
+      }
+      continue;
+    }
+
+    for (const question of record.assessment.questions) {
+      const questionValues: CsvRow = [
+        question.sortOrder + 1,
+        question.id,
+        question.code || "",
+        question.prompt,
+        question.questionType,
+      ];
+      total += estimateCsvRowBytes(
+        [...baseRow, ...questionValues],
+        input.headers.length,
+      );
+      total += maximumLongOptionBytes(question);
+      // `answerValue` is an Int column. Reserve enough space even for legacy
+      // values outside the current response-scale validation range.
+      total += 16;
+    }
+  }
+
+  return total + input.escapedAnswerTextBytes;
+}
+
+function boundedBigInt(value: bigint | number | null | undefined) {
+  if (typeof value === "number") {
+    return Number.isSafeInteger(value) && value > 0 ? value : 0;
+  }
+  if (!value || value <= BigInt(0)) return 0;
+  const maximum = BigInt(Number.MAX_SAFE_INTEGER);
+  return value > maximum ? Number.MAX_SAFE_INTEGER : Number(value);
+}
+
+async function estimateAnswerTextBytes(records: ExportRecord[]) {
+  const userIdsByAssessment = new Map<string, Set<string>>();
+  for (const record of records) {
+    const userIds = userIdsByAssessment.get(record.assessment.id) || new Set<string>();
+    userIds.add(record.participant.userId);
+    userIdsByAssessment.set(record.assessment.id, userIds);
+  }
+
+  const estimates = await Promise.all(
+    Array.from(userIdsByAssessment, async ([assessmentId, userIdSet]) => {
+      const userIds = Array.from(userIdSet);
+      if (userIds.length === 0) return 0;
+      const rows = await db.$queryRaw<
+        Array<{
+          rawUtf8Bytes: bigint;
+          quoteCharacters: bigint;
+          values: bigint;
+        }>
+      >(Prisma.sql`
+        SELECT
+          COALESCE(SUM(octet_length(answer."textValue")), 0)::bigint AS "rawUtf8Bytes",
+          COALESCE(
+            SUM(
+              length(answer."textValue") -
+              length(replace(answer."textValue", '"', ''))
+            ),
+            0
+          )::bigint AS "quoteCharacters",
+          COUNT(*)::bigint AS "values"
+        FROM "Answer" answer
+        INNER JOIN "QuizSession" session ON session."id" = answer."sessionId"
+        WHERE session."assessmentId" = ${assessmentId}
+          AND session."userId" IN (${Prisma.join(userIds)})
+          AND answer."textValue" IS NOT NULL
+      `);
+      const row = rows[0];
+      return estimateAggregatedCsvTextBytes({
+        rawUtf8Bytes: boundedBigInt(row?.rawUtf8Bytes),
+        quoteCharacters: boundedBigInt(row?.quoteCharacters),
+        values: boundedBigInt(row?.values),
+      });
+    }),
+  );
+
+  return estimates.reduce(
+    (total, estimate) => Math.min(Number.MAX_SAFE_INTEGER, total + estimate),
+    0,
+  );
+}
+
+async function hydrateExportAnswers(records: ExportRecord[]) {
+  const recordsByAssessment = new Map<string, Map<string, ExportRecord>>();
+  for (const record of records) {
+    const assessmentRecords =
+      recordsByAssessment.get(record.assessment.id) || new Map<string, ExportRecord>();
+    assessmentRecords.set(record.participant.userId, record);
+    recordsByAssessment.set(record.assessment.id, assessmentRecords);
+  }
+
+  await Promise.all(
+    Array.from(recordsByAssessment, async ([assessmentId, recordByUserId]) => {
+      const answers = await db.answer.findMany({
+        where: {
+          session: {
+            assessmentId,
+            userId: { in: Array.from(recordByUserId.keys()) },
+          },
+        },
+        select: {
+          questionId: true,
+          optionId: true,
+          value: true,
+          textValue: true,
+          session: { select: { userId: true } },
+        },
+      });
+
+      for (const answer of answers) {
+        recordByUserId
+          .get(answer.session.userId)
+          ?.answerByQuestionId.set(answer.questionId, answer);
+      }
+    }),
+  );
+}
+
 export async function POST(req: NextRequest) {
   const check = await requireAdmin();
   if ("error" in check) return check.error;
@@ -372,6 +541,13 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const assessmentLimitError = getAssessmentExportLimitError({
+    assessments: assessmentIds.length,
+  });
+  if (assessmentLimitError) {
+    return NextResponse.json({ error: assessmentLimitError }, { status: 413 });
+  }
+
   if (!include.participant && !include.attempt && !include.report && !include.answers) {
     return NextResponse.json(
       { error: "Select at least one export field group." },
@@ -380,43 +556,54 @@ export async function POST(req: NextRequest) {
   }
 
   const assessmentOrder = new Map(assessmentIds.map((id, index) => [id, index]));
-  const assessments = await db.assessment.findMany({
-    where: {
-      id: { in: assessmentIds },
-    },
-    select: {
-      id: true,
-      title: true,
-      isPublished: true,
-      policy: {
-        select: {
-          reportWorkflow: true,
-        },
+  const assessmentBaseSelect = {
+    id: true,
+    title: true,
+    isPublished: true,
+    policy: {
+      select: {
+        reportWorkflow: true,
+        showResultsToEmployee: true,
+        resultReleaseDelayHours: true,
       },
-      questions: {
-        orderBy: {
-          sortOrder: "asc",
-        },
-        select: {
-          id: true,
-          code: true,
-          prompt: true,
-          questionType: true,
-          sortOrder: true,
-          options: {
-            orderBy: {
-              displayOrder: "asc",
-            },
-            select: {
-              id: true,
-              code: true,
-              text: true,
+    },
+  } as const;
+  let assessments: AssessmentWithQuestions[];
+  if (include.answers) {
+    assessments = await db.assessment.findMany({
+      where: { id: { in: assessmentIds } },
+      select: {
+        ...assessmentBaseSelect,
+        questions: {
+          orderBy: { sortOrder: "asc" },
+          select: {
+            id: true,
+            code: true,
+            prompt: true,
+            questionType: true,
+            sortOrder: true,
+            options: {
+              orderBy: { displayOrder: "asc" },
+              select: {
+                id: true,
+                code: true,
+                text: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
+  } else {
+    const assessmentRows = await db.assessment.findMany({
+      where: { id: { in: assessmentIds } },
+      select: assessmentBaseSelect,
+    });
+    assessments = assessmentRows.map((assessment) => ({
+      ...assessment,
+      questions: [],
+    }));
+  }
 
   const orderedAssessments = assessments.sort(
     (a, b) => (assessmentOrder.get(a.id) ?? 0) - (assessmentOrder.get(b.id) ?? 0),
@@ -426,9 +613,89 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No matching assessments found." }, { status: 404 });
   }
 
+  if (include.answers) {
+    const questionLimitError = getAssessmentExportLimitError({
+      questions: orderedAssessments.reduce(
+        (total, assessment) => total + assessment.questions.length,
+        0,
+      ),
+    });
+    if (questionLimitError) {
+      return NextResponse.json({ error: questionLimitError }, { status: 413 });
+    }
+  }
+
+  const participantsByAssessment: Awaited<
+    ReturnType<typeof listResolvedAssessmentUsers>
+  >[] = [];
+  let remainingParticipantBudget = ASSESSMENT_EXPORT_LIMITS.participants;
+
+  try {
+    for (const assessment of orderedAssessments) {
+      const participants = await listResolvedAssessmentUsers(assessment.id, undefined, {
+        hardLimit: remainingParticipantBudget,
+      });
+      participantsByAssessment.push(participants);
+      remainingParticipantBudget -= participants.length;
+    }
+  } catch (error) {
+    if (error instanceof ResolvedAssessmentUsersLimitError) {
+      return NextResponse.json(
+        {
+          error: `Export no more than ${ASSESSMENT_EXPORT_LIMITS.participants.toLocaleString("en-US")} participant-assessment records at once. Narrow the assessment selection and try again.`,
+        },
+        { status: 413 },
+      );
+    }
+    throw error;
+  }
+
+  const participantLimitError = getAssessmentExportLimitError({
+    participants: participantsByAssessment.reduce(
+      (total, participants) => total + participants.length,
+      0,
+    ),
+  });
+  if (participantLimitError) {
+    return NextResponse.json({ error: participantLimitError }, { status: 413 });
+  }
+
+  const baseHeaderCount = buildBaseHeaders(include).length;
+  const totalParticipants = participantsByAssessment.reduce(
+    (total, participants) => total + participants.length,
+    0,
+  );
+  const totalQuestions = orderedAssessments.reduce(
+    (total, assessment) => total + assessment.questions.length,
+    0,
+  );
+  const projectedRowsBeforeHydration =
+    include.answers && layout === "LONG"
+      ? orderedAssessments.reduce(
+          (total, assessment, assessmentIndex) =>
+            total +
+            participantsByAssessment[assessmentIndex].length *
+              assessment.questions.length,
+          0,
+        )
+      : totalParticipants;
+  const projectedColumnsBeforeHydration =
+    include.answers && layout === "WIDE"
+      ? baseHeaderCount + totalQuestions
+      : include.answers && layout === "LONG"
+        ? baseHeaderCount + 9
+        : baseHeaderCount;
+  const allocationLimitError = getAssessmentExportLimitError({
+    rows: projectedRowsBeforeHydration,
+    cells: projectedRowsBeforeHydration * projectedColumnsBeforeHydration,
+  });
+  if (allocationLimitError) {
+    return NextResponse.json({ error: allocationLimitError }, { status: 413 });
+  }
+
   const participantSnapshots = await Promise.all(
-    orderedAssessments.map(async (assessment) => {
-      const participants = await listResolvedAssessmentUsers(assessment.id);
+    orderedAssessments.map(async (assessment, assessmentIndex) => {
+      const participants = participantsByAssessment[assessmentIndex];
       const userIds = participants.map((participant) => participant.userId);
 
       const [sessions, reports] = await Promise.all([
@@ -443,14 +710,6 @@ export async function POST(req: NextRequest) {
                 status: true,
                 startedAt: true,
                 submittedAt: true,
-                answers: {
-                  select: {
-                    questionId: true,
-                    optionId: true,
-                    value: true,
-                    textValue: true,
-                  },
-                },
               },
             })
           : Promise.resolve([]),
@@ -500,7 +759,19 @@ export async function POST(req: NextRequest) {
       const session = sessionByUserId.get(participant.userId) || null;
       const report = reportByUserId.get(participant.userId) || null;
       const attemptStatus = session?.status || "NOT_STARTED";
-      const reportStatus = resolveReportStatus({ session, report, now });
+      const reportStatus = resolveAssessmentExportReportStatus({
+        session,
+        report,
+        now,
+        policy: {
+          reportWorkflow:
+            snapshot.assessment.policy?.reportWorkflow || "AI_STANDARD",
+          showResultsToEmployee:
+            snapshot.assessment.policy?.showResultsToEmployee ?? true,
+          resultReleaseDelayHours:
+            snapshot.assessment.policy?.resultReleaseDelayHours || 0,
+        },
+      });
 
       if (!matchesAttemptStatus(attemptStatus, attemptStatusFilter)) continue;
       if (!matchesReportStatus(reportStatus, reportStatusFilter)) continue;
@@ -518,9 +789,7 @@ export async function POST(req: NextRequest) {
         tenant: tenantById.get(participant.tenantId) || null,
         session,
         report,
-        answerByQuestionId: new Map(
-          (session?.answers || []).map((answer) => [answer.questionId, answer]),
-        ),
+        answerByQuestionId: new Map(),
         attemptStatus,
         reportStatus,
       });
@@ -531,28 +800,27 @@ export async function POST(req: NextRequest) {
   let headers = [...baseHeaders];
   const rows: CsvRow[] = [];
 
+  const projectedRows =
+    include.answers && layout === "LONG"
+      ? records.reduce((total, record) => total + record.assessment.questions.length, 0)
+      : records.length;
+  const rowLimitError = getAssessmentExportLimitError({ rows: projectedRows });
+  if (rowLimitError) {
+    return NextResponse.json({ error: rowLimitError }, { status: 413 });
+  }
+
+  const questionColumns =
+    include.answers && layout === "WIDE"
+      ? orderedAssessments.flatMap((assessment) =>
+          assessment.questions.map((question) => ({
+            assessmentId: assessment.id,
+            header: buildQuestionHeader(assessment, question),
+            question,
+          })),
+        )
+      : [];
   if (include.answers && layout === "WIDE") {
-    const questionColumns = orderedAssessments.flatMap((assessment) =>
-      assessment.questions.map((question) => ({
-        assessmentId: assessment.id,
-        header: buildQuestionHeader(assessment, question),
-        question,
-      })),
-    );
-
     headers = [...headers, ...questionColumns.map((column) => column.header)];
-
-    for (const record of records) {
-      const row = buildBaseRow(record, include);
-      for (const column of questionColumns) {
-        if (column.assessmentId !== record.assessment.id) {
-          row.push("");
-          continue;
-        }
-        row.push(formatAnswerValue(column.question, record.answerByQuestionId.get(column.question.id)));
-      }
-      rows.push(row);
-    }
   } else if (include.answers && layout === "LONG") {
     headers = [
       ...headers,
@@ -566,7 +834,49 @@ export async function POST(req: NextRequest) {
       "answerValue",
       "answerText",
     ];
+  }
 
+  const escapedAnswerTextBytes = include.answers
+    ? await estimateAnswerTextBytes(records)
+    : 0;
+  const estimatedResponseBytes = estimateExportResponseBytes({
+    headers,
+    records,
+    include,
+    layout,
+    escapedAnswerTextBytes,
+  });
+  const estimatedResponseLimitError = getAssessmentExportLimitError({
+    responseBytes: estimatedResponseBytes,
+  });
+  if (estimatedResponseLimitError) {
+    return NextResponse.json(
+      {
+        error: estimatedResponseLimitError,
+        estimatedResponseBytes,
+      },
+      { status: 413 },
+    );
+  }
+
+  if (include.answers) {
+    await hydrateExportAnswers(records);
+  }
+
+  if (include.answers && layout === "WIDE") {
+
+    for (const record of records) {
+      const row = buildBaseRow(record, include);
+      for (const column of questionColumns) {
+        if (column.assessmentId !== record.assessment.id) {
+          row.push("");
+          continue;
+        }
+        row.push(formatAnswerValue(column.question, record.answerByQuestionId.get(column.question.id)));
+      }
+      rows.push(row);
+    }
+  } else if (include.answers && layout === "LONG") {
     for (const record of records) {
       for (const question of record.assessment.questions) {
         const answer = record.answerByQuestionId.get(question.id);
@@ -595,6 +905,12 @@ export async function POST(req: NextRequest) {
   }
 
   const csv = buildCsv(headers, rows);
+  const responseLimitError = getAssessmentExportLimitError({
+    responseBytes: Buffer.byteLength(csv, "utf8"),
+  });
+  if (responseLimitError) {
+    return NextResponse.json({ error: responseLimitError }, { status: 413 });
+  }
 
   return new NextResponse(csv, {
     headers: {

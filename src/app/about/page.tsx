@@ -5,6 +5,14 @@ import {
   TextLink,
 } from "@/components/marketing/Editorial";
 import HexDial from "@/components/marketing/HexDial";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "About",
+  description:
+    "Meet OLQ Lab and explore a leadership-development practice shaped by behavioral science, operating experience, and candid coaching.",
+  path: "/about",
+});
 
 const disciplines = [
   {

@@ -11,6 +11,14 @@ import {
 } from "@/components/marketing/Editorial";
 import Magnetic from "@/components/effects/Magnetic";
 import RotatingBadge from "@/components/marketing/RotatingBadge";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Leadership begins within",
+  description:
+    "Leadership assessments, blindspot work, and coaching that turn behavioral insight into practical growth.",
+  path: "/",
+});
 
 const dimensionsRich = [
   {
@@ -221,12 +229,11 @@ export default function HomePage() {
           <div className="md:order-1">
             <div className="reveal-on-scroll relative aspect-[4/5] w-full overflow-hidden bg-[#101114]/5">
               <Image
-                src="/pratap-pawar.png"
+                src="/pratap-pawar.jpg"
                 alt="Commander (Dr.) Pratap Pawar"
                 fill
                 sizes="(min-width: 768px) 40vw, 100vw"
                 className="editorial-image object-cover"
-                priority
               />
             </div>
             <div className="mt-5 flex items-center">

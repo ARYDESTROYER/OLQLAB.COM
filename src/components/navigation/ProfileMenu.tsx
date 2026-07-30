@@ -3,14 +3,16 @@
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
-
-type Role = "ADMIN" | "EMPLOYEE" | "LEADER";
+import {
+  hasParticipantWorkspaceAccess,
+  type WorkspaceRole,
+} from "@/lib/workspace-navigation";
 
 export default function ProfileMenu({
   role,
   email,
 }: {
-  role: Role;
+  role: WorkspaceRole;
   email?: string | null;
 }) {
   const [open, setOpen] = useState(false);
@@ -59,20 +61,33 @@ export default function ProfileMenu({
             >
               Dashboard
             </Link>
-            <Link
-              href="/assessment/current"
-              className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-              onClick={() => setOpen(false)}
-            >
-              Assessment Center
-            </Link>
-            <Link
-              href="/reports/current"
-              className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
-              onClick={() => setOpen(false)}
-            >
-              My Reports
-            </Link>
+            {hasParticipantWorkspaceAccess(role) && (
+              <>
+                <Link
+                  href="/assessment/current"
+                  className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                  onClick={() => setOpen(false)}
+                >
+                  Assessment Center
+                </Link>
+                <Link
+                  href="/reports/current"
+                  className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                  onClick={() => setOpen(false)}
+                >
+                  My Reports
+                </Link>
+              </>
+            )}
+            {role === "LEADER" && (
+              <Link
+                href="/reports/team"
+                className="rounded-lg px-3 py-2 text-sm text-slate-700 transition hover:bg-slate-100"
+                onClick={() => setOpen(false)}
+              >
+                Team Reports
+              </Link>
+            )}
             {role === "ADMIN" && (
               <Link
                 href="/admin"

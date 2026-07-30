@@ -1,6 +1,14 @@
 import { MarketingChrome } from "@/components/marketing/MarketingChrome";
 import { Eyebrow, PrimaryCTA, TextLink } from "@/components/marketing/Editorial";
 import CprTriangle from "@/components/marketing/CprTriangle";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "CPR leadership framework",
+  description:
+    "Explore OLQ Lab's Cognitive, Personality, and Response framework for understanding leadership behavior and growth.",
+  path: "/framework",
+});
 
 const dimensions = [
   {

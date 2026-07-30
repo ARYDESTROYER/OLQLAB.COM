@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 
 /**
  * Custom cursor: a small dot that follows the pointer exactly + a larger ring
@@ -11,11 +12,13 @@ import { useEffect, useRef } from "react";
  * native cursor.
  */
 export default function CustomCursor() {
+  const pathname = usePathname();
   const dotRef = useRef<HTMLDivElement>(null);
   const ringRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (/^\/(?:dashboard|admin|assessment|reports)(?:\/|$)/.test(pathname)) return;
     const fine = window.matchMedia("(pointer: fine)").matches;
     const motionOk = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!fine || !motionOk) return;
@@ -99,7 +102,7 @@ export default function CustomCursor() {
       document.documentElement.removeEventListener("mouseenter", handleEnter);
       document.documentElement.classList.remove("cursor-active");
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <>

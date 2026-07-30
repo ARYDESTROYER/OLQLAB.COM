@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
 import { db } from "@/lib/db";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 
@@ -90,19 +91,40 @@ export async function PATCH(
   if ("error" in check) return check.error;
 
   const { id } = await params;
-  const body = (await req.json().catch(() => null)) as
-    | {
-        title?: string;
-        ownerTenantId?: string | null;
-      }
-    | null;
+  const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
 
-  if (!body) {
+  if (!body || Array.isArray(body)) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const title = body.title?.trim();
-  const ownerTenantId = body.ownerTenantId?.trim() || null;
+  const hasTitle = Object.prototype.hasOwnProperty.call(body, "title");
+  const hasOwnerTenantId = Object.prototype.hasOwnProperty.call(body, "ownerTenantId");
+  if (!hasTitle && !hasOwnerTenantId) {
+    return NextResponse.json({ error: "No assessment changes were supplied." }, { status: 400 });
+  }
+
+  if (hasTitle && (typeof body.title !== "string" || !body.title.trim())) {
+    return NextResponse.json({ error: "Assessment title is required." }, { status: 400 });
+  }
+  if (
+    hasOwnerTenantId &&
+    body.ownerTenantId !== null &&
+    typeof body.ownerTenantId !== "string"
+  ) {
+    return NextResponse.json({ error: "Invalid owner organisation." }, { status: 400 });
+  }
+
+  const title = hasTitle ? (body.title as string).trim() : undefined;
+  const ownerTenantId = hasOwnerTenantId
+    ? typeof body.ownerTenantId === "string"
+      ? body.ownerTenantId.trim() || null
+      : null
+    : undefined;
+
+  const exists = await db.assessment.findUnique({ where: { id }, select: { id: true } });
+  if (!exists) {
+    return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
+  }
 
   if (ownerTenantId) {
     const tenant = await db.tenant.findUnique({ where: { id: ownerTenantId } });
@@ -113,60 +135,95 @@ export async function PATCH(
 
   let updated;
   try {
-    updated = await db.assessment.update({
-      where: { id },
-      data: {
-        ...(title ? { title } : {}),
-        ownerTenantId,
-        tenantId: ownerTenantId,
-      },
-      include: {
-        ownerTenant: {
-          select: {
-            id: true,
-            name: true,
+    updated = await db.$transaction(async (tx) => {
+      const result = await tx.assessment.update({
+        where: { id },
+        data: {
+          ...(title ? { title } : {}),
+          ...(hasOwnerTenantId ? { ownerTenantId, tenantId: ownerTenantId } : {}),
+        },
+        include: {
+          ownerTenant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          policy: true,
+          _count: {
+            select: {
+              sections: true,
+              questions: true,
+              sessions: true,
+            },
           },
         },
-        policy: true,
-        _count: {
-          select: {
-            sections: true,
-            questions: true,
-            sessions: true,
+      });
+      await recordAuditLog(
+        {
+          tenantId: check.liveUser.tenantId,
+          actorId: check.liveUser.id,
+          action: "ASSESSMENT_UPDATED",
+          metadata: {
+            assessmentId: id,
+            changedFields: [
+              ...(hasTitle ? ["title"] : []),
+              ...(hasOwnerTenantId ? ["ownerTenantId"] : []),
+            ],
           },
         },
-      },
+        tx,
+      );
+      return result;
     });
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;
-    updated = await db.assessment.update({
-      where: { id },
-      data: {
-        ...(title ? { title } : {}),
-        tenantId: ownerTenantId || undefined,
-      },
-      include: {
-        tenant: {
-          select: {
-            id: true,
-            name: true,
+    updated = await db.$transaction(async (tx) => {
+      const legacyUpdated = await tx.assessment.update({
+        where: { id },
+        data: {
+          ...(title ? { title } : {}),
+          ...(hasOwnerTenantId && ownerTenantId ? { tenantId: ownerTenantId } : {}),
+        },
+        include: {
+          tenant: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          policy: true,
+          _count: {
+            select: {
+              sections: true,
+              questions: true,
+              sessions: true,
+            },
           },
         },
-        policy: true,
-        _count: {
-          select: {
-            sections: true,
-            questions: true,
-            sessions: true,
+      });
+      await recordAuditLog(
+        {
+          tenantId: check.liveUser.tenantId,
+          actorId: check.liveUser.id,
+          action: "ASSESSMENT_UPDATED",
+          metadata: {
+            assessmentId: id,
+            changedFields: [
+              ...(hasTitle ? ["title"] : []),
+              ...(hasOwnerTenantId && ownerTenantId ? ["ownerTenantId"] : []),
+            ],
+            compatibilityMode: true,
           },
         },
-      },
+        tx,
+      );
+      return {
+        ...legacyUpdated,
+        ownerTenant: legacyUpdated.tenant || null,
+        ownerTenantId: legacyUpdated.tenantId,
+      };
     });
-    updated = {
-      ...updated,
-      ownerTenant: updated.tenant || null,
-      ownerTenantId: updated.tenantId,
-    };
   }
 
   return NextResponse.json(updated);
@@ -181,9 +238,47 @@ export async function DELETE(
 
   const { id } = await params;
 
-  await db.assessment.delete({
-    where: { id },
-  });
+  const result = await db.$transaction(
+    async (tx) => {
+      const assessment = await tx.assessment.findUnique({
+        where: { id },
+        select: { id: true, title: true },
+      });
+      if (!assessment) return { status: "NOT_FOUND" as const };
+
+      const attempt = await tx.quizSession.findFirst({
+        where: { assessmentId: id },
+        select: { id: true },
+      });
+      if (attempt) return { status: "HAS_HISTORY" as const };
+
+      await tx.assessment.delete({ where: { id } });
+      await recordAuditLog(
+        {
+          tenantId: check.liveUser.tenantId,
+          actorId: check.liveUser.id,
+          action: "ASSESSMENT_DELETED",
+          metadata: { assessmentId: id, title: assessment.title },
+        },
+        tx,
+      );
+      return { status: "DELETED" as const };
+    },
+    { isolationLevel: "Serializable" },
+  );
+
+  if (result.status === "NOT_FOUND") {
+    return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
+  }
+  if (result.status === "HAS_HISTORY") {
+    return NextResponse.json(
+      {
+        error:
+          "This assessment has attempt history and cannot be deleted. Unpublish it instead to preserve historical responses and reports.",
+      },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,

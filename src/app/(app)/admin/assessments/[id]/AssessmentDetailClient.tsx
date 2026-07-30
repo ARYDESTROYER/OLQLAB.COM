@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/admin/Toast";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { buildAssessmentCsvTemplate } from "@/lib/assessment-question-csv";
 
 const QUESTION_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
@@ -463,6 +464,25 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [previewBusy, setPreviewBusy] = useState(false);
   const [uploadingQuestionId, setUploadingQuestionId] = useState<string | null>(null);
   const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: "danger" | "default";
+    action: () => Promise<void>;
+  } | null>(null);
+
+  async function runConfirmedAction() {
+    if (!confirmation) return;
+    setConfirmBusy(true);
+    try {
+      await confirmation.action();
+      setConfirmation(null);
+    } finally {
+      setConfirmBusy(false);
+    }
+  }
 
   const filteredParticipants = useMemo(
     () =>
@@ -758,9 +778,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     }
   }
 
-  async function removeQuestion(questionId: string) {
-    if (!window.confirm("Delete this question? This cannot be undone.")) return;
-
+  async function executeRemoveQuestion(questionId: string) {
     setBusy(true);
     try {
       const res = await fetch(
@@ -777,6 +795,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     } finally {
       setBusy(false);
     }
+  }
+
+  function removeQuestion(questionId: string) {
+    setConfirmation({
+      title: "Delete question?",
+      message:
+        "This permanently deletes the question. Assessments with attempt history will reject the operation to preserve evidence.",
+      confirmLabel: "Delete question",
+      variant: "danger",
+      action: () => executeRemoveQuestion(questionId),
+    });
   }
 
   function updateQuestion(questionId: string, patch: Partial<QuestionRow>) {
@@ -1025,14 +1054,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     }
   }
 
-  async function removeQuestionImage(question: QuestionRow) {
+  async function executeRemoveQuestionImage(question: QuestionRow) {
     if (!question.imageUrl) {
       toast("No image is attached to this question.", "error");
       return;
     }
-
-    const confirmed = window.confirm("Remove this question image?");
-    if (!confirmed) return;
 
     setUploadingQuestionId(question.id);
     try {
@@ -1059,6 +1085,20 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       setUploadingQuestionId(null);
       setDragOverQuestionId((current) => (current === question.id ? null : current));
     }
+  }
+
+  function removeQuestionImage(question: QuestionRow) {
+    if (!question.imageUrl) {
+      toast("No image is attached to this question.", "error");
+      return;
+    }
+    setConfirmation({
+      title: "Remove question image?",
+      message: "The image will no longer appear in the participant assessment.",
+      confirmLabel: "Remove image",
+      variant: "danger",
+      action: () => executeRemoveQuestionImage(question),
+    });
   }
 
   function downloadCsvTemplate() {
@@ -1250,7 +1290,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       }
 
       router.push(
-        `/assessment/session/${(data as { sessionId: string }).sessionId}?preview=1&returnTo=${encodeURIComponent(
+        `/assessment/session/${(data as { sessionId: string }).sessionId}?returnTo=${encodeURIComponent(
           `/admin/assessments/${assessmentId}`,
         )}`,
       );
@@ -1264,10 +1304,16 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       toast("No report exists yet for this participant.", "error");
       return;
     }
+    if (file.size > 4 * 1024 * 1024) {
+      toast("PDF exceeds the 4 MB upload limit.", "error");
+      return;
+    }
+    if (file.type && file.type !== "application/pdf") {
+      toast("Select a PDF file.", "error");
+      return;
+    }
 
-    const notifyNow = window.confirm(
-      "Upload successful report PDF. Notify participant immediately by email link?",
-    );
+    const notifyNow = false;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -1285,7 +1331,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       );
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast(notifyNow ? "PDF uploaded and user notified." : "PDF uploaded. Notification deferred.", "success");
+        toast(
+          notifyNow
+            ? "PDF uploaded and user notified."
+            : "PDF uploaded as a draft. Publish or notify when it is ready.",
+          "success",
+        );
       } else {
         toast((data as { error?: string }).error || "Failed to upload PDF.", "error");
       }
@@ -1304,7 +1355,25 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       | "UNPUBLISH"
       | "NOTIFY_USER"
       | "REMOVE_PDF",
+    confirmed = false,
   ) {
+    if (action !== "NOTIFY_USER" && !confirmed) {
+      const copy = {
+        REGENERATE: ["Regenerate report?", "The current report is archived, then replaced from stored assessment responses.", "Regenerate"],
+        RETEST_NOW: ["Allow retest now?", "This changes the participant's retest eligibility immediately.", "Allow retest"],
+        RESET: ["Reset participant attempt?", "The current attempt, responses, scores, report, and PDF are archived before the live attempt is cleared.", "Reset attempt"],
+        UNPUBLISH: ["Unpublish report?", "The participant and shared links will lose access until it is published again.", "Unpublish"],
+        REMOVE_PDF: ["Remove uploaded PDF?", "The current PDF is archived, removed, and the report returns to draft.", "Remove PDF"],
+      }[action];
+      setConfirmation({
+        title: copy[0],
+        message: copy[1],
+        confirmLabel: copy[2],
+        variant: action === "RETEST_NOW" ? "default" : "danger",
+        action: () => participantAction(participant, action, true),
+      });
+      return;
+    }
     setBusy(true);
     try {
       let res: Response;
@@ -1354,11 +1423,6 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           toast("No uploaded PDF to remove.", "error");
           return;
         }
-
-        const confirmed = window.confirm(
-          "Remove uploaded PDF and move this report back to draft?",
-        );
-        if (!confirmed) return;
 
         res = await fetch(`/api/admin/reports/${participant.reportId}/manual-pdf`, {
           method: "DELETE",
@@ -1588,7 +1652,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               />
               <input
                 className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-                placeholder="Image URL or /public path (optional)"
+                placeholder="Managed Blob URL or /question-images/ path (optional)"
                 value={questionForm.imageUrl}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
               />
@@ -1932,7 +1996,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         </div>
                         <input
                           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                          placeholder="Image URL or /public path"
+                          placeholder="Managed Blob URL or /question-images/ path"
                           value={question.imageUrl || ""}
                           onChange={(e) => updateQuestion(question.id, { imageUrl: e.target.value })}
                         />
@@ -2017,6 +2081,8 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             <img
                               src={question.imageUrl}
                               alt={question.imageAlt || "Question image preview"}
+                              crossOrigin={question.imageUrl.startsWith("https://") ? "anonymous" : undefined}
+                              referrerPolicy="no-referrer"
                               className="max-h-56 w-full object-contain bg-slate-50"
                             />
                           </div>
@@ -2725,6 +2791,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             >
                               Upload PDF
                             </button>
+                            <span className="self-center text-[10px] text-slate-500">Max 4 MB</span>
                             <button
                               className="rounded-lg border border-teal-300 bg-teal-50 px-2.5 py-1 text-[11px]"
                               onClick={() => participantAction(participant, "NOTIFY_USER")}
@@ -2994,6 +3061,16 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       )}
 
       {/* Output section removed — using toast notifications instead */}
+      <ConfirmDialog
+        open={confirmation !== null}
+        title={confirmation?.title || "Confirm action"}
+        message={confirmation?.message || "Confirm this action."}
+        confirmLabel={confirmation?.confirmLabel}
+        variant={confirmation?.variant}
+        busy={confirmBusy}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={() => void runConfirmedAction()}
+      />
     </div>
   );
 }

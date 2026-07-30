@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { getServerAuthSession } from "@/lib/auth";
+import { getLiveSession } from "@/lib/api-auth";
 import { validateVerificationCallbackUrl } from "@/lib/magic-link-continue";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
@@ -16,14 +15,13 @@ function getSingleParam(value: string | string[] | undefined) {
 }
 
 export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInPageProps) {
-  const session = await getServerAuthSession();
-  if (session?.user) {
+  const check = await getLiveSession();
+  if (check) {
     redirect("/dashboard");
   }
 
   const params = await searchParams;
   const rawTokenUrl = getSingleParam(params.tokenUrl);
-  const rawEmail = getSingleParam(params.email).toLowerCase().trim();
   const validated = validateVerificationCallbackUrl(rawTokenUrl);
 
   if (!validated) {
@@ -60,17 +58,6 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
     );
   }
 
-  const lookupEmail = rawEmail || validated.email;
-  const user = await db.user.findUnique({
-    where: { email: lookupEmail },
-    select: {
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "there";
-
   return (
     <main className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
       <PublicHeader />
@@ -80,7 +67,7 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
           <div className="reveal">
             <Eyebrow>One last step</Eyebrow>
             <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,7vw,5.5rem)] leading-[0.96] tracking-[-0.03em]">
-              Welcome back, {fullName}<span className="brass-period">.</span>
+              Welcome back<span className="brass-period">.</span>
             </h1>
             <p className="mt-8 max-w-md text-base leading-relaxed text-[#101114]/72 md:text-lg">
               Click continue below to complete your secure sign-in.

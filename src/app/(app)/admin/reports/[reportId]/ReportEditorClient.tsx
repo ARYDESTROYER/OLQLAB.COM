@@ -1,468 +1,407 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
 import Placeholder from "@tiptap/extension-placeholder";
 import { buildReportHtmlTemplate } from "@/lib/report-format";
-
-function resolveEditableHtml(narrative: Record<string, unknown>) {
-    const adminEditedHtml = narrative.adminEditedHtml;
-    if (typeof adminEditedHtml === "string" && adminEditedHtml.trim()) {
-        return adminEditedHtml;
-    }
-
-    const aiNarrative = narrative.aiNarrative;
-    if (typeof aiNarrative === "string" && aiNarrative.trim()) {
-        return aiNarrative;
-    }
-
-    if (aiNarrative && typeof aiNarrative === "object") {
-        const ai = aiNarrative as {
-            executiveSummary?: string;
-            strengthsNarrative?: string;
-            developmentNarrative?: string;
-            managerCoaching?: string;
-            improvementRoadmap?: string[];
-            cautionNotes?: string[];
-        };
-
-        const blocks: string[] = [];
-        if (ai.executiveSummary) blocks.push(`<p>${ai.executiveSummary}</p>`);
-        if (ai.strengthsNarrative) blocks.push(`<p>${ai.strengthsNarrative}</p>`);
-        if (ai.developmentNarrative) blocks.push(`<p>${ai.developmentNarrative}</p>`);
-        if (ai.managerCoaching) blocks.push(`<p>${ai.managerCoaching}</p>`);
-        if (Array.isArray(ai.improvementRoadmap) && ai.improvementRoadmap.length) {
-            blocks.push(`<h3>Improvement Roadmap</h3><ul>${ai.improvementRoadmap.map((item) => `<li>${item}</li>`).join("")}</ul>`);
-        }
-        if (Array.isArray(ai.cautionNotes) && ai.cautionNotes.length) {
-            blocks.push(`<h3>Caution Notes</h3><ul>${ai.cautionNotes.map((item) => `<li>${item}</li>`).join("")}</ul>`);
-        }
-
-        if (blocks.length) {
-            return blocks.join("");
-        }
-    }
-
-    const summary = narrative.summary;
-    if (typeof summary === "string" && summary.trim()) {
-        return `<p>${summary}</p>`;
-    }
-
-    return buildReportHtmlTemplate(narrative, {
-        assessmentTitle: typeof narrative.assessmentTitle === "string" ? narrative.assessmentTitle : "Wissen Leadership Assessment",
-        participantName: typeof narrative.participantName === "string" ? narrative.participantName : "Participant",
-    });
-}
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
 type ReportEditorClientProps = {
-    report: {
-        id: string;
-        narrativeJson: string;
-        status: string;
-        availableAt: Date | null;
-        user: {
-            firstName: string | null;
-            lastName: string | null;
-            email: string | null;
-        };
-        assessment: {
-            title: string;
-        };
+  report: {
+    id: string;
+    narrativeJson: string;
+    status: string;
+    availableAt: Date | null;
+    deliveryMethod?: "DASHBOARD_ONLY" | "EMAIL_LINK" | null;
+    user: {
+      firstName: string | null;
+      lastName: string | null;
+      email: string | null;
     };
+    assessment: { title: string };
+  };
 };
 
+function parseNarrative(value: string) {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function hasLegacyTemplate(value: string) {
+  return /TALENT\s*(?:<br\s*\/?>|\s)+VANTAGE|data-report-template=["'](?:talent-vantage|wissen-v1)["']/i.test(
+    value,
+  );
+}
+
 export default function ReportEditorClient({ report }: ReportEditorClientProps) {
-    const router = useRouter();
-
-    const [saving, setSaving] = useState(false);
-    const [sending, setSending] = useState(false);
-    const [unpublishing, setUnpublishing] = useState(false);
-    const [editMode, setEditMode] = useState<"RICH" | "JSON" | "PREVIEW">("RICH");
-    const [deliveryMethod, setDeliveryMethod] = useState<"DASHBOARD_ONLY" | "EMAIL_LINK">("DASHBOARD_ONLY");
-
-    let parsedNarrative: Record<string, unknown>;
-    try {
-        parsedNarrative = JSON.parse(report.narrativeJson) as Record<string, unknown>;
-    } catch (e) {
-        parsedNarrative = {};
+  const router = useRouter();
+  const participantName =
+    `${report.user.firstName || ""} ${report.user.lastName || ""}`.trim() || "Participant";
+  const sourceNarrative = useMemo(
+    () => parseNarrative(report.narrativeJson),
+    [report.narrativeJson],
+  );
+  const initialHtml = useMemo(() => {
+    const edited = sourceNarrative.adminEditedHtml;
+    if (typeof edited === "string" && edited.trim() && !hasLegacyTemplate(edited)) {
+      return edited;
     }
-
-    const aiNarrativeHtml = resolveEditableHtml(parsedNarrative);
-    const [htmlContent, setHtmlContent] = useState(aiNarrativeHtml);
-    const [jsonContent, setJsonContent] = useState(() => JSON.stringify(parsedNarrative, null, 2));
-    const [status, setStatus] = useState(report.status);
-
-    const previewHtml = useMemo(() => {
-        if (editMode === "JSON") {
-            try {
-                const parsed = JSON.parse(jsonContent) as Record<string, unknown>;
-                const candidate = parsed.adminEditedHtml;
-                if (typeof candidate === "string" && candidate.trim()) return candidate;
-                return buildReportHtmlTemplate(parsed, {
-                    assessmentTitle: report.assessment.title,
-                    participantName: `${report.user.firstName || ""} ${report.user.lastName || ""}`.trim() || "Participant",
-                });
-            } catch {
-                return "<p>Preview unavailable: JSON is invalid.</p>";
-            }
-        }
-
-        return htmlContent;
-    }, [editMode, htmlContent, jsonContent, report.assessment.title, report.user.firstName, report.user.lastName]);
-
-    const parseJsonNarrative = () => {
-        try {
-            const parsed = JSON.parse(jsonContent) as Record<string, unknown>;
-            return parsed;
-        } catch {
-            throw new Error("Full report JSON is invalid. Please fix JSON formatting before saving/sending.");
-        }
-    };
-
-    const buildUpdatedNarrative = () => {
-        if (editMode === "JSON") {
-            return parseJsonNarrative();
-        }
-
-        const updatedNarrative: Record<string, unknown> = {
-            ...parsedNarrative,
-            adminEditedHtml: htmlContent,
-        };
-
-        if (
-            typeof parsedNarrative.aiNarrative === "string" ||
-            typeof parsedNarrative.aiNarrative === "undefined" ||
-            parsedNarrative.aiNarrative === null
-        ) {
-            updatedNarrative.aiNarrative = htmlContent;
-        }
-
-        return updatedNarrative;
-    };
-
-    const editor = useEditor({
-        extensions: [
-            StarterKit,
-            Underline,
-            Placeholder.configure({
-                placeholder: "Write the report content here...",
-            }),
-        ],
-        content: htmlContent,
-        onUpdate: ({ editor }) => {
-            setHtmlContent(editor.getHTML());
-        },
-        editorProps: {
-            attributes: {
-                class: "prose prose-sm sm:prose-base lg:prose-lg xl:prose-2xl m-5 focus:outline-none max-w-none min-h-[500px]",
-            },
-        },
+    return buildReportHtmlTemplate(sourceNarrative, {
+      assessmentTitle: report.assessment.title,
+      participantName,
     });
+  }, [participantName, report.assessment.title, sourceNarrative]);
 
-    const handleSaveProgress = async () => {
-        setSaving(true);
-        try {
-            const updatedNarrative = buildUpdatedNarrative();
-            const res = await fetch(`/api/admin/reports/${report.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ narrativeJson: JSON.stringify(updatedNarrative), status: "DRAFT" }),
-            });
-            if (!res.ok) throw new Error("Failed to save draft");
-            alert("Draft saved successfully!");
-            setStatus("DRAFT");
-            router.refresh();
-        } catch (e) {
-            alert("Error saving draft: " + String(e));
-        } finally {
-            setSaving(false);
-        }
+  const [status, setStatus] = useState(report.status);
+  const [deliveryMethod, setDeliveryMethod] = useState<"DASHBOARD_ONLY" | "EMAIL_LINK">(
+    report.deliveryMethod || "DASHBOARD_ONLY",
+  );
+  const [busyAction, setBusyAction] = useState<"SAVE" | "SEND" | "UNPUBLISH" | "">("");
+  const [preview, setPreview] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const [message, setMessage] = useState<{ kind: "SUCCESS" | "ERROR"; text: string } | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    "UNPUBLISH" | "PUBLISH" | "TEMPLATE" | "NAVIGATE" | null
+  >(null);
+  const [pendingNavigation, setPendingNavigation] = useState("");
+  const [retryDelivery, setRetryDelivery] = useState(false);
+  const redeliveryKey = useRef("");
+
+  const editor = useEditor({
+    immediatelyRender: false,
+    extensions: [
+      StarterKit,
+      Underline,
+      Placeholder.configure({ placeholder: "Write the report content here…" }),
+    ],
+    content: initialHtml,
+    onUpdate: () => {
+      setDirty(true);
+      setMessage(null);
+    },
+    editorProps: {
+      attributes: {
+        class:
+          "prose prose-sm sm:prose-base lg:prose-lg m-0 min-h-[34rem] max-w-none p-5 sm:p-8 focus:outline-none",
+      },
+    },
+  });
+
+  useEffect(() => {
+    editor?.setEditable(!preview, false);
+  }, [editor, preview]);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    const interceptInternalNavigation = (event: MouseEvent) => {
+      if (
+        event.defaultPrevented ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest<HTMLAnchorElement>("a[href]");
+      if (
+        !anchor ||
+        anchor.target === "_blank" ||
+        anchor.hasAttribute("download")
+      ) {
+        return;
+      }
+
+      const destination = new URL(anchor.href, window.location.href);
+      if (
+        destination.origin !== window.location.origin ||
+        (destination.pathname === window.location.pathname &&
+          destination.search === window.location.search)
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      setPendingNavigation(
+        destination.pathname + destination.search + destination.hash,
+      );
+      setConfirmAction("NAVIGATE");
     };
 
-    const handleSendReport = async () => {
-        if (!window.confirm("Are you sure you want to send this report? This will make it visible to the participant.")) return;
+    document.addEventListener("click", interceptInternalNavigation, true);
+    return () =>
+      document.removeEventListener("click", interceptInternalNavigation, true);
+  }, [dirty]);
 
-        setSending(true);
-        try {
-            const updatedNarrative = buildUpdatedNarrative();
-            const res = await fetch(`/api/admin/reports/${report.id}/send`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    narrativeJson: JSON.stringify(updatedNarrative),
-                    deliveryMethod
-                }),
-            });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || "Failed to send report");
-            }
-            alert("Report sent successfully!");
-            setStatus("PUBLISHED");
-            router.push(`/admin/assessments`);
-        } catch (e) {
-            alert("Error sending report: " + String(e));
-        } finally {
-            setSending(false);
-        }
-    };
+  function narrativeJson() {
+    if (!editor) throw new Error("The editor is still loading.");
+    return JSON.stringify({ ...sourceNarrative, adminEditedHtml: editor.getHTML() });
+  }
 
-    const handleUseTemplate = () => {
-        let sourceNarrative: Record<string, unknown> = parsedNarrative;
-        try {
-            sourceNarrative = JSON.parse(jsonContent) as Record<string, unknown>;
-        } catch {
-            sourceNarrative = parsedNarrative;
-        }
-
-        const nextHtml = buildReportHtmlTemplate(sourceNarrative, {
-            assessmentTitle: report.assessment.title,
-            participantName: `${report.user.firstName || ""} ${report.user.lastName || ""}`.trim() || "Participant",
-        });
-        setHtmlContent(nextHtml);
-        editor?.commands.setContent(nextHtml);
-    };
-
-    const handleUnpublish = async () => {
-        if (!window.confirm("Unpublish this report and move it back to DRAFT for editing?")) return;
-
-        setUnpublishing(true);
-        try {
-            const updatedNarrative = buildUpdatedNarrative();
-            const res = await fetch(`/api/admin/reports/${report.id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    narrativeJson: JSON.stringify(updatedNarrative),
-                    status: "DRAFT",
-                    availableAt: null,
-                }),
-            });
-            if (!res.ok) throw new Error("Failed to unpublish report");
-            setStatus("DRAFT");
-            alert("Report moved back to DRAFT.");
-            router.refresh();
-        } catch (e) {
-            alert("Error unpublishing report: " + String(e));
-        } finally {
-            setUnpublishing(false);
-        }
-    };
-
-    if (!editor) {
-        return <div>Loading editor...</div>;
+  async function responseError(
+    res: Response,
+    fallback: string,
+    deliveryFailure = false,
+  ) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string; published?: boolean };
+    if (data.published) {
+      setStatus("PUBLISHED");
+      if (deliveryFailure) setRetryDelivery(true);
     }
+    return data.error || fallback;
+  }
 
-    return (
-        <div className="flex bg-gray-50 min-h-screen">
-            {/* Editor Main Canvas */}
-            <div className="flex-1 overflow-y-auto pt-16 px-4 sm:px-12 xl:px-32 flex justify-center pb-24">
-                <div className="w-full max-w-4xl bg-white min-h-[1056px] shadow-sm rounded-lg border border-gray-200 mt-6 md:mt-10 overflow-hidden relative">
+  async function save() {
+    setBusyAction("SAVE");
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/reports/${encodeURIComponent(report.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ narrativeJson: narrativeJson() }),
+      });
+      if (!res.ok) throw new Error(await responseError(res, "Could not save report."));
+      const data = (await res.json()) as {
+        report: { status: string };
+        unpublishedForContentChange?: boolean;
+      };
+      setStatus(data.report.status);
+      setDirty(false);
+      setMessage({
+        kind: "SUCCESS",
+        text: data.unpublishedForContentChange
+          ? "Edits saved as a draft. Publish again when the replacement is ready."
+          : "Report saved.",
+      });
+      router.refresh();
+    } catch (error) {
+      setMessage({ kind: "ERROR", text: error instanceof Error ? error.message : "Could not save report." });
+    } finally {
+      setBusyAction("");
+    }
+  }
 
-                    {/* Editor Toolbar */}
-                    <div className="sticky top-0 z-10 bg-white border-b border-gray-200 p-2 flex flex-wrap gap-1 items-center rounded-t-lg shadow-sm">
-                        <button
-                            onClick={() => setEditMode("RICH")}
-                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "RICH" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
-                            title="Edit rich text"
-                        >
-                            Rich Text
-                        </button>
-                        <button
-                            onClick={() => setEditMode("JSON")}
-                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "JSON" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
-                            title="Edit full report JSON"
-                        >
-                            Full JSON
-                        </button>
-                        <button
-                            onClick={() => setEditMode("PREVIEW")}
-                            className={`px-2.5 py-1 text-xs rounded border ${editMode === "PREVIEW" ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-700 border-slate-300"}`}
-                            title="Preview report"
-                        >
-                            Preview
-                        </button>
-                        <button
-                            onClick={handleUseTemplate}
-                            className="ml-1 px-2.5 py-1 text-xs rounded border border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
-                            title="Load standard Wissen report format"
-                        >
-                            Load Template
-                        </button>
-                        <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                        {editMode === "RICH" && (
-                            <>
-                        <button
-                            onClick={() => editor.chain().focus().toggleBold().run()}
-                            disabled={!editor.can().chain().focus().toggleBold().run()}
-                            className={`p-2 rounded hover:bg-gray-100 ${editor.isActive("bold") ? "bg-gray-200" : ""}`}
-                            title="Bold"
-                        >
-                            <span className="font-bold">B</span>
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleItalic().run()}
-                            disabled={!editor.can().chain().focus().toggleItalic().run()}
-                            className={`p-2 rounded hover:bg-gray-100 ${editor.isActive("italic") ? "bg-gray-200" : ""}`}
-                            title="Italic"
-                        >
-                            <span className="italic">I</span>
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleUnderline().run()}
-                            disabled={!editor.can().chain().focus().toggleUnderline().run()}
-                            className={`p-2 rounded hover:bg-gray-100 ${editor.isActive("underline") ? "bg-gray-200" : ""}`}
-                            title="Underline"
-                        >
-                            <span className="underline">U</span>
-                        </button>
-                        <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                        <button
-                            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                            className={`p-2 rounded hover:bg-gray-100 font-bold ${editor.isActive("heading", { level: 1 }) ? "bg-gray-200" : ""}`}
-                        >
-                            H1
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                            className={`p-2 rounded hover:bg-gray-100 font-bold ${editor.isActive("heading", { level: 2 }) ? "bg-gray-200" : ""}`}
-                        >
-                            H2
-                        </button>
-                        <div className="w-px h-6 bg-gray-300 mx-1"></div>
-                        <button
-                            onClick={() => editor.chain().focus().toggleBulletList().run()}
-                            className={`p-2 rounded hover:bg-gray-100 ${editor.isActive("bulletList") ? "bg-gray-200" : ""}`}
-                            title="Bullet List"
-                        >
-                            • List
-                        </button>
-                        <button
-                            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                            className={`p-2 rounded hover:bg-gray-100 ${editor.isActive("orderedList") ? "bg-gray-200" : ""}`}
-                            title="Ordered List"
-                        >
-                            1. List
-                        </button>
-                            </>
-                        )}
-                    </div>
+  async function unpublish() {
+    setBusyAction("UNPUBLISH");
+    setMessage(null);
+    try {
+      const res = await fetch(`/api/admin/reports/${encodeURIComponent(report.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          narrativeJson: narrativeJson(),
+          status: "DRAFT",
+          availableAt: null,
+        }),
+      });
+      if (!res.ok) throw new Error(await responseError(res, "Could not unpublish report."));
+      setStatus("DRAFT");
+      setDirty(false);
+      setMessage({ kind: "SUCCESS", text: "Report unpublished and saved as a draft." });
+      router.refresh();
+    } catch (error) {
+      setMessage({ kind: "ERROR", text: error instanceof Error ? error.message : "Could not unpublish report." });
+    } finally {
+      setBusyAction("");
+    }
+  }
 
-                    {editMode === "RICH" ? (
-                        <EditorContent editor={editor} className="p-8 md:p-12 lg:p-16" />
-                    ) : editMode === "JSON" ? (
-                        <div className="p-4 md:p-6 lg:p-8">
-                            <label className="mb-2 block text-xs font-medium uppercase tracking-wider text-slate-500">
-                                Full Report JSON (all sections editable)
-                            </label>
-                            <textarea
-                                className="min-h-[680px] w-full rounded-lg border border-slate-300 bg-slate-50 p-3 font-mono text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-300"
-                                value={jsonContent}
-                                onChange={(e) => setJsonContent(e.target.value)}
-                            />
-                        </div>
-                    ) : (
-                        <div className="p-8 md:p-12 lg:p-16 prose prose-sm sm:prose-base lg:prose-lg max-w-none">
-                            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-                        </div>
-                    )}
-                </div>
-            </div>
+  async function publishAndDeliver() {
+    setBusyAction("SEND");
+    setMessage(null);
+    try {
+      const isExplicitRedelivery = status === "PUBLISHED" && !retryDelivery;
+      if (isExplicitRedelivery && !redeliveryKey.current) {
+        redeliveryKey.current = crypto.randomUUID();
+      }
+      const res = await fetch(`/api/admin/reports/${encodeURIComponent(report.id)}/send`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          narrativeJson: narrativeJson(),
+          deliveryMethod,
+          ...(redeliveryKey.current
+            ? { redeliveryKey: redeliveryKey.current }
+            : {}),
+        }),
+      });
+      if (!res.ok) {
+        throw new Error(
+          await responseError(res, "Could not publish report.", true),
+        );
+      }
+      setStatus("PUBLISHED");
+      setRetryDelivery(false);
+      redeliveryKey.current = "";
+      setDirty(false);
+      setMessage({
+        kind: "SUCCESS",
+        text:
+          deliveryMethod === "EMAIL_LINK"
+            ? "Report published and notification sent."
+            : "Report published to the participant dashboard.",
+      });
+      router.refresh();
+    } catch (error) {
+      setMessage({ kind: "ERROR", text: error instanceof Error ? error.message : "Could not publish report." });
+    } finally {
+      setBusyAction("");
+    }
+  }
 
-            {/* Right Sidebar - Actions & Meta */}
-            <div className="w-80 border-l border-gray-200 bg-white fixed right-0 top-16 bottom-0 overflow-y-auto">
-                <div className="p-6">
-                    <h2 className="text-lg font-semibold text-gray-900 mb-6">Report Delivery</h2>
+  function loadOlqTemplate() {
+    const next = buildReportHtmlTemplate(sourceNarrative, {
+      assessmentTitle: report.assessment.title,
+      participantName,
+    });
+    editor?.commands.setContent(next);
+    setDirty(true);
+    setPreview(false);
+  }
 
-                    <div className="space-y-4 mb-8">
-                        <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Participant</label>
-                            <p className="mt-1 text-sm font-medium text-gray-900">
-                                {report.user.firstName} {report.user.lastName}
-                            </p>
-                            <p className="text-xs text-gray-500">{report.user.email}</p>
-                        </div>
-                        <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Assessment</label>
-                            <p className="mt-1 text-sm text-gray-900">{report.assessment.title}</p>
-                        </div>
-                        <div>
-                            <label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Status</label>
-                            <span className={`mt-1 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${status === "PUBLISHED" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"
-                                }`}>
-                                {status}
-                            </span>
-                        </div>
-                    </div>
+  async function confirmSelectedAction() {
+    const selected = confirmAction;
+    if (!selected) return;
+    if (selected === "TEMPLATE") {
+      loadOlqTemplate();
+      setConfirmAction(null);
+      return;
+    }
+    if (selected === "NAVIGATE") {
+      const destination = pendingNavigation;
+      setDirty(false);
+      setPendingNavigation("");
+      setConfirmAction(null);
+      if (destination) router.push(destination);
+      return;
+    }
+    if (selected === "UNPUBLISH") await unpublish();
+    else await publishAndDeliver();
+    setConfirmAction(null);
+  }
 
-                    <div className="border-t border-gray-200 pt-6">
-                        <h3 className="text-sm font-medium text-gray-900 mb-4">Delivery Method</h3>
-                        <div className="space-y-3">
-                            <label className="flex items-start">
-                                <input
-                                    type="radio"
-                                    name="deliveryMode"
-                                    value="DASHBOARD_ONLY"
-                                    checked={deliveryMethod === "DASHBOARD_ONLY"}
-                                    onChange={() => setDeliveryMethod("DASHBOARD_ONLY")}
-                                    className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                                />
-                                <div className="ml-3">
-                                    <span className="block text-sm font-medium text-gray-700">Dashboard Only</span>
-                                    <span className="block text-xs text-gray-500 mt-1">Publishes report to participant&apos;s /reports view. Requires sign-in.</span>
-                                </div>
-                            </label>
+  if (!editor) {
+    return <section className="rounded-2xl border border-slate-200 bg-white p-6" aria-live="polite">Loading report editor…</section>;
+  }
 
-                            <label className="flex items-start">
-                                <input
-                                    type="radio"
-                                    name="deliveryMode"
-                                    value="EMAIL_LINK"
-                                    checked={deliveryMethod === "EMAIL_LINK"}
-                                    onChange={() => setDeliveryMethod("EMAIL_LINK")}
-                                    className="mt-1 h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                                />
-                                <div className="ml-3">
-                                    <span className="block text-sm font-medium text-gray-700">Email Magic Link</span>
-                                    <span className="block text-xs text-gray-500 mt-1">Dispatches email with a secure 7-day share link. No sign-in required.</span>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
+  const isBusy = Boolean(busyAction);
+  const confirmCopy =
+    confirmAction === "NAVIGATE"
+      ? {
+          title: "Discard unsaved changes?",
+          message:
+            "The report contains edits that have not been saved. Leaving this page will discard them.",
+          label: "Discard and leave",
+          variant: "danger" as const,
+        }
+      : confirmAction === "UNPUBLISH"
+      ? {
+          title: "Unpublish report?",
+          message:
+            "The participant and every shared link will lose access until this report is published again.",
+          label: "Unpublish",
+          variant: "danger" as const,
+        }
+      : confirmAction === "PUBLISH"
+        ? {
+            title: deliveryMethod === "EMAIL_LINK" ? "Publish and email report?" : "Publish report?",
+            message:
+              "The participant will be able to view the current report content. Confirm that your edits and redactions are complete.",
+            label: deliveryMethod === "EMAIL_LINK" ? "Publish and email" : "Publish",
+            variant: "default" as const,
+          }
+        : {
+            title: "Replace current document?",
+            message:
+              "This replaces the current editor content with a fresh OLQ Lab template built from stored assessment evidence. Unsaved edits will be lost.",
+            label: "Replace document",
+            variant: "danger" as const,
+          };
 
-                    <div className="mt-10 space-y-3">
-                        <button
-                            onClick={handleSaveProgress}
-                            disabled={saving || sending || unpublishing}
-                            className="w-full flex justify-center py-2.5 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-                        >
-                            {saving ? "Saving..." : "Save Progress"}
-                        </button>
-
-                        <button
-                            onClick={handleUnpublish}
-                            disabled={saving || sending || unpublishing || status !== "PUBLISHED"}
-                            className="w-full flex justify-center py-2.5 px-4 border border-amber-300 rounded-md shadow-sm text-sm font-medium text-amber-800 bg-amber-50 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-400 disabled:opacity-50"
-                        >
-                            {unpublishing ? "Unpublishing..." : "Unpublish to Edit"}
-                        </button>
-
-                        <button
-                            onClick={handleSendReport}
-                            disabled={saving || sending || unpublishing}
-                            className={`w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 ${status === "PUBLISHED"
-                                    ? "bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500"
-                                    : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-                                }`}
-                        >
-                            {sending ? "Sending..." : status === "PUBLISHED" ? "Re-send Report" : "Send Report"}
-                        </button>
-                    </div>
-                </div>
-            </div>
+  return (
+    <>
+    <div className="grid min-h-screen gap-5 bg-slate-50 p-3 sm:p-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <main className="min-w-0">
+        <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-slate-200 bg-white p-2">
+            <button type="button" onClick={() => setPreview(false)} aria-pressed={!preview} className={`rounded border px-2.5 py-1 text-xs ${!preview ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`}>Edit</button>
+            <button type="button" onClick={() => setPreview(true)} aria-pressed={preview} className={`rounded border px-2.5 py-1 text-xs ${preview ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`}>Preview</button>
+            <button type="button" onClick={() => dirty ? setConfirmAction("TEMPLATE") : loadOlqTemplate()} className="rounded border border-indigo-300 bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700">Load OLQ template</button>
+            {!preview ? (
+              <>
+                <span className="mx-1 h-6 w-px bg-slate-200" aria-hidden />
+                <button type="button" aria-label="Bold" aria-pressed={editor.isActive("bold")} onClick={() => editor.chain().focus().toggleBold().run()} className="rounded p-2 font-bold hover:bg-slate-100">B</button>
+                <button type="button" aria-label="Italic" aria-pressed={editor.isActive("italic")} onClick={() => editor.chain().focus().toggleItalic().run()} className="rounded p-2 italic hover:bg-slate-100">I</button>
+                <button type="button" aria-label="Underline" aria-pressed={editor.isActive("underline")} onClick={() => editor.chain().focus().toggleUnderline().run()} className="rounded p-2 underline hover:bg-slate-100">U</button>
+                <button type="button" aria-label="Heading level 2" aria-pressed={editor.isActive("heading", { level: 2 })} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className="rounded p-2 font-bold hover:bg-slate-100">H2</button>
+                <button type="button" aria-label="Bullet list" aria-pressed={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} className="rounded p-2 hover:bg-slate-100">• List</button>
+                <button type="button" aria-label="Numbered list" aria-pressed={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} className="rounded p-2 hover:bg-slate-100">1. List</button>
+              </>
+            ) : null}
+            <span className="ml-auto text-xs text-slate-500">{dirty ? "Unsaved changes" : "Saved"}</span>
+          </div>
+          <EditorContent editor={editor} />
         </div>
-    );
+      </main>
+
+      <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 lg:sticky lg:top-5">
+        <h2 className="text-lg font-semibold text-slate-900">Report delivery</h2>
+        <dl className="mt-5 space-y-4 text-sm">
+          <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Participant</dt><dd className="mt-1 font-medium">{participantName}</dd><dd className="break-all text-xs text-slate-500">{report.user.email}</dd></div>
+          <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Assessment</dt><dd className="mt-1">{report.assessment.title}</dd></div>
+          <div><dt className="text-xs font-medium uppercase tracking-wide text-slate-500">Status</dt><dd className={`mt-1 inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>{status}</dd></div>
+        </dl>
+
+        <fieldset className="mt-6 space-y-3 border-t border-slate-200 pt-5">
+          <legend className="text-sm font-medium">Delivery method</legend>
+          <label className="flex items-start gap-3 text-sm"><input type="radio" name="deliveryMode" value="DASHBOARD_ONLY" checked={deliveryMethod === "DASHBOARD_ONLY"} onChange={() => setDeliveryMethod("DASHBOARD_ONLY")} className="mt-1" /><span><strong className="block">Dashboard only</strong><span className="text-xs text-slate-500">Requires the participant to sign in.</span></span></label>
+          <label className="flex items-start gap-3 text-sm"><input type="radio" name="deliveryMode" value="EMAIL_LINK" checked={deliveryMethod === "EMAIL_LINK"} onChange={() => setDeliveryMethod("EMAIL_LINK")} className="mt-1" /><span><strong className="block">Email secure link</strong><span className="text-xs text-slate-500">Sends a time-limited share link.</span></span></label>
+        </fieldset>
+
+        {message ? <p className={`mt-5 rounded-xl p-3 text-sm ${message.kind === "ERROR" ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800"}`} role={message.kind === "ERROR" ? "alert" : "status"}>{message.text}</p> : null}
+
+        <div className="mt-6 grid gap-3">
+          <button type="button" onClick={() => void save()} disabled={isBusy || !dirty} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium disabled:opacity-50">{busyAction === "SAVE" ? "Saving…" : status === "PUBLISHED" ? "Save edits as draft" : "Save draft"}</button>
+          <button type="button" onClick={() => setConfirmAction("UNPUBLISH")} disabled={isBusy || status !== "PUBLISHED"} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800 disabled:opacity-50">{busyAction === "UNPUBLISH" ? "Unpublishing…" : "Unpublish"}</button>
+          <button type="button" onClick={() => setConfirmAction("PUBLISH")} disabled={isBusy} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50">{busyAction === "SEND" ? "Publishing…" : status === "PUBLISHED" ? "Save and deliver again" : "Publish and deliver"}</button>
+        </div>
+      </aside>
+    </div>
+    <ConfirmDialog
+      open={confirmAction !== null}
+      title={confirmCopy.title}
+      message={confirmCopy.message}
+      confirmLabel={confirmCopy.label}
+      variant={confirmCopy.variant}
+      busy={isBusy}
+      onCancel={() => {
+        setPendingNavigation("");
+        setConfirmAction(null);
+      }}
+      onConfirm={() => void confirmSelectedAction()}
+    />
+    </>
+  );
 }

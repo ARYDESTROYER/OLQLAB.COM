@@ -2,6 +2,14 @@ import Link from "next/link";
 import { MarketingChrome } from "@/components/marketing/MarketingChrome";
 import { Eyebrow, GhostCTA } from "@/components/marketing/Editorial";
 import Magnetic from "@/components/effects/Magnetic";
+import { createPageMetadata } from "@/lib/site-metadata";
+
+export const metadata = createPageMetadata({
+  title: "Leadership blindspot work",
+  description:
+    "Surface hidden leadership behaviors, decision habits, and intent-impact gaps, then turn them into practical next moves.",
+  path: "/blindspot",
+});
 
 const outcomes = [
   {

@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { getServerAuthSession } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { isMissingTableError } from "@/lib/prisma-errors";
-import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 
 export default async function CurrentAssessmentPage() {
   const session = await getServerAuthSession();
@@ -25,8 +24,6 @@ export default async function CurrentAssessmentPage() {
   });
 
   if (!currentUser) redirect("/signin");
-
-  await runDueUnenrollJobs({ userId: currentUser.id });
 
   const assessments = await db.assessment
     .findMany({

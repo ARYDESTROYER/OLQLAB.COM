@@ -7,7 +7,6 @@ import {
   DEFAULT_ASSESSMENT_INTRO_DESCRIPTION,
 } from "@/lib/assessment-intro";
 import { resolveAssessmentAccess } from "@/lib/assessment-access";
-import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 import StartAssessmentButton from "./StartAssessmentButton";
 
 export default async function AssessmentStartPage({
@@ -19,8 +18,6 @@ export default async function AssessmentStartPage({
   if (!session?.user?.id) redirect("/signin");
 
   const { assessmentId } = await params;
-
-  await runDueUnenrollJobs({ userId: session.user.id });
 
   const access = await resolveAssessmentAccess(session.user.id, assessmentId);
   if (!access.canStartAssessment) {

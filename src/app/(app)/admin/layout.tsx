@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { ReactNode } from "react";
-import { getServerAuthSession } from "@/lib/auth";
+import { getLiveAdminSession } from "@/lib/api-auth";
 import ToastContainer from "@/components/admin/Toast";
 
 const links = [
@@ -13,9 +13,8 @@ const links = [
 ];
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const session = await getServerAuthSession();
-  if (!session?.user) redirect("/signin");
-  if (session.user.role !== "ADMIN") redirect("/dashboard");
+  const check = await getLiveAdminSession();
+  if (!check) redirect("/dashboard");
 
   return (
     <main className="mx-auto max-w-7xl space-y-6 p-4 md:p-8">
@@ -49,4 +48,3 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     </main>
   );
 }
-

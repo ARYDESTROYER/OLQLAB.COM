@@ -1,6 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
+
+const PREVIEW_TTL_MS = 2 * 60 * 60 * 1000;
 
 export async function POST(
   _req: Request,
@@ -10,93 +14,59 @@ export async function POST(
   if ("error" in check) return check.error;
 
   const { id: assessmentId } = await params;
-  const userId = check.session.user.id;
-
-  const [user, assessment] = await Promise.all([
+  const adminId = check.session.user.id;
+  const [admin, assessment] = await Promise.all([
     db.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        tenantId: true,
-        email: true,
-      },
+      where: { id: adminId },
+      select: { id: true, tenantId: true },
     }),
     db.assessment.findUnique({
       where: { id: assessmentId },
-      select: {
-        id: true,
-      },
+      select: { id: true, title: true },
     }),
   ]);
 
-  if (!user) {
+  if (!admin) {
     return NextResponse.json({ error: "User not found" }, { status: 404 });
   }
-
   if (!assessment) {
     return NextResponse.json({ error: "Assessment unavailable" }, { status: 404 });
   }
 
-  const seat = await db.seat.findUnique({
-    where: {
-      tenantId_userEmail: {
-        tenantId: user.tenantId,
-        userEmail: user.email.toLowerCase(),
-      },
-    },
-  });
+  const now = new Date();
+  const id = `preview_${randomUUID()}`;
+  const expiresAt = new Date(now.getTime() + PREVIEW_TTL_MS);
 
-  if (seat && !seat.assigned) {
-    await db.seat.update({
-      where: {
-        tenantId_userEmail: {
-          tenantId: user.tenantId,
-          userEmail: user.email.toLowerCase(),
-        },
-      },
+  const preview = await db.$transaction(async (tx) => {
+    await tx.assessmentPreviewSession.deleteMany({
+      where: { assessmentId, adminId },
+    });
+    const created = await tx.assessmentPreviewSession.create({
       data: {
-        assigned: true,
+        id,
+        assessmentId,
+        adminId,
+        answersJson: {},
+        status: "IN_PROGRESS",
+        expiresAt,
       },
     });
-  }
-
-  const existingSession = await db.quizSession.findUnique({
-    where: {
-      assessmentId_userId: {
-        assessmentId,
-        userId,
+    await recordAuditLog(
+      {
+        tenantId: admin.tenantId,
+        actorId: admin.id,
+        action: "ASSESSMENT_PREVIEW_STARTED",
+        metadata: { assessmentId, previewSessionId: created.id, expiresAt },
       },
-    },
+      tx,
+    );
+    return created;
   });
 
-  const now = new Date();
-
-  const session = existingSession
-    ? await db.$transaction(async (tx) => {
-        await tx.answer.deleteMany({ where: { sessionId: existingSession.id } });
-        await tx.score.deleteMany({ where: { assessmentId, userId } });
-        await tx.report.deleteMany({ where: { assessmentId, userId } });
-        await tx.retestEligibility.deleteMany({ where: { assessmentId, userId } });
-
-        return tx.quizSession.update({
-          where: { id: existingSession.id },
-          data: {
-            status: "IN_PROGRESS",
-            startedAt: now,
-            submittedAt: null,
-          },
-        });
-      })
-    : await db.quizSession.create({
-        data: {
-          assessmentId,
-          userId,
-          startedAt: now,
-        },
-      });
-
   return NextResponse.json({
-    sessionId: session.id,
+    sessionId: preview.id,
     previewMode: true,
+    expiresAt: preview.expiresAt,
+    returnTo: `/admin/assessments/${encodeURIComponent(assessmentId)}`,
   });
 }

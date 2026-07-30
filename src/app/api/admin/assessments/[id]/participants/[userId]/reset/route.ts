@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { archiveCurrentAttempt } from "@/lib/report-archive";
 import { isMissingTableError } from "@/lib/prisma-errors";
 import { hasAnyAssessmentParticipation } from "@/lib/assessment-access";
+import { recordAuditLog } from "@/lib/audit-log";
+import { revokeAttemptShareTokens } from "@/lib/report-attempt-access";
+import { lockAssessmentSession } from "@/lib/assessment-session-lock";
+import { lockAssessmentContent } from "@/lib/assessment-content-lock";
 
 async function validateParticipantScope(assessmentId: string, userId: string) {
   const [assessment, participant, hasParticipation] = await Promise.all([
@@ -13,7 +17,7 @@ async function validateParticipantScope(assessmentId: string, userId: string) {
     }),
     db.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, tenantId: true },
     }),
     hasAnyAssessmentParticipation(assessmentId, userId),
   ]);
@@ -65,13 +69,10 @@ export async function POST(
   const now = new Date();
 
   const result = await db.$transaction(async (tx) => {
-    const archived = await archiveCurrentAttempt(tx, {
-      assessmentId,
-      userId,
-      archivedById: check.session.user.id,
-      reason: "admin_reset_stats",
-    });
-
+    // Content lock must precede any per-session lock. This serializes the
+    // no-session reset branch with question/image writes before it creates the
+    // assessment's first historical attempt.
+    await lockAssessmentContent(tx, assessmentId);
     const existingSession = await tx.quizSession.findUnique({
       where: {
         assessmentId_userId: {
@@ -80,6 +81,16 @@ export async function POST(
         },
       },
       select: { id: true },
+    });
+    if (existingSession) {
+      await lockAssessmentSession(tx, existingSession.id);
+    }
+
+    const archived = await archiveCurrentAttempt(tx, {
+      assessmentId,
+      userId,
+      archivedById: check.session.user.id,
+      reason: "admin_reset_stats",
     });
 
     await tx.score.deleteMany({
@@ -94,6 +105,11 @@ export async function POST(
         userId,
       },
     });
+    const revokedShareTokens = await revokeAttemptShareTokens(tx, {
+      assessmentId,
+      userId,
+      revokedAt: now,
+    });
 
     let resetSessionId: string;
     if (existingSession) {
@@ -104,6 +120,9 @@ export async function POST(
           status: "IN_PROGRESS",
           startedAt: now,
           submittedAt: null,
+          submissionClaimId: null,
+          submissionClaimedAt: null,
+          submissionAnswerSnapshotHash: null,
         },
         select: { id: true },
       });
@@ -148,6 +167,22 @@ export async function POST(
     } catch (error) {
       if (!isMissingTableError(error, "retesteligibility")) throw error;
     }
+
+    await recordAuditLog(
+      {
+        tenantId: scope.participant.tenantId,
+        actorId: check.session.user.id,
+        action: "ASSESSMENT_PARTICIPANT_RESET",
+        metadata: {
+          assessmentId,
+          userId,
+          archivedReportId: archived?.id || null,
+          resetSessionId,
+          revokedShareTokens,
+        },
+      },
+      tx,
+    );
 
     return {
       archivedId: archived?.id || null,

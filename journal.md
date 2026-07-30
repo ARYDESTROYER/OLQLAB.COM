@@ -1351,3 +1351,104 @@ This file is the append-only engineering diary for implementation work in this r
     2. Re-introduce the CustomCursor / ScrollReveal pathname-bail (small isolated commit) if the marketing-page effects feel out of place on the workspace.
     3. Pick a hybrid: bring back specific editorial elements that worked (e.g. the AppShell header) but keep the dense table-style functional pages.
     4. Pursue the unfinished performance work (Fix #3 batch `resolveAssessmentAccess` to kill the `/reports/current` N+1, Fix #4 move `runDueUnenrollJobs` to a Vercel cron, Fix #6 add missing indexes).
+
+## Entry 2026-07-29-01
+- Timestamp (UTC): 2026-07-29T14:03:16Z
+- Timestamp (Local): 2026-07-29 19:33 IST (+0530)
+- Task: Reduce `CLAUDE.md` to the requested `@agents.md` pointer and perform a full pre-production application audit.
+- Why: The repository had duplicated contributor instructions in `CLAUDE.md`; the requested pointer makes `AGENTS.md` the single working agreement. The staging branch also needed broad release-readiness evidence before promotion to production.
+- What changed:
+  - `CLAUDE.md`: replaced the duplicated 160-line working agreement with exactly one LF-terminated line, `@agents.md`.
+  - `journal.md`: added this audit/change record. No application behavior, API contract, schema, migration, or deployment configuration was changed.
+- How:
+  - Read `AGENTS.md`, the relevant architecture and validation contracts in `guide.md`, and neighboring implementation patterns before auditing.
+  - Reviewed public marketing, sign-in, authenticated participant, assessment, report, leader, admin, enrollment, email, shared-link, upload, migration, dependency, deployment, and operational paths.
+  - Used live staging for non-mutating public/guard checks and a disposable local Postgres database plus local production server for authenticated desktop/mobile browser coverage. The disposable database alone was brought to the current Prisma schema with `prisma db push` after the tracked migration chain failed reconstruction; no shared or production database was modified.
+- Validation/output:
+  - `CLAUDE.md`: `wc -l` returned `1`; byte inspection confirmed exactly `@agents.md\n`.
+  - `npm ci`: completed from the lockfile.
+  - `npm run lint`: passed with 0 errors and the 3 pre-existing warnings in `ReportEditorClient.tsx` / `report-format.ts`.
+  - `npx tsc --noEmit`: passed.
+  - `npm run build`: passed. Required marketing routes remained `○` Static; authenticated/admin/API routes and `/signin` plus `/signin/confirm` remained `ƒ` Dynamic.
+  - `git diff --check`: passed.
+  - Fresh Postgres 16 reconstruction: all 8 tracked migrations applied, but `npm run prisma:seed` then failed because current-schema report/enrollment columns and enums are absent from migration history. Schema diff confirmed the missing migration surface.
+  - Browser QA: exercised staging marketing/sign-in/route guards at desktop and mobile widths, then exercised local authenticated dashboard, assessment start/resume/submit, generated report, admin navigation, assessment policy/preview, and report editor flows. No console errors appeared in the covered flows; multiple release blockers and responsive defects were reproduced and left unfixed for an explicit remediation pass.
+  - `npm audit --omit=dev`: reported 14 runtime dependency vulnerabilities (2 critical, 7 high, 4 moderate, 1 low).
+- Risks/unknowns:
+  - The audit is not a production-data test. Vercel environment values, current production migration rows, Resend delivery, Blob access, OpenAI behavior, scheduled-job execution, and real role-specific accounts still require controlled environment verification.
+  - `AGENTS.md` is currently untracked in this checkout. The requested lowercase `@agents.md` reference may also depend on case-insensitive filename resolution; both details must be handled intentionally when committing from a case-sensitive environment.
+  - Confirmed production blockers remain, including publicly tracked assessment answer/scoring artifacts, migration drift, destructive admin preview behavior, report-release/share-link flaws, email-delivery error handling, stale JWT privileges, exposed scoring metadata, unsanitized report HTML, vulnerable dependencies, and missing automated release gates.
+- Next step:
+  - Do not promote `staging` to production yet. Triage and fix the release blockers in small, reviewed changes, add focused regression tests, reconstruct a fresh database from migrations, rerun the browser matrix, and verify the deployed staging environment before merging the standing production PR.
+
+## Entry 2026-07-30-01
+- Timestamp (UTC): 2026-07-29T21:03:38Z
+- Timestamp (Local): 2026-07-30 02:33 IST (+0530)
+- Task: Paginate long generated-report paragraphs without clipping PDF content.
+- Why: The canonical PDF renderer reserved space once for an entire paragraph but added at most one page. Any paragraph taller than a page then continued drawing below the printable boundary, silently omitting report text from participant, leader, and shared-link downloads.
+- What changed:
+  - `src/lib/report-pdf.ts`: moved the page-space check into the body-line loop so each wrapped line advances to a fresh page before it could cross the bottom margin.
+  - `tests/report-boundaries.test.ts`: added a long single-paragraph regression case that loads the generated document and proves it spans at least three PDF pages; the prior implementation produced only two pages and clipped the remaining lines.
+  - `journal.md`: recorded the production-readiness correction and its verification.
+- How: Kept the existing wrapping, fonts, margins, headers, and footers intact; only the pagination decision changed from one check per paragraph to one check per rendered line.
+- Validation/output:
+  - `npm test -- --run tests/report-boundaries.test.ts`: passed, 16/16 tests.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed with 0 errors.
+- Risks/unknowns: Very long reports now correctly create more pages, so generated PDF byte size and render time grow with the full report instead of accidentally clipping it. No production data or external service was exercised in this focused test.
+- Next step: Include this correction in the full release-gate run and verify a representative long report PDF visually before promoting staging to production.
+
+## Entry 2026-07-30-02
+- Timestamp (UTC): 2026-07-29T23:03:01Z
+- Timestamp (Local): 2026-07-30 04:33:01 IST (+0530)
+- Task: Remediate the accepted pre-production findings and prove the application release path end to end.
+- Why: The 2026-07-29 audit reproduced release-blocking gaps in migration history, authorization freshness, assessment integrity, report publication and sharing, invite delivery, upload boundaries, dependency hygiene, operations, accessibility, and responsive behavior. The user explicitly accepted the tracked assessment answer/scoring artifacts and asked for every other finding to be fixed and tested before production.
+- What changed:
+  - Release and operations:
+    - `CLAUDE.md` remains exactly the requested one-line `@agents.md` pointer.
+    - `package.json`, `package-lock.json`, `.nvmrc`, `.env.example`, `scripts/validate-env.ts`, `next.config.ts`, `vercel.json`, `.github/workflows/ci.yml`, `.github/dependabot.yml`, `README.md`, and `SECURITY.md` now pin and validate the supported runtime, run deterministic CI gates, schedule the unenrollment worker, document disclosure and deployment requirements, and add production security headers.
+    - `src/app/manifest.ts`, `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/opengraph-image.tsx`, `src/app/privacy/page.tsx`, `src/app/terms/page.tsx`, `src/lib/site-metadata.ts`, and the refreshed public assets add canonical metadata, crawler rules, legal routes, social imagery, and cleaned brand media.
+  - Schema and reconstruction:
+    - `prisma/schema.prisma` and migrations `20260729201000_reconcile_schema_and_runtime_safety`, `20260730160000_bind_report_publications`, and `20260730170000_invite_delivery_claims` reconcile historical drift; add durable audit, rate-limit, submission, manual-report, publication, share-token, and invite-delivery state; and safely bind links to an exact report publication.
+  - Authorization and sign-in:
+    - `src/lib/auth.ts`, `src/lib/api-auth.ts`, `src/lib/auth-security.ts`, `src/lib/magic-link-continue.ts`, `src/app/api/auth/continue/route.ts`, and the sign-in pages refresh role/seat state from the database, use persistent rate limiting and generic user-facing responses, enforce same-origin explicit continuation, and preserve the scanner-resistant five-hop magic-link contract.
+    - `src/proxy.ts` restores the Next.js 16 proxy entry point so protected-route redirects actually run; the obsolete root placement was removed.
+    - `src/lib/internal-job-auth.ts` and the internal-job routes use timing-safe, independently configured authorization.
+  - Assessment integrity:
+    - The assessment/session routes plus `src/lib/assessment-content-lock.ts`, `src/lib/assessment-definition.ts`, `src/lib/assessment-session-lock.ts`, `src/lib/assessment-submission-claim.ts`, `src/lib/question-image-lock.ts`, and related CSV/image helpers serialize the first attempt against content changes, preserve historical question/image evidence, validate canonical scales, isolate admin preview sessions, prevent duplicate submission/report work, and keep pending or failed free-text saves visibly unsaved with navigation protection.
+  - Report privacy and lifecycle:
+    - The report admin, participant, leader, and shared routes plus `src/lib/report-release.ts`, `src/lib/report-content.ts`, `src/lib/report-attempt-access.ts`, `src/lib/report-publication-preflight.ts`, `src/lib/report-share-grant.ts`, `src/lib/report-pdf.ts`, and related archive/delivery helpers default reports to draft, revoke prior access on edits, serialize regeneration/manual delivery, bind and quota scanner-safe links, sanitize rendered HTML, enforce audience/access policy at delivery time, and preflight the exact generated or uploaded PDF before publication.
+    - PDF inputs are bounded to 256 KiB of narrative JSON, 100,000 extracted characters, 50 pages, and the platform-compatible request size. Long paragraphs paginate without clipping.
+  - Admin and delivery correctness:
+    - Tenant/user/enrollment/import routes and `src/lib/tenant-seat-lock.ts`, `src/lib/identity-policy.ts`, `src/lib/invite-delivery.ts`, and `src/lib/admin-list-window.ts` make seat-changing operations atomic, prevent identity collisions, clear leader-only access on demotion, use claimed/idempotent invite delivery state, and bound admin list/export work.
+    - `src/app/(app)/dashboard/page.tsx` exposes the leader Team Reports workspace, and `src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx` no longer marks initialization or preview toggles as content edits while still warning on real unsaved changes.
+  - UX and accessibility:
+    - Navigation, admin panels, assessment controls, marketing chrome/effects, date formatting, and `.report-document` styles were corrected for keyboard use, focus, reduced motion, mobile overflow, clear status labels, correct organisation vocabulary, report hierarchy, and role-appropriate navigation.
+  - Tests:
+    - Added `vitest.config.mts` and 52 focused test files covering 162 authorization, race, boundary, migration-adjacent, delivery, report, PDF, and UI-state cases.
+- How:
+  - Reused the repository's canonical access and guard helpers, added database transactions and advisory locks only around state transitions that must serialize, and treated report publication/link delivery as versioned state rather than a mutable boolean.
+  - Ran a production build against a disposable Postgres 16 environment, exercised anonymous, participant, leader, admin, shared-link, PDF, desktop, and mobile paths in the in-app browser, and fixed issues found only through that pass: the misplaced proxy, Prisma's inability to deserialize PostgreSQL advisory-lock `void`, an invalid `Intl` option combination, missing report typography, leader report discoverability, and a false-positive report-editor dirty state.
+  - Kept the explicitly accepted tracked assessment answer/scoring artifacts unchanged.
+- Validation/output:
+  - Node `22.13.1`; `npm ci` completed from the lockfile.
+  - Production-like `npm run env:check` passed.
+  - `npm run lint`, `npm run typecheck`, and `git diff --check` passed with zero errors.
+  - `npm test` passed: 52 files, 162 tests.
+  - `npm run build` passed. Marketing, legal, metadata, and `/singin` routes remained `○` Static; authenticated, admin, report, assessment, sign-in, and API routes remained `ƒ` Dynamic; the manifest includes `ƒ Proxy (Middleware)`.
+  - `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities. The full development graph reports 15 high and 0 critical advisories in the ESLint/minimatch toolchain.
+  - A brand-new disposable Postgres database applied all 11 migrations, seeded 1 admin, 1 assessment, and 40 questions, reported `Database schema is up to date!`, and returned `No difference detected` from `prisma migrate diff`.
+  - Browser QA completed the two-step admin/participant/leader magic-link flow; participant start, autosave, reload, submit, and report generation; admin assessment preview and report editing; leader RBAC and Team Reports; scanner-safe shared-link activation and 2-of-2 download quota enforcement; invalid-link privacy; role-aware desktop/mobile navigation; and a 390 px report with `scrollWidth === innerWidth`.
+  - The canonical participant PDF returned HTTP 200 as `application/pdf`, was 15,782 bytes, rendered to four A4 pages, contained no JavaScript or encryption, extracted 7,549 characters, and was visually inspected page by page without clipping.
+  - Public/legal/metadata/health routes returned HTTP 200; `/api/health/ready` returned 200; static HTML returned year-long CDN `s-maxage`; security headers were present; internal-job authorization returned 403 for absent/wrong credentials and 200 for the valid isolated secret.
+  - `CLAUDE.md` is 1 line and 11 bytes: exactly `@agents.md\n`.
+- Risks/unknowns:
+  - No production or shared database was modified. The disposable database, local production server, generated browser/PDF evidence, and container were removed after validation.
+  - Real Resend delivery, Vercel Blob, OpenAI generation, Vercel environment values, cron execution/plan support, preview-to-production branch behavior, and production observability still require controlled staging verification with real provider credentials.
+  - The remaining 15 high advisories are development-only transitive ESLint/minimatch findings. The available forced overrides are API-incompatible with the installed lint stack, so the runtime graph is clean but the toolchain advisory needs an upstream-compatible upgrade rather than a risky override.
+  - Privacy and Terms copy is technically present but still needs owner/legal review before production.
+  - `AGENTS.md` is untracked in this checkout. It must be intentionally included with `CLAUDE.md`; the lowercase pointer relies on the repository's case-insensitive filename resolution convention.
+  - The optional native Codex Security workbench was not initialized because its repository setup remained unsubmitted; the code still received a multi-pass manual security review plus security-focused tests.
+- Next step:
+  - Review the large remediation diff, stage intended files by name (including `AGENTS.md`), commit coherently, and push to `staging`.
+  - Wait for the Vercel deployment to become `READY`, repeat health/header/provider/magic-link/share/PDF/cron smoke tests against `staging.olqlab.com`, obtain legal approval, and only then update the standing `staging` to `main` production PR.
