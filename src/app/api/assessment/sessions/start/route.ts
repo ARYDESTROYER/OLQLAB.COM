@@ -8,6 +8,7 @@ import { recordAuditLog } from "@/lib/audit-log";
 import { revokeAttemptShareTokens } from "@/lib/report-attempt-access";
 import { lockAssessmentSession } from "@/lib/assessment-session-lock";
 import { lockAssessmentContent } from "@/lib/assessment-content-lock";
+import { ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT } from "@/lib/assessment-response-acknowledgement";
 
 export async function POST(req: NextRequest) {
   const check = await requireSession();
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
   if (!acknowledged) {
     return NextResponse.json(
-      { error: "Acknowledge the Privacy Notice, Terms, and response processing before starting." },
+      { error: "Acknowledge response processing before starting." },
       { status: 422 },
     );
   }
@@ -79,7 +80,11 @@ export async function POST(req: NextRequest) {
     tenantId: user.tenantId,
     actorId: user.id,
     action: "ASSESSMENT_RESPONSE_PROCESSING_ACKNOWLEDGED",
-    metadata: { assessmentId },
+    metadata: {
+      assessmentId,
+      acknowledgementVersion: ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT.version,
+      acknowledgementText: ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT.text,
+    },
   });
 
   // Keep seat assignment synchronized when seat record exists for this user's tenant.

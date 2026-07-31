@@ -1,0 +1,34 @@
+.scene {
+  --scroll-progress: 0;
+  --scroll-far-x: 0px;
+  --scroll-far-y: 0px;
+  --scroll-mid-x: 0px;
+  --scroll-mid-y: 0px;
+  --scroll-near-x: 0px;
+  --scroll-near-y: 0px;
+  --scroll-turn: 0deg;
+}
+
+.scene[data-scroll-enhanced="true"] [data-scroll-layer="far"] {
+  transform: translate3d(var(--scroll-far-x), var(--scroll-far-y), 0);
+}
+
+.scene[data-scroll-enhanced="true"] [data-scroll-layer="mid"] {
+  transform: translate3d(var(--scroll-mid-x), var(--scroll-mid-y), 0);
+}
+
+.scene[data-scroll-enhanced="true"] [data-scroll-layer="near"] {
+  transform: translate3d(var(--scroll-near-x), var(--scroll-near-y), 0)
+    rotate(var(--scroll-turn));
+}
+
+.scene[data-scroll-active="true"] [data-scroll-layer] {
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene [data-scroll-layer] {
+    transform: none !important;
+    will-change: auto !important;
+  }
+}

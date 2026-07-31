@@ -82,7 +82,7 @@ export default function AssessmentsPage() {
         </h2>
         <p className="mt-6 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
           Three primary dimensions, three pairings, and one comprehensive read.
-          Hover or tap any region of the diagram to see what each track measures.
+          Select any region of the diagram to see what each track measures.
         </p>
       </div>
 
@@ -90,7 +90,7 @@ export default function AssessmentsPage() {
         <CprTriangle
           regions={assessmentRegions}
           defaultActive="CPR"
-          hint="Hover or tap a region of the triangle."
+          hint="Select a region of the triangle. Arrow keys move between regions."
         />
       </div>
 

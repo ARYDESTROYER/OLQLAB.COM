@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans, Instrument_Serif, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
-import CustomCursor from "@/components/effects/CustomCursor";
 import ScrollProgress from "@/components/effects/ScrollProgress";
 import ScrollReveal from "@/components/effects/ScrollReveal";
 import { DEFAULT_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site-metadata";
@@ -70,7 +69,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ScrollProgress />
         <ScrollReveal />
         {children}
-        <CustomCursor />
       </body>
     </html>
   );

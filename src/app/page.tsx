@@ -5,6 +5,7 @@ import {
   EditorialFooter,
   Eyebrow,
 } from "@/components/marketing/Editorial";
+import LeadershipSignal from "@/components/marketing/LeadershipSignal";
 import { createPageMetadata } from "@/lib/site-metadata";
 
 export const metadata = createPageMetadata({
@@ -101,30 +102,15 @@ const journey = [
   },
 ];
 
-const signalCells = [
-  { tone: "ink", code: "C", label: "Think" },
-  { tone: "brass" },
-  { tone: "paper" },
-  { tone: "warm" },
-  { tone: "paper" },
-  { tone: "deep" },
-  { tone: "warm", code: "P", label: "Engage" },
-  { tone: "brass" },
-  { tone: "paper" },
-  { tone: "deep" },
-  { tone: "ink", code: "R", label: "Adapt" },
-  { tone: "warm" },
-];
-
 export default function HomePage() {
   return (
-    <main className="relative min-h-screen bg-[#EFE8DA] text-[#101114]">
+    <div className="relative min-h-screen bg-[#EFE8DA] text-[#101114]">
       <a className="skip-link" href="#landing-content">
         Skip to content
       </a>
       <PublicHeader />
 
-      <div id="landing-content">
+      <main id="landing-content" tabIndex={-1}>
         <section className="landing-hero" aria-labelledby="landing-hero-title">
           <div className="landing-hero__shell">
             <div className="landing-hero__headline-cell">
@@ -169,30 +155,7 @@ export default function HomePage() {
             </div>
 
             <div className="landing-signal landing-rise landing-rise--3">
-              <div className="landing-signal__header" aria-hidden>
-                <span>Leadership signal / CPR</span>
-                <span>Observe · Interpret · Practise</span>
-              </div>
-              <div className="landing-signal__grid" aria-hidden>
-                {signalCells.map((cell, index) => (
-                  <div
-                    key={index}
-                    className={`landing-signal__cell landing-signal__cell--${cell.tone}`}
-                  >
-                    {cell.code ? (
-                      <>
-                        <span className="landing-signal__code">{cell.code}</span>
-                        <span className="landing-signal__label">{cell.label}</span>
-                      </>
-                    ) : (
-                      <span className="landing-signal__point" />
-                    )}
-                  </div>
-                ))}
-              </div>
-              <p className="sr-only">
-                The CPR framework explores how a leader thinks, engages, and adapts.
-              </p>
+              <LeadershipSignal />
             </div>
 
             <aside className="landing-hero__proof">
@@ -286,7 +249,7 @@ export default function HomePage() {
                   <p className="landing-kicker mt-2 text-[#C9A777]">
                     {dimension.subtitle}
                   </p>
-                  <p className="mt-6 text-sm leading-relaxed text-[#EFE8DA]/68 md:text-base">
+                  <p className="mt-6 text-base leading-relaxed text-[#EFE8DA]/88">
                     {dimension.body}
                   </p>
                 </li>
@@ -402,9 +365,9 @@ export default function HomePage() {
             </div>
           </div>
         </section>
-      </div>
+      </main>
 
       <EditorialFooter />
-    </main>
+    </div>
   );
 }

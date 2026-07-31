@@ -122,7 +122,7 @@ export function PrimaryCTA({
   return (
     <Link
       href={href}
-      className={`group inline-flex items-center gap-3 rounded-full bg-[#B5803C] px-7 py-3.5 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#9C6F31] ${className}`}
+      className={`group inline-flex items-center gap-3 rounded-full bg-[#101114] px-7 py-3.5 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#2A2B2F] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#B5803C] ${className}`}
     >
       <span>{children}</span>
       <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
@@ -144,7 +144,7 @@ export function SecondaryCTA({
   return (
     <Link
       href={href}
-      className={`group inline-flex items-center gap-3 rounded-full border border-[#101114]/30 bg-transparent px-7 py-3.5 text-sm font-medium text-[#101114] transition-colors duration-300 hover:border-[#101114] hover:bg-[#101114] hover:text-[#EFE8DA] ${className}`}
+      className={`group inline-flex items-center gap-3 rounded-full border border-[#101114]/30 bg-transparent px-7 py-3.5 text-sm font-medium text-[#101114] transition-colors duration-300 hover:border-[#101114] hover:bg-[#101114] hover:text-[#EFE8DA] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#B5803C] ${className}`}
     >
       <span>{children}</span>
       <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
@@ -166,7 +166,7 @@ export function GhostCTA({
   return (
     <Link
       href={href}
-      className={`group inline-flex items-center gap-3 rounded-full border border-[#EFE8DA]/80 px-7 py-3.5 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#EFE8DA] hover:text-[#101114] ${className}`}
+      className={`group inline-flex items-center gap-3 rounded-full border border-[#EFE8DA]/80 px-7 py-3.5 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#EFE8DA] hover:text-[#101114] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#D4A876] ${className}`}
     >
       <span>{children}</span>
       <span aria-hidden className="transition-transform duration-300 group-hover:translate-x-1">
@@ -188,7 +188,7 @@ export function TextLink({
   return (
     <Link
       href={href}
-      className={`text-sm font-medium text-[#101114]/80 underline underline-offset-[6px] decoration-[#101114]/30 transition-colors duration-300 hover:text-[#101114] hover:decoration-[#101114] ${className}`}
+      className={`text-sm font-medium text-[#101114]/80 underline underline-offset-[6px] decoration-[#101114]/30 transition-colors duration-300 hover:text-[#101114] hover:decoration-[#101114] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#B5803C] ${className}`}
     >
       {children}
     </Link>
@@ -207,7 +207,7 @@ export function MailLink({
   return (
     <a
       href={href}
-      className={`text-sm font-medium text-[#101114]/80 underline underline-offset-[6px] decoration-[#101114]/30 transition-colors duration-300 hover:text-[#101114] hover:decoration-[#101114] ${className}`}
+      className={`text-sm font-medium text-[#101114]/80 underline underline-offset-[6px] decoration-[#101114]/30 transition-colors duration-300 hover:text-[#101114] hover:decoration-[#101114] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#B5803C] ${className}`}
     >
       {children}
     </a>
@@ -255,12 +255,10 @@ export function EditorialFooter() {
             links={[
               { label: "Get in touch", href: "/contact" },
               { label: "Sign in", href: "/signin" },
-              { label: "Privacy", href: "/privacy" },
-              { label: "Terms", href: "/terms" },
             ]}
           />
         </div>
-        <div className="mt-16 flex flex-col gap-2 border-t border-[#101114]/12 pt-8 text-xs text-[#101114]/55 md:flex-row md:justify-between">
+        <div className="mt-16 flex flex-col gap-2 border-t border-[#101114]/12 pt-8 text-xs text-[#101114]/65 md:flex-row md:justify-between">
           <p>© {new Date().getFullYear()} OLQLab. All rights reserved.</p>
           <p>Leadership begins within.</p>
         </div>
@@ -278,7 +276,7 @@ function FooterColumn({
 }) {
   return (
     <div>
-      <h4 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#101114]/55">
+      <h4 className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#101114]/65">
         {title}
       </h4>
       <ul className="mt-4 space-y-2.5">
@@ -286,7 +284,7 @@ function FooterColumn({
           <li key={l.href}>
             <Link
               href={l.href}
-              className="link-underline text-sm text-[#101114]/80 transition-colors hover:text-[#101114]"
+              className="link-underline text-sm text-[#101114]/80 transition-colors hover:text-[#101114] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#B5803C]"
             >
               {l.label}
             </Link>

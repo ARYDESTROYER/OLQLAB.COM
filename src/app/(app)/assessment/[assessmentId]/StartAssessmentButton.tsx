@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT } from "@/lib/assessment-response-acknowledgement";
 
 function formatDateTime(input: string | null | undefined) {
   if (!input) return null;
@@ -23,7 +23,7 @@ export default function StartAssessmentButton({ assessmentId }: { assessmentId: 
       return;
     }
     if (!acknowledged) {
-      setError("Please review and acknowledge how your responses will be processed before starting.");
+      setError("Please acknowledge response processing before starting.");
       return;
     }
 
@@ -80,10 +80,7 @@ export default function StartAssessmentButton({ assessmentId }: { assessmentId: 
           checked={acknowledged}
           onChange={(event) => setAcknowledged(event.target.checked)}
         />
-        <span>
-          I have read the <Link href="/privacy" className="font-semibold underline">Privacy Notice</Link> and{" "}
-          <Link href="/terms" className="font-semibold underline">Terms</Link>, and understand that my responses may be processed to generate my leadership development report.
-        </span>
+        <span>{ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT.text}</span>
       </label>
       <p className="text-xs text-slate-500">You can leave this page without starting the assessment.</p>
       <button

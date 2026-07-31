@@ -7,12 +7,9 @@ import { usePathname } from "next/navigation";
  * Scroll-triggered reveal driver.
  *
  * Watches every element with `.reveal-on-scroll`, `.scale-on-scroll`,
- * `.image-mask`, or `.reveal-words` and toggles `is-revealed` on it as it
- * crosses into / out of the viewport.
- *
- * Bidirectional: animations re-play whenever an element enters the viewport
- * from any direction (scrolling down past it, then scrolling back up — both
- * trigger a fresh reveal).
+ * `.image-mask`, or `.reveal-words` and adds `is-revealed` the first time it
+ * enters the viewport. The one-way reveal keeps content visible after entry
+ * and avoids distracting replay while visitors scan back up a page.
  *
  * `rootMargin: "0px 0px -10% 0px"` delays the reveal slightly so elements
  * animate in once they are comfortably in view rather than the moment they
@@ -46,8 +43,7 @@ export default function ScrollReveal() {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             entry.target.classList.add("is-revealed");
-          } else {
-            entry.target.classList.remove("is-revealed");
+            observer.unobserve(entry.target);
           }
         }
       },

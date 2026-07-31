@@ -1,11 +1,10 @@
-import { MarketingChrome } from "@/components/marketing/MarketingChrome";
-import {
-  Eyebrow,
-  PrimaryCTA,
-  TextLink,
-} from "@/components/marketing/Editorial";
-import HexDial from "@/components/marketing/HexDial";
+import Image from "next/image";
+import Link from "next/link";
+import AboutDisciplineAtlas from "@/components/marketing/AboutDisciplineAtlas";
+import { EditorialFooter } from "@/components/marketing/Editorial";
+import PublicHeader from "@/components/navigation/PublicHeader";
 import { createPageMetadata } from "@/lib/site-metadata";
+import styles from "./about.module.css";
 
 export const metadata = createPageMetadata({
   title: "About",
@@ -51,103 +50,178 @@ const disciplines = [
     description:
       "Identify, develop, and retain the people whose growth shapes the company's future. Pipelines, succession, and the patient work of building bench strength.",
   },
-];
+] as const;
 
 const principles = [
   "Assessment-led leadership diagnostics.",
   "Blindspot clarity with coaching recommendations.",
   "Action plans aligned to role and business context.",
   "Follow-through checkpoints for sustained behavior change.",
-];
+] as const;
 
 export default function AboutPage() {
   return (
-    <MarketingChrome
-      eyebrow="About"
-      title="Your guide on the leadership path."
-      description="Commander (Dr.) Pratap Pawar brings 35 years of leadership experience from the Indian Navy to corporate transformation programs."
-    >
-      {/* FOUNDER STORY */}
-      <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
-        <div className="reveal-on-scroll">
-          <Eyebrow>Founder story</Eyebrow>
-          <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-            From command at sea to leadership in the boardroom
-            <span className="brass-period">.</span>
-          </h2>
-        </div>
-        <div>
-          <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/78 md:text-lg">
-            From naval operations and high-stakes command environments to multinational people
-            strategy, this journey blends discipline, behavioral science, and human-centered
-            leadership development.
-          </p>
-          <blockquote
-            className="reveal-on-scroll mt-10 border-l-2 pl-6 font-display text-[clamp(1.4rem,2.6vw,2.2rem)] leading-[1.22] tracking-[-0.01em]"
-            style={{ borderLeftColor: "#A6824A" }}
-          >
-            &ldquo;Leadership is not about volume. It is about understanding people deeply,
-            including yourself.&rdquo;
-          </blockquote>
-        </div>
-      </div>
+    <div className={styles.page}>
+      <a href="#about-content" className="skip-link">
+        Skip to content
+      </a>
+      <PublicHeader />
 
-      {/* EXPERTISE — interactive hex dial */}
-      <div className="mt-32 md:mt-40">
-        <div className="reveal-on-scroll max-w-2xl">
-          <Eyebrow>Areas of practice</Eyebrow>
-          <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-            Six disciplines, one practice
-            <span className="brass-period">.</span>
-          </h2>
-          <p className="mt-6 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
-            Six disciplines, all feeding into a single practice. Hover any vertex of the
-            hexagon to see what we work on inside it.
-          </p>
-        </div>
+      <main id="about-content" tabIndex={-1}>
+        <section className={styles.hero} aria-labelledby="about-title">
+          <div className={styles.heroCopy}>
+            <p className={`${styles.kicker} ${styles.heroEnter}`}>
+              <span aria-hidden="true" />
+              About OLQ Lab
+            </p>
+            <h1 id="about-title" className={`${styles.heroTitle} ${styles.heroEnterLate}`}>
+              Your guide on the leadership path<span className={styles.period}>.</span>
+            </h1>
+            <div className={`${styles.heroIntro} ${styles.heroEnterLatest}`}>
+              <p>
+                Commander (Dr.) Pratap Pawar brings 35 years of leadership experience from the
+                Indian Navy to corporate transformation programs.
+              </p>
+              <Link href="#founder-story" className={styles.inlineLink}>
+                Read the founder story <span aria-hidden="true">↓</span>
+              </Link>
+            </div>
+          </div>
 
-        <div className="mt-16 md:mt-24">
-          <HexDial
-            disciplines={disciplines}
-            defaultIndex={0}
-            centerLabel="Practice"
-            hint="Hover or tap any node."
-          />
-        </div>
-      </div>
+          <div className={`${styles.portraitPanel} ${styles.portraitEnter}`}>
+            <Image
+              src="/pratap-pawar.jpg"
+              alt="Commander (Dr.) Pratap Pawar speaking at a leadership event"
+              fill
+              priority
+              sizes="(max-width: 899px) 100vw, 42vw"
+              className={styles.portrait}
+            />
+            <div className={styles.portraitWash} aria-hidden="true" />
+            <div className={styles.portraitCaption}>
+              <p>Founder / OLQ Lab</p>
+              <p>Command · Culture · Coaching</p>
+            </div>
+            <div className={styles.experienceBadge}>
+              <strong>35</strong>
+              <span>years lived in leadership</span>
+            </div>
+          </div>
+        </section>
 
-      {/* HOW IT WORKS */}
-      <div className="mt-32 md:mt-40">
-        <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
-          <div className="reveal-on-scroll">
-            <Eyebrow>How OLQLAB works</Eyebrow>
-            <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-              A practice, not a program
-              <span className="brass-period">.</span>
+        <section className={styles.conviction} aria-labelledby="conviction-title">
+          <div className={`${styles.convictionInner} reveal-on-scroll`}>
+            <p className={styles.sectionIndex}>01 / Orientation</p>
+            <h2 id="conviction-title">
+              Leadership is not about volume. It is about understanding people deeply,
+              <em> including yourself.</em>
+            </h2>
+            <p className={styles.convictionByline}>A working conviction, not a slogan.</p>
+          </div>
+          <div className={styles.convictionSignals} aria-hidden="true">
+            <span>C</span>
+            <span>P</span>
+            <span>R</span>
+          </div>
+        </section>
+
+        <section id="founder-story" className={styles.story} aria-labelledby="story-title">
+          <div className={`${styles.storyLead} reveal-on-scroll`}>
+            <p className={styles.sectionIndex}>02 / Experience into practice</p>
+            <h2 id="story-title">
+              From command at sea to leadership in the boardroom<span className={styles.period}>.</span>
             </h2>
           </div>
-          <ol className="border-y border-[#101114]/12 md:border-t-0">
-            {principles.map((item, i) => (
-              <li
-                key={item}
-                className="reveal-on-scroll grid grid-cols-[auto_1fr] items-baseline gap-x-6 border-b border-[#101114]/12 py-8 last:border-b-0 md:gap-x-10 md:py-10"
-              >
-                <span className="font-display text-2xl text-[#101114]/35 md:text-3xl">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <p className="text-base leading-relaxed text-[#101114]/82 md:text-lg">{item}</p>
+          <div className={`${styles.storyBody} reveal-on-scroll`} data-stagger="1">
+            <p>
+              From naval operations and high-stakes command environments to multinational people
+              strategy, this journey blends discipline, behavioral science, and human-centered
+              leadership development.
+            </p>
+            <p>
+              The setting changes. The essential work does not: read the situation clearly,
+              understand the people inside it, and turn reflection into deliberate action.
+            </p>
+          </div>
+
+          <div className={styles.experienceGrid}>
+            <article className={`${styles.experienceCell} reveal-on-scroll`} data-stagger="1">
+              <span>01</span>
+              <p>Indian Navy</p>
+              <h3>Command under pressure</h3>
+              <small>Operational discipline where judgment and trust have consequences.</small>
+            </article>
+            <article className={`${styles.experienceCell} reveal-on-scroll`} data-stagger="2">
+              <span>02</span>
+              <p>People strategy</p>
+              <h3>Systems behind behavior</h3>
+              <small>Multinational experience across culture, talent, and organisational change.</small>
+            </article>
+            <article className={`${styles.experienceCell} reveal-on-scroll`} data-stagger="3">
+              <span>03</span>
+              <p>OLQ Lab</p>
+              <h3>Insight into practice</h3>
+              <small>Assessment, candid coaching, and follow-through built around real work.</small>
+            </article>
+          </div>
+        </section>
+
+        <section className={styles.practice} aria-labelledby="practice-title">
+          <div className={styles.practiceHeading}>
+            <div className="reveal-on-scroll">
+              <p className={styles.sectionIndex}>03 / Areas of practice</p>
+              <h2 id="practice-title">
+                Six disciplines<span className={styles.period}>.</span>
+                <br />
+                One practice<span className={styles.period}>.</span>
+              </h2>
+            </div>
+            <p className={`${styles.practiceIntro} reveal-on-scroll`} data-stagger="1">
+              Leadership does not arrive in neat categories. Select a discipline to see how each
+              one connects evidence, context, and practical change.
+            </p>
+          </div>
+
+          <AboutDisciplineAtlas disciplines={disciplines} />
+        </section>
+
+        <section className={styles.method} aria-labelledby="method-title">
+          <div className={`${styles.methodHeading} reveal-on-scroll`}>
+            <p className={styles.sectionIndex}>04 / How OLQ Lab works</p>
+            <h2 id="method-title">
+              A practice,
+              <br />
+              not a program<span className={styles.period}>.</span>
+            </h2>
+          </div>
+          <ol className={styles.principles}>
+            {principles.map((principle, index) => (
+              <li key={principle} className="reveal-on-scroll" data-stagger={index + 1}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <p>{principle}</p>
+                <i aria-hidden="true">↗</i>
               </li>
             ))}
           </ol>
-        </div>
+        </section>
 
-        <div className="reveal-on-scroll mt-16 flex flex-wrap items-center gap-x-8 gap-y-5">
-          <PrimaryCTA href="/signin" className="cta-shimmer">
-            Sign in
-          </PrimaryCTA>
-          <TextLink href="/assessments">Explore assessments</TextLink>
-        </div>
-      </div>
-    </MarketingChrome>
+        <section className={styles.cta} aria-labelledby="about-cta-title">
+          <div className={`${styles.ctaCopy} reveal-on-scroll`}>
+            <p className={styles.ctaIndex}>05 / Begin within</p>
+            <h2 id="about-cta-title">See the patterns shaping how you lead.</h2>
+          </div>
+          <div className={`${styles.ctaActions} reveal-on-scroll`} data-stagger="1">
+            <Link href="/assessments" className={styles.primaryCta}>
+              Explore assessments <span aria-hidden="true">↗</span>
+            </Link>
+            <Link href="/signin" className={styles.secondaryCta}>
+              Sign in <span aria-hidden="true">→</span>
+            </Link>
+          </div>
+        </section>
+      </main>
+
+      <EditorialFooter />
+    </div>
   );
 }

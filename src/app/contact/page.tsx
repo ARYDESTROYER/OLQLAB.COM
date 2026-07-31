@@ -1,11 +1,9 @@
-import { MarketingChrome } from "@/components/marketing/MarketingChrome";
-import {
-  Eyebrow,
-  PrimaryCTA,
-  SecondaryCTA,
-  MailLink,
-} from "@/components/marketing/Editorial";
+import Link from "next/link";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import { EditorialFooter } from "@/components/marketing/Editorial";
 import { createPageMetadata } from "@/lib/site-metadata";
+import { ContactBriefBuilder } from "./ContactBriefBuilder";
+import styles from "./contact.module.css";
 
 export const metadata = createPageMetadata({
   title: "Contact",
@@ -14,61 +12,174 @@ export const metadata = createPageMetadata({
   path: "/contact",
 });
 
+const briefingSignals = [
+  { number: "01", label: "Cohort size", note: "Who is involved?" },
+  { number: "02", label: "Leadership level", note: "Where do they lead?" },
+  { number: "03", label: "Primary goal", note: "What needs to shift?" },
+  { number: "04", label: "Timeline", note: "When should it begin?" },
+];
+
 export default function ContactPage() {
   return (
-    <MarketingChrome
-      eyebrow="Contact"
-      title="Let’s have an honest conversation."
-      description="Share your team size, goals, and timeline. We will recommend the right diagnostic and coaching track."
-    >
-      {/* CONSULTATION */}
-      <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
-        <div className="reveal-on-scroll">
-          <Eyebrow>Consultation</Eyebrow>
-          <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-            For enterprise programs.
-          </h2>
-        </div>
-        <div>
-          <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/82 md:text-lg">
-            Include cohort size, leadership levels, and the timeline you want to run.
-            We will recommend the right diagnostic and coaching track.
-          </p>
-          <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
-            <PrimaryCTA
-              href="mailto:hello@olqlab.com?subject=OLQLAB%20Consultation"
-              className="cta-shimmer"
-            >
-              Email the team
-            </PrimaryCTA>
-            <MailLink href="mailto:hello@olqlab.com">hello@olqlab.com</MailLink>
-          </div>
-        </div>
-      </div>
+    <div className={styles.page}>
+      <a className={styles.skipLink} href="#contact-main">
+        Skip to main content
+      </a>
+      <PublicHeader />
 
-      <div className="mt-32 md:mt-40">
-        <div className="border-t border-[#101114]/12" />
-      </div>
-
-      {/* EXISTING CLIENTS */}
-      <div className="mt-32 md:mt-40">
-        <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
-          <div className="reveal-on-scroll">
-            <Eyebrow>Existing clients</Eyebrow>
-            <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-              Already enrolled?
-            </h2>
-          </div>
-          <div>
-            <p className="reveal-on-scroll text-base leading-relaxed text-[#101114]/82 md:text-lg">
-              Access your workspace, assessments, and reports directly.
+      <main id="contact-main" tabIndex={-1}>
+        <section className={styles.hero} aria-labelledby="contact-title">
+          <div className={styles.heroStatement}>
+            <p className={styles.eyebrow}>
+              <span aria-hidden /> Contact OLQ Lab
             </p>
-            <div className="reveal-on-scroll mt-12">
-              <SecondaryCTA href="/signin">Client sign in</SecondaryCTA>
+            <h1 id="contact-title" className={styles.heroTitle}>
+              <span>Let’s have</span>
+              <span>an honest</span>
+              <span className={styles.heroTitleAccent}>conversation.</span>
+            </h1>
+            <div className={styles.heroFooter}>
+              <p>
+                Tell us the shape of the leadership challenge. We will help you
+                find a diagnostic and coaching track that fits the context.
+              </p>
+              <a className={styles.heroLink} href="#consultation-brief">
+                Build a consultation brief <span aria-hidden>↘</span>
+              </a>
             </div>
           </div>
-        </div>
-      </div>
-    </MarketingChrome>
+
+          <aside className={styles.signalPanel} aria-label="What to include in your enquiry">
+            <div className={styles.signalHeader}>
+              <span>Useful signals</span>
+              <span>01—04</span>
+            </div>
+            <div className={styles.signalGraphic} aria-hidden="true">
+              <span className={styles.signalOrbit} />
+              <span className={styles.signalCore} />
+              <span className={styles.signalLine} />
+            </div>
+            <ol className={styles.signalList}>
+              {briefingSignals.map((signal) => (
+                <li key={signal.number}>
+                  <span className={styles.signalNumber}>{signal.number}</span>
+                  <span>
+                    <strong>{signal.label}</strong>
+                    <small>{signal.note}</small>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </aside>
+        </section>
+
+        <section className={styles.orientation} aria-labelledby="orientation-title">
+          <div className={styles.orientationHeading}>
+            <p className={styles.eyebrow}>Orientation</p>
+            <h2 id="orientation-title">Start with the shape of the challenge.</h2>
+          </div>
+          <div className={styles.orientationCopy}>
+            <p>
+              A useful first conversation does not need a polished brief. Cohort
+              size, leadership levels, the outcome you want, and a rough timeline
+              give us enough context to ask better questions.
+            </p>
+          </div>
+          <div className={styles.orientationGrid}>
+            {briefingSignals.map((signal) => (
+              <article key={signal.number}>
+                <span>{signal.number}</span>
+                <h3>{signal.label}</h3>
+                <p>{signal.note}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section
+          id="consultation-brief"
+          className={styles.briefSection}
+          aria-labelledby="brief-title"
+        >
+          <div className={styles.briefIntro}>
+            <p className={styles.eyebrow}>Consultation brief</p>
+            <h2 id="brief-title">Give the conversation a useful starting point.</h2>
+            <p>
+              Choose the closest options. We will place them into an email draft
+              for you to review, edit, and send from your own email client.
+            </p>
+            <div className={styles.privacyNote}>
+              <span aria-hidden>○</span>
+              <p>
+                Nothing entered here is stored or submitted by this website.
+              </p>
+            </div>
+          </div>
+
+          <noscript className={styles.noScriptSlot}>
+            <div className={styles.noScriptBrief}>
+              <p>
+                The guided brief needs JavaScript. You can still begin with a direct email and
+                add your cohort, leadership level, goal, and timeline in your own words.
+              </p>
+              <a href="mailto:hello@olqlab.com?subject=OLQLAB%20Consultation">
+                Email hello@olqlab.com <span aria-hidden>↗</span>
+              </a>
+            </div>
+          </noscript>
+
+          <ContactBriefBuilder />
+        </section>
+
+        <section className={styles.pathways} aria-labelledby="pathways-title">
+          <div className={styles.pathwaysHeader}>
+            <p className={styles.eyebrow}>Choose your route</p>
+            <h2 id="pathways-title">New programme or existing workspace?</h2>
+          </div>
+          <div className={styles.pathwayGrid}>
+            <article className={styles.enterprisePath}>
+              <div>
+                <span className={styles.pathwayIndex}>01 / Enterprise programmes</span>
+                <h3>Explore an assessment and coaching programme.</h3>
+                <p>
+                  Share the people, context, and change you are working toward.
+                  We will use the first conversation to understand fit.
+                </p>
+              </div>
+              <a
+                className={styles.pathwayLinkDark}
+                href="mailto:hello@olqlab.com?subject=OLQLAB%20Consultation"
+              >
+                Email hello@olqlab.com <span aria-hidden>↗</span>
+              </a>
+            </article>
+
+            <article className={styles.clientPath}>
+              <div>
+                <span className={styles.pathwayIndex}>02 / Existing clients</span>
+                <h3>Continue to your OLQ Lab workspace.</h3>
+                <p>
+                  Access your enrolled assessments, reports, and existing
+                  programme workspace directly.
+                </p>
+              </div>
+              <Link className={styles.pathwayLinkLight} href="/signin">
+                Client sign in <span aria-hidden>→</span>
+              </Link>
+            </article>
+          </div>
+        </section>
+
+        <section className={styles.directContact} aria-labelledby="direct-contact-title">
+          <p className={styles.eyebrow}>Direct contact</p>
+          <h2 id="direct-contact-title">Prefer a blank page?</h2>
+          <a href="mailto:hello@olqlab.com?subject=OLQLAB%20Consultation">
+            hello@olqlab.com <span aria-hidden>↗</span>
+          </a>
+        </section>
+      </main>
+
+      <EditorialFooter />
+    </div>
   );
 }

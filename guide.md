@@ -456,6 +456,9 @@ Updated runtime behavior:
 - `/assessment/current` lists only published assessments with active resolved enrollment.
 - `/assessment/:id` uses the assessment title plus policy-backed intro copy/checklist instead of one hardcoded generic pre-start message.
 - `/api/assessment/sessions/start` gates via resolver (not tenant-id match).
+- session start requires the shared response-processing acknowledgement. The API
+  records its wording and version in the acknowledgement audit event so the UI,
+  validation error, and durable evidence cannot silently drift.
 - `/reports/current` lists only submitted reports with app access allowed.
 - `/api/reports/me/:assessmentId` and `/pdf` enforce override/report-mode logic.
 - participant session rendering supports optional question reference images below the prompt and above the answer controls without changing scoring, submit validation, or access rules.
@@ -729,8 +732,14 @@ Release infrastructure gates:
 - apply and seed the full migration chain on fresh PostgreSQL 16
 - require zero Prisma schema drift
 - smoke-test `/api/health` and `/api/health/ready`
-- inspect the build manifest: marketing/legal pages remain `○` static while
+- inspect the build manifest: marketing pages remain `○` static while
   sign-in, participant, leader, admin, and API routes remain `ƒ` dynamic
+- for public motion work, verify the final static composition with reduced
+  motion and without JavaScript; scroll-linked enhancement must not hide copy,
+  add dead scroll space, move focus targets, or change route static rendering
+- browser-check public visual changes at 320, 390, 768, 900, 1024, 1280, and
+  1440 px, including horizontal overflow, sticky transitions, keyboard focus,
+  and hydrated interaction state
 
 Architecture scenarios to validate manually:
 1. migration integrity for legacy assessments and impacts
@@ -827,7 +836,7 @@ Architecture scenarios to validate manually:
     idempotency key; a live claim blocks concurrent replay, stale claims recover
     after five minutes, and an older worker cannot overwrite a newer claim
 21. browser matrix:
-  - public marketing, legal, sign-in, and legacy `/singin` redirect
+  - public marketing, sign-in, and legacy `/singin` redirect
   - admin, participant, and leader navigation/authorization
   - participant start, resume, every answer type, submit, report, and PDF
   - admin preview isolation, report editing/dirty-navigation prompt, manual report,
