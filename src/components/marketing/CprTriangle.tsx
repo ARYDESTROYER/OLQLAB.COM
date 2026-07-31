@@ -34,6 +34,28 @@ const POSITIONS: Record<CprCode, Position> = {
   CPR: { x: 50, y: 57.5, ringSize: 8.2, kind: "centre" },
 };
 
+// Split each axis at the node it describes. Keeping the relationships explicit
+// prevents a long animated path from looking partially absent while the map is
+// entering the viewport, while the solid node discs mask the centre of each
+// connector so strokes never show through a label.
+const EDGE_CONNECTIONS = [
+  ["C", "CP"],
+  ["CP", "P"],
+  ["C", "CR"],
+  ["CR", "R"],
+  ["P", "PR"],
+  ["PR", "R"],
+] as const satisfies ReadonlyArray<readonly [CprCode, CprCode]>;
+
+const MEDIAN_CONNECTIONS = [
+  ["C", "CPR"],
+  ["CPR", "PR"],
+  ["P", "CPR"],
+  ["CPR", "CR"],
+  ["R", "CPR"],
+  ["CPR", "CP"],
+] as const satisfies ReadonlyArray<readonly [CprCode, CprCode]>;
+
 type NodeStyle = CSSProperties & {
   "--node-x": string;
   "--node-y": string;
@@ -111,10 +133,26 @@ export default function CprTriangle({
             focusable="false"
             viewBox="0 0 100 100"
           >
-            <path className={styles.edge} d="M 50 18 L 15 79 L 85 79 Z" />
-            <line className={styles.median} x1="50" y1="18" x2="50" y2="79" />
-            <line className={styles.median} x1="15" y1="79" x2="68.5" y2="46" />
-            <line className={styles.median} x1="85" y1="79" x2="31.5" y2="46" />
+            {EDGE_CONNECTIONS.map(([from, to]) => (
+              <line
+                className={styles.edge}
+                key={`${from}-${to}`}
+                x1={POSITIONS[from].x}
+                x2={POSITIONS[to].x}
+                y1={POSITIONS[from].y}
+                y2={POSITIONS[to].y}
+              />
+            ))}
+            {MEDIAN_CONNECTIONS.map(([from, to]) => (
+              <line
+                className={styles.median}
+                key={`${from}-${to}`}
+                x1={POSITIONS[from].x}
+                x2={POSITIONS[to].x}
+                y1={POSITIONS[from].y}
+                y2={POSITIONS[to].y}
+              />
+            ))}
             <circle
               className={styles.activeRing}
               cx={selectedPosition.x}

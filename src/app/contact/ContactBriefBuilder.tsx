@@ -106,20 +106,35 @@ export function ContactBriefBuilder() {
     <div className={styles.builder}>
       <div className={styles.builderProgress} aria-live="polite">
         <span>Brief progress</span>
-        <span>{completed} / {questions.length} signals</span>
-        <span className={styles.progressTrack} aria-hidden="true">
+        <span className={styles.progressCount}>
+          <strong>{completed}</strong> / {questions.length} signals
+        </span>
+        <span
+          className={styles.progressTrack}
+          role="progressbar"
+          aria-label="Consultation brief completion"
+          aria-valuemin={0}
+          aria-valuemax={questions.length}
+          aria-valuenow={completed}
+        >
           <span style={{ width: `${(completed / questions.length) * 100}%` }} />
         </span>
       </div>
 
       <div className={styles.questionList}>
         {questions.map((question) => (
-          <fieldset key={question.key} className={styles.question}>
-            <legend>
-              <span>{question.number}</span>
-              <span>{question.legend}</span>
+          <fieldset
+            key={question.key}
+            className={styles.question}
+            aria-describedby={`brief-${question.key}-prompt`}
+          >
+            <legend className={styles.questionLegend}>
+              <span className={styles.questionLegendInner}>
+                <span>{question.number}</span>
+                <span>{question.legend}</span>
+              </span>
             </legend>
-            <p>{question.prompt}</p>
+            <p id={`brief-${question.key}-prompt`}>{question.prompt}</p>
             <div className={styles.options}>
               {question.options.map((option) => (
                 <label key={option} className={styles.option}>

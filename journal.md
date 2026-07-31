@@ -1549,3 +1549,35 @@ This file is the append-only engineering diary for implementation work in this r
   - This pass did not exercise real production or shared database state, Resend, Blob, OpenAI, Vercel environment values, hosted magic links, or cron execution. No files were staged, committed, pushed, or deployed.
 - Next step:
   - Review and stage the intended files by name, push to `staging`, wait for Vercel to become `READY`, then repeat the hosted browser matrix and real provider/auth/cron smoke tests. Obtain explicit owner/legal acceptance of the temporary legal-page removal before promoting the standing staging-to-main PR.
+
+## Entry 2026-07-31-04
+- Timestamp (UTC): 2026-07-31T04:17:01Z
+- Timestamp (Local): 2026-07-31 09:47:01 IST (+0530)
+- Task: Complete the CPR connections, polish the consultation brief, and rebuild Blindspot Work as an accessible progressive-reveal experience.
+- Why: The Framework relationship map lost portions of several connectors at rendered sizes, the Contact hero and brief still showed distracting grid/layout glitches, and Blindspot Work needed a distinct interaction model that made limited perception tangible without hiding content or excluding keyboard, touch, reduced-motion, or no-script visitors.
+- What changed:
+  - `src/components/marketing/CprTriangle.tsx` and `src/components/marketing/CprTriangle.module.css`: replaced the single dash-animated triangle and medians with twelve explicit node-to-node segments—six outer relationships and six inner relationships—so every connector is complete at every rendered size; changed the entrance to an opacity reveal and kept node discs opaque while scaling so lines never flash through them.
+  - `src/app/contact/ContactBriefBuilder.tsx` and `src/app/contact/contact.module.css`: removed the ruled grid from the conversation title plane, retained only a restrained tonal glow, added a sticky semantic progress rail, linked every fieldset to its prompt, strengthened focus/selected states, preserved 52 px option targets, and made the option grid wrap predictably without horizontal clipping.
+  - `src/app/blindspot/page.tsx`, `src/app/blindspot/BlindspotField.tsx`, and `src/app/blindspot/blindspot.module.css`: rebuilt the route around a dark perception field in which a pointer, pen, tap, keyboard selection, or continued scrolling reveals latent organisational signals. The aperture widens with progress into the complete pattern, followed by outcome, intent-versus-impact, Notice/Name/Practise, and consultation sections.
+  - The Blindspot effect is progressive enhancement: all four signals remain semantic labelled buttons; content stays in the document; no-script, reduced-motion, forced-colours, and coarse-pointer modes resolve to readable stable states; intersection observation plus animation-frame-coalesced scroll and pointer updates contain the work; and the page has exactly one header, main, and footer landmark.
+  - `tests/marketing-interaction-contracts.test.ts`: added server-rendered regression checks for twelve CPR lines and seven controls, nineteen Contact options plus semantic progress and mailto-only submission, and four Blindspot reveal controls plus its static fallback.
+  - `guide.md`: documented the connector, Contact, and progressive-reveal contracts so later visual work preserves the repaired behavior.
+- How:
+  - Diagnosed the missing connectors as a fixed SVG dash length being shorter than the path after responsive scaling, then modelled each visible edge as its own complete segment beneath opaque nodes.
+  - Kept the Contact state local and the final action as a prefilled email draft; no database, storage, or new network endpoint was introduced.
+  - Treated blindness as incomplete context rather than a literal inaccessible page: the first view is intentionally narrow, but every input method can reveal the same information and scrolling gradually exposes the whole system.
+- Validation/output:
+  - Full `npm run ci` passed: lint, typecheck, 55 test files, 174 tests, and the production build.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, and `/oql` as `○` Static while authenticated, admin, assessment, report, sign-in, and API routes remain `ƒ` Dynamic.
+  - `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated line and 11 bytes: `@agents.md\n`.
+  - Local production smoke tests returned HTTP 200, `x-nextjs-cache: HIT`, `x-nextjs-prerender: 1`, and `Cache-Control: s-maxage=31536000` for `/`, `/framework`, `/contact`, and `/blindspot`.
+  - In-app browser QA covered 320, 390, 768, 900, 1024, 1280, and 1440 px. Every sampled page had zero horizontal overflow; Framework rendered twelve complete connectors and seven controls; Contact rendered nineteen unclipped 52 px options and a working semantic progress update; Blindspot rendered four unclipped 44 px controls, responded to pointer/scroll/keyboard selection, and retained one header/main/footer.
+  - A second pass against the exact production server confirmed the complete CPR map, the grid-free Contact hero, a `1 / 4` progress update after selecting a cohort, the Blindspot keyboard reveal and visible focus state, the 320 px layout, and an empty browser warning/error console. The final runtime repeat supplied a local-only smoke-test NextAuth secret so the public header session island could run without pretending that real provider configuration was present; both browser and server logs were empty.
+  - `npm run env:check` correctly reported that this local shell does not contain the production database, NextAuth, Resend, Blob, OpenAI, and cron/job secrets; provider-backed validation therefore remains a hosted staging gate rather than a local pass.
+- Risks/unknowns:
+  - The mask/spotlight is a visual enhancement with static fallbacks, but its exact compositing can still vary across browser engines; the hosted staging pass should include Safari and Chromium with reduced motion and forced colours where practical.
+  - Real database state, Resend, Blob, OpenAI, Vercel environment values, hosted magic links, and cron execution were not exercised in this visual pass because the required secrets are intentionally absent locally.
+  - Privacy and Terms remain removed by explicit product decision, leaving the previously recorded public-disclosure gap until owner/legal acceptance or replacement disclosures are supplied.
+  - No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review and stage only the intended files by name, push to `staging`, wait for the Vercel deployment to reach `READY`, then repeat the provider/auth/cron and cross-browser smoke tests on `staging.olqlab.com`. Obtain explicit owner/legal acceptance of the temporary legal-page removal before promoting the standing staging-to-main PR.

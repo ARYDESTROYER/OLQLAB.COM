@@ -83,21 +83,22 @@
 
 .edge,
 .median {
+  --connector-opacity: 1;
   fill: none;
   stroke: var(--map-rule);
   vector-effect: non-scaling-stroke;
-  stroke-dasharray: 420;
-  stroke-dashoffset: 420;
-  transition: stroke-dashoffset 1.25s cubic-bezier(0.2, 0.7, 0.1, 1) 120ms;
+  opacity: 0;
+  transition: opacity 640ms cubic-bezier(0.2, 0.7, 0.1, 1) 120ms;
 }
 
 .edge {
+  --connector-opacity: 0.94;
   stroke-width: 1.25;
 }
 
 .median {
-  stroke-width: 0.8;
-  opacity: 0.52;
+  --connector-opacity: 0.72;
+  stroke-width: 0.9;
 }
 
 .activeRing {
@@ -113,7 +114,7 @@
 
 .root:global(.is-revealed) .edge,
 .root:global(.is-revealed) .median {
-  stroke-dashoffset: 0;
+  opacity: var(--connector-opacity);
 }
 
 .nodes {
@@ -141,10 +142,9 @@
   color: var(--map-ink);
   font-family: var(--font-instrument-serif), "Times New Roman", serif;
   line-height: 1;
-  opacity: 0;
+  opacity: 1;
   pointer-events: auto;
   transition:
-    opacity 500ms cubic-bezier(0.2, 0.7, 0.1, 1),
     transform 500ms cubic-bezier(0.2, 0.7, 0.1, 1),
     color 260ms ease,
     background-color 260ms ease,
@@ -310,7 +310,7 @@ button.node:focus-visible {
 
   .edge,
   .median {
-    stroke-dashoffset: 0;
+    opacity: var(--connector-opacity);
   }
 
   .node {
@@ -327,7 +327,7 @@ button.node:focus-visible {
 
   .edge,
   .median {
-    stroke-dashoffset: 0;
+    opacity: var(--connector-opacity);
   }
 
   .nodes[data-interactive="true"] {

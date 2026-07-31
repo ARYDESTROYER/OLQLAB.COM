@@ -6,7 +6,7 @@
   --contact-orange: #d98a3b;
   --contact-rule: rgba(16, 17, 20, 0.16);
   min-height: 100vh;
-  overflow: clip;
+  overflow-x: clip;
   background: var(--contact-cream);
   color: var(--contact-ink);
 }
@@ -48,10 +48,8 @@
   justify-content: space-between;
   padding: clamp(2rem, 5vw, 5.5rem) clamp(1rem, 5vw, 5rem) clamp(2rem, 4vw, 4rem);
   background:
-    linear-gradient(var(--contact-rule) 1px, transparent 1px),
-    linear-gradient(90deg, var(--contact-rule) 1px, transparent 1px),
-    radial-gradient(circle at 80% 18%, rgba(181, 128, 60, 0.15), transparent 30%);
-  background-size: 100% 25%, 25% 100%, auto;
+    radial-gradient(circle at 82% 15%, rgba(181, 128, 60, 0.16), transparent 29rem),
+    linear-gradient(145deg, rgba(248, 243, 232, 0.7), transparent 58%);
 }
 
 .eyebrow {
@@ -374,6 +372,7 @@
 
 .briefSection {
   display: grid;
+  align-items: start;
   border-top: 1px solid var(--contact-rule);
   background: var(--contact-paper);
 }
@@ -418,6 +417,7 @@
 
 .builder {
   min-width: 0;
+  width: 100%;
   border-left: 1px solid var(--contact-rule);
   background: var(--contact-cream);
 }
@@ -453,16 +453,32 @@
 }
 
 .builderProgress {
-  position: relative;
+  position: sticky;
+  top: 4.5rem;
+  z-index: 3;
   display: flex;
+  min-height: 4.6rem;
+  align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 1rem 1.25rem 1.2rem;
+  padding: 1rem clamp(1.25rem, 3vw, 2.25rem) 1.25rem;
+  border-bottom: 1px solid rgba(16, 17, 20, 0.08);
+  background: rgba(239, 232, 218, 0.94);
   color: rgba(16, 17, 20, 0.68);
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.64rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  backdrop-filter: blur(10px);
+}
+
+.progressCount {
+  white-space: nowrap;
+}
+
+.progressCount strong {
+  color: var(--contact-ink);
+  font-weight: 700;
 }
 
 .progressTrack {
@@ -484,7 +500,7 @@
 .question {
   min-width: 0;
   margin: 0;
-  padding: 2rem 1.25rem;
+  padding: clamp(1.8rem, 3.5vw, 2.75rem) clamp(1.25rem, 3vw, 2.25rem);
   border: 0;
   border-bottom: 1px solid var(--contact-rule);
 }
@@ -493,46 +509,52 @@
   min-width: 0;
 }
 
-.question legend {
-  display: flex;
-  gap: 0.8rem;
+.questionLegend {
   padding: 0;
+}
+
+.questionLegendInner {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.8rem;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.question legend span:first-child {
+.questionLegendInner > span:first-child {
   color: var(--contact-brass);
   font-family: var(--font-plex-mono), monospace;
 }
 
 .question > p {
-  margin: 0.85rem 0 1.35rem;
+  max-width: 42rem;
+  margin: 1.1rem 0 1.5rem;
   color: rgba(16, 17, 20, 0.66);
-  font-size: 0.86rem;
+  font-size: 0.9rem;
   line-height: 1.55;
 }
 
 .options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.55rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8.75rem), 1fr));
+  gap: 0.65rem;
 }
 
 .option {
   position: relative;
-  display: inline-flex;
-  min-height: 2.75rem;
+  display: flex;
+  min-width: 0;
+  min-height: 3.25rem;
   align-items: center;
   gap: 0.65rem;
-  padding: 0.7rem 0.9rem;
+  padding: 0.8rem 0.9rem;
   border: 1px solid rgba(16, 17, 20, 0.22);
   background: transparent;
   color: rgba(16, 17, 20, 0.82);
   cursor: pointer;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   line-height: 1.35;
   transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease;
 }
@@ -545,6 +567,7 @@
   position: absolute;
   width: 1px;
   height: 1px;
+  clip-path: inset(50%);
   opacity: 0;
 }
 
@@ -569,14 +592,15 @@
 }
 
 .option:has(input:focus-visible) {
-  outline: 3px solid var(--contact-brass);
+  outline: 2px solid var(--contact-ink);
   outline-offset: 3px;
+  box-shadow: 0 0 0 5px var(--contact-brass);
 }
 
 .builderSummary {
   display: grid;
   gap: 2rem;
-  padding: 2rem 1.25rem;
+  padding: clamp(2rem, 4vw, 3rem) clamp(1.25rem, 3vw, 2.25rem);
   background: var(--contact-ink);
   color: var(--contact-cream);
 }
@@ -753,8 +777,9 @@
 .pathwayLinkLight:focus-visible,
 .emailDraft:focus-visible,
 .directContact > a:focus-visible {
-  outline: 3px solid var(--contact-brass);
-  outline-offset: 4px;
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px var(--contact-brass);
 }
 
 @media (min-width: 720px) {
@@ -775,7 +800,7 @@
   }
 
   .briefSection {
-    grid-template-columns: minmax(18rem, 5fr) minmax(0, 7fr);
+    grid-template-columns: minmax(18rem, 0.82fr) minmax(0, 1.18fr);
   }
 
   .briefIntro {
@@ -851,6 +876,10 @@
     border-left: 0;
   }
 
+  .builderProgress {
+    top: 4.25rem;
+  }
+
   .noScriptBrief {
     border-top: 1px solid var(--contact-rule);
     border-left: 0;
@@ -858,6 +887,16 @@
 
   .pathwayGrid article {
     min-height: 24rem;
+  }
+}
+
+@media (max-width: 559px) {
+  .options {
+    grid-template-columns: 1fr;
+  }
+
+  .option {
+    width: 100%;
   }
 }
 
@@ -876,15 +915,6 @@
 
   .orientationGrid article {
     min-height: 8rem;
-  }
-
-  .options {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .option {
-    width: 100%;
   }
 
   .builderSummary dl > div {

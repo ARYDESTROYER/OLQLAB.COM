@@ -740,6 +740,18 @@ Release infrastructure gates:
 - browser-check public visual changes at 320, 390, 768, 900, 1024, 1280, and
   1440 px, including horizontal overflow, sticky transitions, keyboard focus,
   and hydrated interaction state
+- keep the CPR relationship map's six outer and six inner connector segments
+  complete at every breakpoint; node discs may mask line centres, but a reveal
+  animation must never leave a relationship partially drawn
+- keep the Contact title plane visually quiet (no ruled grid behind the hero
+  copy); its brief controls must remain at least 44 px tall, avoid horizontal
+  clipping, expose semantic progress, and preserve the local-only `mailto:` flow
+- treat the Blindspot perception field as progressive visual enhancement: the
+  hero and substantive page copy stay readable, masked signals have equivalent
+  labelled controls, pointer/pen/touch/focus all reveal a useful state, and
+  reduced-motion, no-script, forced-colour, and coarse-pointer users receive a
+  complete static composition; scroll work remains intersection-scoped and
+  animation-frame bounded, without installing a global custom cursor
 
 Architecture scenarios to validate manually:
 1. migration integrity for legacy assessments and impacts

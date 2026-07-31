@@ -1,8 +1,14 @@
 import Link from "next/link";
-import { MarketingChrome } from "@/components/marketing/MarketingChrome";
-import { Eyebrow, GhostCTA } from "@/components/marketing/Editorial";
-import Magnetic from "@/components/effects/Magnetic";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import {
+  EditorialFooter,
+  Eyebrow,
+  GhostCTA,
+  PrimaryCTA,
+} from "@/components/marketing/Editorial";
 import { createPageMetadata } from "@/lib/site-metadata";
+import { BlindspotField } from "./BlindspotField";
+import styles from "./blindspot.module.css";
 
 export const metadata = createPageMetadata({
   title: "Leadership blindspot work",
@@ -13,96 +19,188 @@ export const metadata = createPageMetadata({
 
 const outcomes = [
   {
+    code: "01",
     title: "Hidden behaviors",
     body: "Patterns that quietly reduce team trust without anyone naming them.",
+    tone: "teal",
   },
   {
+    code: "02",
     title: "Risky decision habits",
     body: "The defaults that create avoidable execution risk under pressure.",
+    tone: "amber",
   },
   {
+    code: "03",
     title: "Intent-impact gaps",
     body: "Communication that lands differently than it was meant to.",
+    tone: "terracotta",
   },
   {
+    code: "04",
     title: "Practical next moves",
     body: "Role-specific actions that reduce repeated leadership friction.",
+    tone: "ink",
   },
-];
+] as const;
+
+const practice = [
+  {
+    code: "N",
+    title: "Notice",
+    body: "Make the pattern observable—without turning one difficult moment into a verdict on the person.",
+  },
+  {
+    code: "A",
+    title: "Name",
+    body: "Separate intent from impact and find the conditions that make the pattern more likely to repeat.",
+  },
+  {
+    code: "P",
+    title: "Practise",
+    body: "Choose a specific response to rehearse, apply, and review in the work that is already happening.",
+  },
+] as const;
 
 export default function BlindspotPage() {
   return (
-    <MarketingChrome
-      eyebrow="Blindspot work"
-      title="See what is hard to see alone."
-      description="Then convert that insight into practical behavior shifts."
-      tail={<SprintCTA />}
-    >
-      {/* OUTCOMES */}
-      <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
-        <div className="reveal-on-scroll">
-          <Eyebrow>What you get</Eyebrow>
-          <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.5rem)] leading-[1.04] tracking-[-0.025em]">
-            Four shifts you can act on.
-          </h2>
-        </div>
-        <ul className="border-y border-[#101114]/12 md:border-t-0">
-          {outcomes.map((o, i) => (
-            <li
-              key={o.title}
-              className="reveal-on-scroll grid grid-cols-[auto_1fr] gap-x-6 gap-y-2 border-b border-[#101114]/12 py-9 last:border-b-0 md:gap-x-10 md:py-10"
-            >
-              <span className="font-display text-2xl text-[#101114]/35 md:text-3xl">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <h3 className="font-display text-2xl leading-tight tracking-tight md:text-3xl">
-                {o.title}
-              </h3>
-              <p className="col-start-2 text-base leading-relaxed text-[#101114]/72">{o.body}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </MarketingChrome>
-  );
-}
+    <div className={styles.page}>
+      <a className={styles.skipLink} href="#blindspot-content">
+        Skip to main content
+      </a>
+      <PublicHeader />
 
-function SprintCTA() {
-  return (
-    <section className="bg-[#101114] text-[#EFE8DA]">
-      <div className="mx-auto max-w-5xl px-6 py-28 md:px-10 md:py-40">
-        <div className="reveal-on-scroll">
-          <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[#EFE8DA]/55">
-            <span
-              className="brass-dot"
-              style={{ background: "#C9A777" }}
-              aria-hidden
-            />
-            Run a sprint
-          </p>
-        </div>
-        <h2 className="font-display reveal-on-scroll mt-6 text-balance text-[clamp(2.25rem,6vw,5.5rem)] leading-[1.02] tracking-[-0.03em]">
-          For the leaders stepping into more
-          <span style={{ color: "#C9A777" }}>.</span>
-        </h2>
-        <p className="reveal-on-scroll mt-8 max-w-2xl text-base leading-relaxed text-[#EFE8DA]/72 md:text-lg">
-          Ideal for leaders stepping into expanded scope, post-reorg transitions, or
-          high-stakes performance cycles.
-        </p>
-        <div className="reveal-on-scroll mt-12 flex flex-wrap items-center gap-x-8 gap-y-5">
-          <Magnetic strength={0.2}>
-            <GhostCTA href="/contact" className="cta-shimmer">
-              Book a consultation
-            </GhostCTA>
-          </Magnetic>
-          <Link
-            href="/signin"
-            className="text-sm font-medium text-[#EFE8DA]/80 underline underline-offset-[6px] decoration-[#EFE8DA]/30 transition-colors duration-300 hover:text-[#EFE8DA] hover:decoration-[#EFE8DA]"
-          >
-            Or sign in
-          </Link>
-        </div>
-      </div>
-    </section>
+      <main id="blindspot-content" tabIndex={-1}>
+        <section className={styles.hero} aria-labelledby="blindspot-title">
+          <div className={styles.heroCopy}>
+            <Eyebrow tone="light">Blindspot work</Eyebrow>
+            <h1 id="blindspot-title" className={styles.heroTitle}>
+              What you cannot see
+              <em> still shapes the room.</em>
+            </h1>
+            <p className={styles.heroLede}>
+              See what is hard to see alone—then convert that insight into practical
+              behavior shifts.
+            </p>
+            <div className={styles.heroActions}>
+              <GhostCTA href="/contact">Explore a blindspot sprint</GhostCTA>
+              <a className={styles.fieldLink} href="#perception-field">
+                Enter the perception field
+                <span aria-hidden>↓</span>
+              </a>
+            </div>
+          </div>
+
+          <BlindspotField />
+        </section>
+
+        <section className={styles.outcomes} aria-labelledby="outcomes-title">
+          <div className={styles.sectionLead}>
+            <div className="reveal-on-scroll">
+              <Eyebrow>What becomes visible</Eyebrow>
+              <h2 id="outcomes-title" className={styles.sectionTitle}>
+                Clarity is useful only when it changes the next move.
+              </h2>
+            </div>
+            <p className={`${styles.sectionIntro} reveal-on-scroll`} data-stagger="1">
+              The work turns an indistinct sense that something is off into a pattern
+              a leader can examine, discuss, and act on.
+            </p>
+          </div>
+
+          <ol className={styles.outcomeGrid}>
+            {outcomes.map((outcome, index) => (
+              <li
+                key={outcome.title}
+                className={`${styles.outcomeCard} ${styles[outcome.tone]} reveal-on-scroll`}
+                data-stagger={index + 1}
+              >
+                <span className={styles.outcomeCode}>{outcome.code}</span>
+                <h3>{outcome.title}</h3>
+                <p>{outcome.body}</p>
+                <span className={styles.outcomeSignal} aria-hidden />
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className={styles.gapSection} aria-labelledby="gap-title">
+          <div className={styles.gapHeading}>
+            <Eyebrow tone="light">The useful gap</Eyebrow>
+            <h2 id="gap-title">
+              Intent is only half
+              <span> the signal.</span>
+            </h2>
+          </div>
+          <div className={styles.gapComparison}>
+            <article className={`${styles.gapPanel} ${styles.intentPanel} reveal-on-scroll`}>
+              <span className={styles.panelIndex}>01 / INTENT</span>
+              <p className={styles.panelStatement}>“I was creating clarity.”</p>
+              <p className={styles.panelNote}>
+                The purpose a leader can explain from inside the decision.
+              </p>
+            </article>
+            <article
+              className={`${styles.gapPanel} ${styles.impactPanel} reveal-on-scroll`}
+              data-stagger="1"
+            >
+              <span className={styles.panelIndex}>02 / IMPACT</span>
+              <p className={styles.panelStatement}>“There was no room to question it.”</p>
+              <p className={styles.panelNote}>
+                The experience other people may be responding to in the room.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section className={styles.practice} aria-labelledby="practice-title">
+          <div className={styles.practiceLead}>
+            <Eyebrow>From awareness to practice</Eyebrow>
+            <h2 id="practice-title" className={styles.sectionTitle}>
+              Do not stop at the reveal.
+            </h2>
+            <p>
+              Insight becomes development when it is made specific enough to test in
+              real decisions, conversations, and moments of pressure.
+            </p>
+          </div>
+          <ol className={styles.practiceSteps}>
+            {practice.map((step, index) => (
+              <li key={step.title} className="reveal-on-scroll" data-stagger={index + 1}>
+                <span className={styles.practiceCode}>{step.code}</span>
+                <div>
+                  <span className={styles.practiceIndex}>0{index + 1}</span>
+                  <h3>{step.title}</h3>
+                  <p>{step.body}</p>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className={styles.cta} aria-labelledby="sprint-title">
+          <div className={styles.ctaInner}>
+            <div>
+              <Eyebrow>Run a sprint</Eyebrow>
+              <h2 id="sprint-title">
+                For the leaders stepping into more<span>.</span>
+              </h2>
+            </div>
+            <div className={styles.ctaAside}>
+              <p>
+                Ideal for leaders stepping into expanded scope, post-reorg
+                transitions, or high-stakes performance cycles.
+              </p>
+              <div className={styles.ctaActions}>
+                <PrimaryCTA href="/contact">Book a consultation</PrimaryCTA>
+                <Link href="/signin">Or sign in</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <EditorialFooter />
+    </div>
   );
 }
