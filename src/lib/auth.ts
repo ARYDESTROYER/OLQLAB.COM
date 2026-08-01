@@ -5,6 +5,7 @@ import type { Adapter } from "next-auth/adapters";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { db } from "@/lib/db";
 import { sendEmailOrThrow } from "@/lib/resend";
+import { attemptMagicLinkDelivery } from "@/lib/magic-link-delivery";
 import {
   formatMagicLinkExpiryLabel,
   getAuthSignInSettings,
@@ -143,13 +144,15 @@ const emailProvider = {
       expiryLabel: escapeHtml(expiryLabel),
     });
 
-    await sendEmailOrThrow({
-      from: provider.from,
-      to: email,
-      subject: renderedSubject,
-      text: renderedText,
-      html: renderedHtml,
-    });
+    await attemptMagicLinkDelivery(() =>
+      sendEmailOrThrow({
+        from: provider.from,
+        to: email,
+        subject: renderedSubject,
+        text: renderedText,
+        html: renderedHtml,
+      }),
+    );
   },
 };
 
@@ -199,10 +202,18 @@ export const authOptions: NextAuthOptions = {
           }),
           findEligibleMagicLinkRecipient(email),
         ]);
+        const recipientEligible = Boolean(recipient);
+
+        if (!rateLimitPassed || !recipientEligible) {
+          console.warn("Magic-link request suppressed before provider delivery.", {
+            rateLimitPassed,
+            recipientEligible,
+          });
+        }
 
         return resolveVerificationRequestDecision({
           rateLimitPassed,
-          recipientEligible: Boolean(recipient),
+          recipientEligible,
           authOrigin: process.env.NEXTAUTH_URL || "http://localhost:3000",
         });
       }

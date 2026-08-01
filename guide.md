@@ -732,6 +732,11 @@ Release infrastructure gates:
 - apply and seed the full migration chain on fresh PostgreSQL 16
 - require zero Prisma schema drift
 - smoke-test `/api/health` and `/api/health/ready`
+- `/api/health/ready` must validate the runtime environment, database connectivity,
+  and the critical `AuthRateLimitBucket` authentication schema. A bare `SELECT 1`
+  is not sufficient because sign-in throttling deliberately fails closed when its
+  migration is absent, which otherwise looks like a healthy app that silently sends
+  no magic-link email
 - inspect the build manifest: marketing pages remain `○` static while
   sign-in, participant, leader, admin, and API routes remain `ƒ` dynamic
 - for public motion work, verify the final static composition with reduced
@@ -852,6 +857,11 @@ Architecture scenarios to validate manually:
   - malformed `tokenUrl` values are rejected and redirected safely to `/signin?error=invalid_link`
   - unknown, unseated, archived-organisation, and throttled addresses receive the
     same outward response without a verification token or email
+  - completed NextAuth email-flow responses retain one generic accepted state,
+    including provider failure, so a Resend outage cannot become an account-enumeration
+    side channel; only transport/non-2xx failures show a client error, provider failures
+    are logged without email addresses or tokens, and the accepted copy explicitly says
+    the app cannot confirm whether an email was sent
   - a deleted user, archived organisation, or demoted admin loses access on the
     next request despite stale JWT claims
 19. report release and privacy behavior:
@@ -910,6 +920,12 @@ Architecture scenarios to validate manually:
 - `NEXTAUTH_URL` and `REPORT_SHARE_BASE_URL` must be environment-specific HTTPS
   origins. `DATABASE_URL` is the pooled runtime URL and `DIRECT_DATABASE_URL` is the
   direct migration URL.
+- When staging accepts a sign-in request but Resend records no message, first inspect
+  Vercel logs for `Magic-link rate limiting failed closed.` and verify the exact
+  `AuthRateLimitBucket` columns can be selected with `LIMIT 0`. Then check
+  the exact User/Seat/Organisation eligibility and the five-per-email/fifteen-minute
+  throttle before rotating provider credentials. The outward response intentionally
+  cannot distinguish these cases.
 - `INTERNAL_JOB_SECRET` and `CRON_SECRET` are both at least 32 characters and must
   differ. Vercel Cron authenticates with `CRON_SECRET`.
 - CI and Dependabot are defined under `.github/`; production dependency audit is a

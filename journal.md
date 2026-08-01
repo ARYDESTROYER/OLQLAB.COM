@@ -1648,3 +1648,32 @@ This file is the append-only engineering diary for implementation work in this r
   - No files were staged, committed, pushed, or deployed.
 - Next step:
   - Review the visual diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then run the provider/auth/cron smoke tests and the hosted Safari/Chromium accessibility matrix before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-01-03
+- Timestamp (UTC): 2026-08-01T13:44:23Z
+- Timestamp (Local): 2026-08-01 19:14:23 IST (+0530)
+- Task: Diagnose staging magic-link suppression and harden sign-in delivery feedback and readiness.
+- Why: `staging.olqlab.com/signin` displayed “A sign-in link is on its way” while Resend recorded no new email. The generic verification response intentionally hides account eligibility and throttling state, but the client copy falsely promised delivery and the readiness endpoint could report healthy while the persistent authentication throttle schema was absent.
+- What changed:
+  - `src/app/(auth)/signin/SignInForm.tsx` and `src/lib/magic-link-request.ts`: replaced the false delivery promise with a privacy-safe generic accepted state, retained one outward result for completed NextAuth email requests, caught transport failures, added an accessible sending announcement and `aria-busy`, and restored focus to the email field after “Use a different email.”
+  - `src/lib/magic-link-delivery.ts` and `src/lib/auth.ts`: masked eligible-recipient provider failures behind the same generic response used for suppressed recipients so a Resend outage cannot become an account-enumeration side channel; logged only error class/provider code/status and eligibility/rate-limit booleans, never an email address, token, URL, or provider message.
+  - `src/app/api/health/ready/route.ts`: expanded readiness from a bare `SELECT 1` to runtime environment validation, database connectivity, and a zero-row structural read of the exact `AuthRateLimitBucket` columns. Missing migrations, wrong search paths, missing columns, or missing read permission now return a coarse 503 check result without disclosing secret values.
+  - `.github/workflows/ci.yml`: changed the health smoke from an order-sensitive old JSON equality check to semantic assertions for runtime configuration, database, and authentication schema readiness.
+  - `tests/magic-link-request.test.ts`, `tests/magic-link-delivery.test.ts`, and `tests/health-ready-route.test.ts`: added result-state, transport-failure, provider-masking, non-PII logging, configuration, database, schema, and no-store regression coverage.
+  - `guide.md`: documented the generic magic-link response contract, strengthened readiness requirements, and added the staging troubleshooting sequence for fail-closed throttling, eligibility, and provider checks.
+- How:
+  - Reproduced the live staging page in browser mode without submitting another email. Safe GET probes verified the active NextAuth provider URLs, CSRF endpoint, liveness endpoint, database connectivity, canonical staging origin, and full runtime environment parser path.
+  - Correlated public GitHub/Vercel deployment metadata and response ETags: `staging.olqlab.com` serves successful Preview SHA `5930188de6ee0c51ffb4020deb2a22390a7b787a`. The current animation commit did not change authentication; the fail-closed rate limiter and eligibility behavior entered in earlier auth hardening.
+  - Traced the complete request path. Unknown, unseated, archived-Organisation, solo-admin, throttled, and limiter-schema-failure cases intentionally return the same generic verification URL before Resend runs. Provider failures are now also masked at the server boundary and retained only in non-PII operational logs.
+- Validation/output:
+  - Full `npm run ci` passed: lint, strict typecheck, 59 test files, 202 tests, Prisma generation, and the production build.
+  - Focused auth/readiness validation passed 6 files and 19 tests; focused ESLint, standalone typecheck, and `git diff --check` passed.
+  - The build manifest keeps all eight public marketing routes `○` Static and keeps `/signin`, `/signin/confirm`, `/api/auth/*`, `/api/health/ready`, and authenticated routes `ƒ` Dynamic.
+  - Local production browser smoke confirmed one H1, enabled initial email and submit controls, `aria-busy="false"`, no horizontal overflow at 1280 px, and an empty warning/error console. No sign-in POST was made locally or against staging, so no email, token, or rate-limit mutation was created during diagnosis.
+  - Live staging GETs returned 200 for `/api/auth/providers`, `/api/auth/csrf`, `/api/health`, and `/api/health/ready`; current readiness reports database `ok`. The deployed endpoint predates this patch and therefore does not yet prove the `AuthRateLimitBucket` schema.
+- Risks/unknowns:
+  - The exact live rejection reason is still unavailable without Vercel runtime logs or read-only database access. The leading account-specific clue is that the screenshot's last delivered Resend email and the address entered on staging are different; the entered address may not have an exact User plus matching Seat in an active Organisation. The other high-risk possibility is that `20260729201000_reconcile_schema_and_runtime_safety` was not applied, causing every rate-limit check to fail closed.
+  - Runtime environment values are present and format-valid, but that does not prove the Resend key is accepted, the sender/domain is verified, quota remains, or the provider is available. The new server boundary logs provider code/status after deployment without exposing recipient data.
+  - No files were staged, committed, pushed, deployed, and no database migration was run from this checkout.
+- Next step:
+  - Deploy this patch to `staging` with `npm run deploy:build`, require the expanded `/api/health/ready` response to show all three checks as `ok`, then issue one approved request for an exact invited User/Seat after the fifteen-minute throttle window. If readiness fails, apply the tracked migration through `prisma migrate deploy`; if readiness passes but no Resend event appears, inspect the new non-PII suppression/provider log and the user's Organisation/Seat state before rotating credentials.

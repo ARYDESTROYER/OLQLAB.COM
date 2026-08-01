@@ -100,4 +100,4 @@ jobs:
           health_payload="$(curl --fail --silent --show-error --retry 20 --retry-all-errors --retry-delay 1 http://localhost:3000/api/health)"
           readiness_payload="$(curl --fail --silent --show-error http://localhost:3000/api/health/ready)"
           test "$health_payload" = '{"status":"ok"}'
-          test "$readiness_payload" = '{"status":"ready","checks":{"database":"ok"}}'
+          node -e 'const payload = JSON.parse(process.argv[1]); const checks = payload.checks || {}; if (payload.status !== "ready" || checks.runtimeConfiguration !== "ok" || checks.database !== "ok" || checks.authRateLimitSchema !== "ok") process.exit(1)' "$readiness_payload"
