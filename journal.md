@@ -1701,3 +1701,26 @@ This file is the append-only engineering diary for implementation work in this r
   - Existing Solo administrators remain grandfathered only for authentication. A normal profile edit still revalidates the write-time `ADMIN` + `SOLO` prohibition, and the current admin UI does not offer Move for admins; normalization into an Organisation is a separate workflow decision.
 - Next step:
   - Review and push this focused patch to `staging`, wait for Vercel `READY`, confirm `/api/health/ready` reports all three checks `ok`, allow the prior throttle window to expire, then request one magic link for the Solo administrator and verify the confirm callback reaches `/admin`.
+
+## Entry 2026-08-01-05
+- Timestamp (UTC): 2026-08-01T15:48:26Z
+- Timestamp (Local): 2026-08-01 21:18:26 IST (+0530)
+- Task: Normalize the affected owner administrator into the active administrator Organisation and verify staging magic-link delivery.
+- Why: Live staging continued suppressing the owner account before provider delivery after the compatibility patch deployed. Read-only database inspection established that the account was not a Solo administrator: it belonged to the archived `Demo Corp` Organisation with an otherwise canonical assigned Seat. Production still accepted that legacy state because its older authentication path did not reject archived Organisations, while staging correctly failed closed.
+- What changed:
+  - Shared live database: moved only the affected `ADMIN` User from archived `Demo Corp` to the active `ADMINS` Organisation, retained the same User ID and null manager, replaced only that User's exact source Seat with one assigned target Seat, and wrote one `admin.user.identity_updated` maintenance AuditLog with `actorId: null`.
+  - `journal.md`: recorded the owner-authorized operational repair, safeguards, evidence, and remaining inbox hand-off. No application source, schema, migration, deployment, other User, or other Seat was changed.
+- How:
+  - Used one `SERIALIZABLE` Prisma transaction with sorted advisory locks over both seat inventories, row locks over both Organisations and the exact User, canonical-email and single-row assertions, active-target and archived-source checks, target-capacity enforcement, manager/direct-report guards, a compare-and-set User update, exact Seat create/delete counts, and a unique repair identifier in the AuditLog metadata.
+  - Required the transaction's own postconditions to prove the target identity and Seat, expected source/target count deltas, unchanged history counts, and one matching audit record; then repeated those checks in a separate read-only process.
+- Validation/output:
+  - Transaction committed once. Source changed from 2 Users/2 Seats to 1/1; target changed from 1/1 to 2/2 against a Seat limit of 50. The owner now resolves as `ADMIN` in active `ADMINS` with exactly one assigned Seat and no source Seat.
+  - Independent verification passed: manager remained null, direct reports remained zero, 2 assessment sessions and 11 authentication sessions remained attached to the same User ID, all previously-zero related history counts stayed zero, and exactly one matching maintenance AuditLog exists.
+  - `GET https://staging.olqlab.com/api/health/ready` returned HTTP 200 with `runtimeConfiguration`, `database`, and `authRateLimitSchema` all `ok`.
+  - One browser-mode request was submitted at 2026-08-01T15:45:50Z. The page reached its privacy-safe `Request received` state; Vercel recorded one HTTP 200 `POST /api/auth/signin/email` without a suppression or provider-failure message; Resend recorded exactly one matching message at 2026-08-01T15:45:56Z with event `delivered`; and the database contains one active unexpired verification token for the eligible identity.
+- Risks/unknowns:
+  - Preview and production use the same database, so the intentional identity/Seat normalization is visible to both environments. The archived source Organisation and its remaining legacy administrator were deliberately left untouched.
+  - The AuditLog actor is null because this was an owner-authorized maintenance transaction performed while the affected administrator could not authenticate; the repair identifier preserves traceability.
+  - Provider delivery is verified, but the one-time link has not been opened from the owner's private inbox in this session. Final callback, JWT-cookie creation, and `/admin` arrival remain an inbox-side check.
+- Next step:
+  - Open the newest staging sign-in email once, continue through `/signin/confirm`, and verify the callback lands on the dashboard or admin area. Do not request another link unless this delivered token expires or is consumed.
