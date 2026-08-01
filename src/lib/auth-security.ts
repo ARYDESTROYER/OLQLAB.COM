@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import { isAuthenticationIdentityActive } from "@/lib/identity-policy";
 
 const MAGIC_LINK_WINDOW_MS = 15 * 60 * 1000;
 const MAGIC_LINK_EMAIL_LIMIT = 5;
@@ -235,8 +236,12 @@ export function isMagicLinkRecipientEligible(input: {
   tenantType: "ORGANIZATION" | "SOLO";
   role: "ADMIN" | "EMPLOYEE" | "LEADER";
 }) {
-  if (!input.hasUser || !input.hasSeat || input.tenantArchived) return false;
-  return input.role !== "ADMIN" || input.tenantType === "ORGANIZATION";
+  if (!input.hasUser || !input.hasSeat) return false;
+  return isAuthenticationIdentityActive({
+    role: input.role,
+    organisationType: input.tenantType,
+    isArchived: input.tenantArchived,
+  });
 }
 
 export function resolveVerificationRequestDecision(input: {

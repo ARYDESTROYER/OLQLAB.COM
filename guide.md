@@ -66,6 +66,10 @@ Session-security rules:
 - `ADMIN` accounts are administration-only. They are rejected from participant
   enrollments and assessment sessions, and promotion to `ADMIN` removes participant
   enrollment/access state in the same transaction.
+- Active persisted `ADMIN` accounts can authenticate from either Organisation type,
+  including legacy Solo administrators. The write path still blocks creating or
+  moving an admin into a Solo organisation; authentication does not retroactively
+  lock out an existing identity that has a matching Seat.
 - Demoting a `LEADER` clears every participant whose `managerId` points to that
   account in the same identity-update transaction. The system does not guess a
   replacement manager; an admin must explicitly assign one later.
@@ -580,6 +584,8 @@ Validation rules:
 - add account: toggle between participant and admin creation
 - add user: toggle between "Add to Organisation" (org + email) or "Add Solo Participant" (email only)
 - admin creation is organisation-only; solo creation remains participant-only
+- legacy Solo administrators remain authentication-compatible for recovery, but
+  Add, Edit, Move, and Make Solo actions cannot create another `ADMIN` + `SOLO` pair
 - existing participant accounts can be promoted to admin from the row action menu or the inline edit form
 - bulk add users: CSV-driven import supports either:
   - bulk add into one selected organisation
@@ -805,7 +811,9 @@ Architecture scenarios to validate manually:
 9. admin account workflow:
   - create a new admin under an organisation from `/admin/users`
   - promote an existing participant to admin from the row action menu
-  - confirm solo admin creation is blocked
+  - confirm creating, converting, or moving an admin into Solo remains blocked
+  - confirm an existing active, seated Solo admin can request a magic link and reach
+    an admin route
 10. bulk user CSV import behavior:
   - organisation mode respects seat limits and archived-organisation guards
   - an existing same-organisation user with a missing Seat cannot bypass a full
@@ -857,6 +865,9 @@ Architecture scenarios to validate manually:
   - malformed `tokenUrl` values are rejected and redirected safely to `/signin?error=invalid_link`
   - unknown, unseated, archived-organisation, and throttled addresses receive the
     same outward response without a verification token or email
+  - an active persisted Solo administrator with a matching Seat receives a token and
+    email and remains a live authenticated admin; creating a new Solo admin remains
+    blocked by the separate write-time identity policy
   - completed NextAuth email-flow responses retain one generic accepted state,
     including provider failure, so a Resend outage cannot become an account-enumeration
     side channel; only transport/non-2xx failures show a client error, provider failures
@@ -924,8 +935,9 @@ Architecture scenarios to validate manually:
   Vercel logs for `Magic-link rate limiting failed closed.` and verify the exact
   `AuthRateLimitBucket` columns can be selected with `LIMIT 0`. Then check
   the exact User/Seat/Organisation eligibility and the five-per-email/fifteen-minute
-  throttle before rotating provider credentials. The outward response intentionally
-  cannot distinguish these cases.
+  throttle before rotating provider credentials. Active Solo administrators with a
+  matching Seat are eligible; archived organisations remain ineligible. The outward
+  response intentionally cannot distinguish these cases.
 - `INTERNAL_JOB_SECRET` and `CRON_SECRET` are both at least 32 characters and must
   differ. Vercel Cron authenticates with `CRON_SECRET`.
 - CI and Dependabot are defined under `.github/`; production dependency audit is a

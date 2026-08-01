@@ -84,11 +84,21 @@ export function validateUnenrollDelivery(input: {
   }
 }
 
+export function isAuthenticationIdentityActive(input: {
+  role: AccountRole;
+  organisationType: OrganisationType;
+  isArchived: boolean;
+}) {
+  // Role/organisation compatibility is a write-time invariant enforced by
+  // assertRoleAllowedInOrganisation(). Authentication remains compatible with
+  // already-persisted identities, including legacy Solo administrators.
+  return !input.isArchived;
+}
+
 export function isLiveIdentityActive(input: {
   role: AccountRole;
   organisationType: OrganisationType;
   isArchived: boolean;
 }) {
-  if (input.isArchived) return false;
-  return input.role !== "ADMIN" || input.organisationType === "ORGANIZATION";
+  return isAuthenticationIdentityActive(input);
 }

@@ -1677,3 +1677,27 @@ This file is the append-only engineering diary for implementation work in this r
   - No files were staged, committed, pushed, deployed, and no database migration was run from this checkout.
 - Next step:
   - Deploy this patch to `staging` with `npm run deploy:build`, require the expanded `/api/health/ready` response to show all three checks as `ok`, then issue one approved request for an exact invited User/Seat after the fifteen-minute throttle window. If readiness fails, apply the tracked migration through `prisma migrate deploy`; if readiness passes but no Resend event appears, inspect the new non-PII suppression/provider log and the user's Organisation/Seat state before rotating credentials.
+
+## Entry 2026-08-01-04
+- Timestamp (UTC): 2026-08-01T14:59:08Z
+- Timestamp (Local): 2026-08-01 20:29:08 IST (+0530)
+- Task: Restore magic-link and live-session authentication for persisted Solo administrators.
+- Why: Production's older authentication accepted the existing owner account, while staging's July security hardening rejected `ADMIN` + `SOLO` identities before provider delivery and again during live-session refresh. That read-time policy locked out a valid legacy administrator even though the account still had an exact matching Seat in an active tenant.
+- What changed:
+  - `src/lib/identity-policy.ts`: introduced one shared runtime authentication predicate that treats every persisted identity in a non-archived tenant as active, including legacy Solo administrators; `isLiveIdentityActive` now delegates to it.
+  - `src/lib/auth-security.ts`: changed magic-link recipient eligibility to use the shared runtime predicate after retaining the existing User and matching-Seat requirements.
+  - `tests/auth-security.test.ts` and `tests/identity-policy.test.ts`: replaced the erroneous Solo-admin rejection expectation with complete active role/Organisation coverage, retained unknown, missing-Seat, and archived rejection, and proved the write-time Solo-admin creation invariant still throws.
+  - `tests/api-auth.test.ts`: added a direct regression proving an active persisted Solo administrator passes the live database refresh and `requireAdmin()` authorization after JWT authentication.
+  - `guide.md`: documented the read-time compatibility/write-time policy split, updated the manual validation contract, and corrected staging troubleshooting guidance.
+- How: Kept `assertRoleAllowedInOrganisation()` and the admin user POST/PATCH guards unchanged, so Add, Edit, Move, promotion, and conversion cannot create another `ADMIN` + `SOLO` assignment. Only authentication and live-session reads were made backward-compatible. Token suppression, generic outward responses, rate limiting, provider masking, archived-tenant rejection, and matching-Seat checks are unchanged.
+- Validation/output:
+  - Focused auth validation passed: 3 files and 9 tests, followed by focused ESLint and standalone TypeScript typecheck.
+  - Full `npm run ci` passed: lint, strict typecheck, 60 test files, 204 tests, Prisma generation, and the production build.
+  - The build manifest keeps all eight public marketing routes `○` Static and keeps `/signin`, `/signin/confirm`, `/api/auth/*`, authenticated routes, and admin routes `ƒ` Dynamic; `ƒ Proxy (Middleware)` remains present.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated `@agents.md` line.
+- Risks/unknowns:
+  - This local pass does not send a real email or prove the staging Resend credential. The account may still be temporarily suppressed until the five-per-email/fifteen-minute throttle window from earlier retries expires.
+  - Runtime live-session refresh still follows the existing contract and does not re-query Seat existence after a JWT has been issued; changing that revocation/performance behavior is separate from restoring Solo-admin authentication.
+  - Existing Solo administrators remain grandfathered only for authentication. A normal profile edit still revalidates the write-time `ADMIN` + `SOLO` prohibition, and the current admin UI does not offer Move for admins; normalization into an Organisation is a separate workflow decision.
+- Next step:
+  - Review and push this focused patch to `staging`, wait for Vercel `READY`, confirm `/api/health/ready` reports all three checks `ok`, allow the prior throttle window to expire, then request one magic link for the Solo administrator and verify the confirm callback reaches `/admin`.

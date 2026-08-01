@@ -77,7 +77,7 @@ describe("magic-link enumeration boundary", () => {
     );
   });
 
-  it("rejects unknown, unseated, archived, and solo-admin recipients", () => {
+  it("accepts active Solo admins while rejecting unknown, unseated, and archived recipients", () => {
     const base = {
       hasUser: true,
       hasSeat: true,
@@ -86,6 +86,7 @@ describe("magic-link enumeration boundary", () => {
       role: "EMPLOYEE" as const,
     };
     expect(isMagicLinkRecipientEligible(base)).toBe(true);
+    expect(isMagicLinkRecipientEligible({ ...base, hasUser: false })).toBe(false);
     expect(isMagicLinkRecipientEligible({ ...base, hasSeat: false })).toBe(false);
     expect(isMagicLinkRecipientEligible({ ...base, tenantArchived: true })).toBe(false);
     expect(
@@ -94,6 +95,6 @@ describe("magic-link enumeration boundary", () => {
         role: "ADMIN",
         tenantType: "SOLO",
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
