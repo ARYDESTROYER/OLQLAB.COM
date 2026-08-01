@@ -1,4 +1,7 @@
 .page {
+  --blindspot-teal: var(--signal-cognitive, #3f8278);
+  --blindspot-amber: var(--signal-personality, #e3a34b);
+  --blindspot-terracotta: var(--signal-response, #a85339);
   min-height: 100vh;
   background: var(--cream);
   color: var(--ink);
@@ -38,8 +41,16 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 76% 10%, rgba(181, 128, 60, 0.16), transparent 31rem),
-    radial-gradient(circle at 14% 43%, rgba(64, 119, 111, 0.11), transparent 28rem);
+    radial-gradient(
+      circle at 76% 10%,
+      rgba(181, 128, 60, 0.16),
+      transparent 31rem
+    ),
+    radial-gradient(
+      circle at 14% 43%,
+      rgba(64, 119, 111, 0.11),
+      transparent 28rem
+    );
   content: "";
   pointer-events: none;
 }
@@ -50,6 +61,51 @@
   width: min(100% - 3rem, 80rem);
   margin-inline: auto;
   padding-block: clamp(5.5rem, 10vw, 9.5rem) clamp(4.5rem, 8vw, 7rem);
+}
+
+.heroSpectrum {
+  position: absolute;
+  top: clamp(2rem, 5vw, 4.5rem);
+  right: 0;
+  display: grid;
+  width: min(34vw, 26rem);
+  height: 0.45rem;
+  grid-template-columns: 1.1fr 0.8fr 1fr;
+  overflow: hidden;
+  opacity: 0;
+  animation: blindspot-spectrum-in 900ms 420ms cubic-bezier(0.2, 0.7, 0.1, 1)
+    forwards;
+}
+
+.heroSpectrum span:nth-child(1) {
+  background: var(--blindspot-teal);
+}
+
+.heroSpectrum span:nth-child(2) {
+  background: var(--blindspot-amber);
+}
+
+.heroSpectrum span:nth-child(3) {
+  background: var(--blindspot-terracotta);
+}
+
+.heroEyebrow,
+.heroTitle,
+.heroLede,
+.heroActions {
+  animation: blindspot-hero-in 820ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+
+.heroTitle {
+  animation-delay: 90ms;
+}
+
+.heroLede {
+  animation-delay: 180ms;
+}
+
+.heroActions {
+  animation-delay: 260ms;
 }
 
 .heroTitle {
@@ -127,6 +183,10 @@
   scroll-margin-top: 6rem;
 }
 
+.fieldStage {
+  position: relative;
+}
+
 .fieldHeader {
   display: flex;
   align-items: end;
@@ -162,16 +222,42 @@
 }
 
 .fieldFrame {
-  --spot-x: 50%;
-  --spot-y: 47%;
+  --spot-x: 22%;
+  --spot-y: 27%;
   position: relative;
   min-height: clamp(35rem, 65vw, 47rem);
   overflow: hidden;
   border: 1px solid rgba(239, 232, 218, 0.2);
   background:
-    radial-gradient(circle at 50% 47%, rgba(239, 232, 218, 0.055), transparent 9rem),
+    radial-gradient(
+      circle at var(--spot-x) var(--spot-y),
+      rgba(239, 232, 218, 0.055),
+      transparent 9rem
+    ),
     #0c0d10;
   isolation: isolate;
+  contain: paint;
+}
+
+.fieldSweep {
+  position: absolute;
+  top: -8%;
+  bottom: -8%;
+  left: 0;
+  z-index: 4;
+  width: clamp(5rem, 12vw, 11rem);
+  transform: translate3d(var(--sweep-x), 0, 0) skewX(-8deg);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(227, 163, 75, 0.08),
+    transparent
+  );
+  pointer-events: none;
+}
+
+.field[data-field-active="true"] .fieldSweep {
+  will-change: transform;
 }
 
 .fieldFrame::after {
@@ -224,9 +310,21 @@
   z-index: 2;
   overflow: hidden;
   background:
-    radial-gradient(circle at 28% 32%, rgba(64, 119, 111, 0.35), transparent 17rem),
-    radial-gradient(circle at 75% 65%, rgba(151, 72, 48, 0.28), transparent 20rem),
-    radial-gradient(circle at 65% 20%, rgba(181, 128, 60, 0.3), transparent 17rem),
+    radial-gradient(
+      circle at 28% 32%,
+      rgba(64, 119, 111, 0.35),
+      transparent 17rem
+    ),
+    radial-gradient(
+      circle at 75% 65%,
+      rgba(151, 72, 48, 0.28),
+      transparent 20rem
+    ),
+    radial-gradient(
+      circle at 65% 20%,
+      rgba(181, 128, 60, 0.3),
+      transparent 17rem
+    ),
     #111317;
   -webkit-mask-image: radial-gradient(
     circle var(--aperture) at var(--spot-x) var(--spot-y),
@@ -240,13 +338,16 @@
     #000 72%,
     transparent 100%
   );
-  transition: -webkit-mask-size 120ms linear, mask-size 120ms linear;
 }
 
 .latentField::before {
   position: absolute;
   inset: 0;
-  background-image: radial-gradient(circle, rgba(239, 232, 218, 0.16) 1px, transparent 1px);
+  background-image: radial-gradient(
+    circle,
+    rgba(239, 232, 218, 0.16) 1px,
+    transparent 1px
+  );
   background-size: 34px 34px;
   content: "";
   opacity: 0.32;
@@ -264,6 +365,23 @@
   stroke: rgba(239, 232, 218, 0.27);
   stroke-width: 1.25;
   vector-effect: non-scaling-stroke;
+  transition:
+    stroke 300ms ease,
+    stroke-width 300ms ease,
+    opacity 300ms ease;
+}
+
+.fieldFrame[data-active-signal="0"] .signalLines path[data-from="0"],
+.fieldFrame[data-active-signal="0"] .signalLines path[data-to="0"],
+.fieldFrame[data-active-signal="1"] .signalLines path[data-from="1"],
+.fieldFrame[data-active-signal="1"] .signalLines path[data-to="1"],
+.fieldFrame[data-active-signal="2"] .signalLines path[data-from="2"],
+.fieldFrame[data-active-signal="2"] .signalLines path[data-to="2"],
+.fieldFrame[data-active-signal="3"] .signalLines path[data-from="3"],
+.fieldFrame[data-active-signal="3"] .signalLines path[data-to="3"] {
+  stroke: var(--blindspot-amber);
+  stroke-width: 2;
+  opacity: 1;
 }
 
 .latentSignal {
@@ -272,6 +390,11 @@
   transform: translate(-50%, -0.35rem);
   color: var(--cream);
   text-align: center;
+  transition: transform 320ms cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.latentSignal[data-active="true"] {
+  transform: translate(-50%, -0.35rem) scale(1.035);
 }
 
 .latentSignal::before {
@@ -350,7 +473,10 @@
   font-size: 0.58rem;
   letter-spacing: 0.08em;
   pointer-events: auto;
-  transition: border-color 220ms ease, background 220ms ease, color 220ms ease,
+  transition:
+    border-color 220ms ease,
+    background 220ms ease,
+    color 220ms ease,
     transform 220ms ease;
 }
 
@@ -494,15 +620,15 @@
 }
 
 .outcomeCard.teal {
-  --card-accent: #477a70;
+  --card-accent: var(--blindspot-teal);
 }
 
 .outcomeCard.amber {
-  --card-accent: #b5803c;
+  --card-accent: var(--blindspot-amber);
 }
 
 .outcomeCard.terracotta {
-  --card-accent: #9a5139;
+  --card-accent: var(--blindspot-terracotta);
 }
 
 .outcomeCard.ink {
@@ -541,7 +667,8 @@
   height: 0.55rem;
   border-radius: 50%;
   background: var(--card-accent);
-  box-shadow: 0 0 0 0.5rem color-mix(in srgb, var(--card-accent) 13%, transparent);
+  box-shadow: 0 0 0 0.5rem
+    color-mix(in srgb, var(--card-accent) 13%, transparent);
 }
 
 .gapSection {
@@ -676,6 +803,7 @@
 }
 
 .cta {
+  --focus-light: var(--ink);
   background: var(--brass);
   color: var(--ink);
 }
@@ -735,8 +863,30 @@
 }
 
 .ctaActions > a:last-child:focus-visible {
-  outline: 3px solid var(--cream);
+  outline: 3px solid var(--ink);
   outline-offset: 4px;
+}
+
+@keyframes blindspot-hero-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 1.25rem, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes blindspot-spectrum-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+  to {
+    opacity: 0.84;
+    transform: scaleX(1);
+  }
 }
 
 @media (min-width: 48rem) {
@@ -778,6 +928,24 @@
 }
 
 @media (min-width: 72rem) {
+  .field[data-field-enhanced="true"] {
+    min-height: 165svh;
+    padding-bottom: 0;
+  }
+
+  .field[data-field-enhanced="true"] .fieldStage {
+    position: sticky;
+    top: 4.5rem;
+    display: grid;
+    height: calc(100svh - 4.5rem);
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  .field[data-field-enhanced="true"] .fieldFrame {
+    height: 100%;
+    min-height: 0;
+  }
+
   .outcomeGrid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -797,6 +965,10 @@
 
   .field {
     width: calc(100% - 1rem);
+  }
+
+  .heroSpectrum {
+    width: min(42vw, 14rem);
   }
 
   .fieldHeader {
@@ -885,12 +1057,19 @@
 
   .fieldPrompt,
   .fieldFrame::after,
-  .fieldMeter {
+  .fieldMeter,
+  .fieldSweep {
     display: none;
   }
 
   .signalControl {
     background: rgba(12, 13, 16, 0.95);
+  }
+
+  .latentSignal p {
+    display: block;
+    font-size: 0.64rem;
+    line-height: 1.35;
   }
 }
 
@@ -919,15 +1098,28 @@
     mask-image: none;
   }
 
+  .heroSpectrum,
+  .heroEyebrow,
+  .heroTitle,
+  .heroLede,
+  .heroActions {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
   .fieldPrompt,
   .fieldFrame::after,
-  .fieldMeter {
+  .fieldMeter,
+  .fieldSweep {
     display: none;
   }
 
   .fieldLink span,
   .outcomeCard::before,
-  .signalControl {
+  .signalControl,
+  .signalLines path,
+  .latentSignal {
     transition: none;
   }
 
@@ -937,6 +1129,16 @@
 }
 
 @media (scripting: none) {
+  .heroSpectrum,
+  .heroEyebrow,
+  .heroTitle,
+  .heroLede,
+  .heroActions {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
   .latentField {
     -webkit-mask-image: none;
     mask-image: none;
@@ -945,6 +1147,7 @@
   .fieldPrompt,
   .fieldFrame::after,
   .fieldMeter,
+  .fieldSweep,
   .signalControls {
     display: none;
   }
@@ -957,7 +1160,13 @@
   }
 
   .fieldPrompt,
-  .fieldFrame::after {
+  .fieldFrame::after,
+  .fieldSweep {
     display: none;
   }
+}
+
+.field[data-field-static="true"] .latentField {
+  -webkit-mask-image: none;
+  mask-image: none;
 }

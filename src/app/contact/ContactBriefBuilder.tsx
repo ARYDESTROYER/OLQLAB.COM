@@ -70,6 +70,8 @@ const initialBrief: BriefState = {
   timeline: "",
 };
 
+const questionTones = ["cognitive", "personality", "response", "integrated"] as const;
+
 function buildMailto(brief: BriefState) {
   const selected = (key: BriefKey) => brief[key] || "Not specified yet";
   const body = [
@@ -122,10 +124,12 @@ export function ContactBriefBuilder() {
       </div>
 
       <div className={styles.questionList}>
-        {questions.map((question) => (
+        {questions.map((question, index) => (
           <fieldset
             key={question.key}
             className={styles.question}
+            data-tone={questionTones[index]}
+            data-complete={Boolean(brief[question.key])}
             aria-describedby={`brief-${question.key}-prompt`}
           >
             <legend className={styles.questionLegend}>

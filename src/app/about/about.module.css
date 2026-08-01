@@ -4,6 +4,9 @@
   --about-paper: #f5efe4;
   --about-brass: #b5803c;
   --about-rule: rgba(16, 17, 20, 0.16);
+  --about-cognitive: var(--signal-cognitive, #173e45);
+  --about-personality: var(--signal-personality, #d19a51);
+  --about-response: var(--signal-response, #743b2d);
   overflow: clip;
   background: var(--about-cream);
   color: var(--about-ink);
@@ -65,6 +68,21 @@
   letter-spacing: -0.065em;
   line-height: 0.84;
   text-wrap: balance;
+}
+
+.heroTitleLine {
+  display: block;
+  overflow: clip;
+  padding: 0 0.06em 0.08em 0;
+}
+
+.heroTitleLine > span {
+  display: block;
+  animation: about-title-rise 1.05s cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+
+.heroTitleLine:nth-child(2) > span {
+  animation-delay: 110ms;
 }
 
 .period {
@@ -193,6 +211,14 @@
   background-size: min(14vw, 12rem) min(14vw, 12rem);
 }
 
+.convictionMotion {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: clamp(6rem, 14vw, 13rem) 1.5rem;
+}
+
 .conviction::after {
   position: absolute;
   inset: 0;
@@ -254,30 +280,31 @@
   border-radius: 50%;
   font-size: 0.7rem;
   font-weight: 800;
-  animation: signalFloat 8s ease-in-out infinite alternate;
+  transition: border-color 240ms ease, background-color 240ms ease, color 240ms ease;
 }
 
 .convictionSignals span:nth-child(1) {
   top: 18%;
   left: 9%;
+  border-color: color-mix(in srgb, var(--about-cognitive) 72%, transparent);
+  background: color-mix(in srgb, var(--about-cognitive) 10%, transparent);
+  color: var(--about-cognitive);
 }
 
 .convictionSignals span:nth-child(2) {
   top: 22%;
   right: 11%;
-  animation-delay: -2.4s;
+  border-color: color-mix(in srgb, var(--about-personality) 82%, transparent);
+  background: color-mix(in srgb, var(--about-personality) 15%, transparent);
+  color: #79501f;
 }
 
 .convictionSignals span:nth-child(3) {
   right: 17%;
   bottom: 13%;
-  animation-delay: -4.1s;
-}
-
-@keyframes signalFloat {
-  to {
-    transform: translate3d(0, 1.25rem, 0) rotate(8deg);
-  }
+  border-color: color-mix(in srgb, var(--about-response) 72%, transparent);
+  background: color-mix(in srgb, var(--about-response) 10%, transparent);
+  color: var(--about-response);
 }
 
 .story,
@@ -322,6 +349,7 @@
 }
 
 .experienceGrid {
+  position: relative;
   display: grid;
   grid-column: 1 / -1;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -330,7 +358,28 @@
   border-top: 1px solid var(--about-rule);
 }
 
+.experienceProgress {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--about-cognitive) 0 33.333%,
+    var(--about-personality) 33.333% 66.666%,
+    var(--about-response) 66.666% 100%
+  );
+  transform: scaleX(var(--scroll-progress, 1));
+  transform-origin: left;
+  transition: transform 90ms linear;
+  pointer-events: none;
+}
+
 .experienceCell {
+  --cell-accent: var(--about-brass);
+  --cell-text: var(--about-brass);
   display: grid;
   min-height: 21rem;
   grid-template-rows: auto 1fr auto auto;
@@ -339,12 +388,27 @@
   transition: background 300ms ease, color 300ms ease;
 }
 
+.experienceCell[data-tone="cognitive"] {
+  --cell-accent: var(--about-cognitive);
+  --cell-text: var(--about-cognitive);
+}
+
+.experienceCell[data-tone="personality"] {
+  --cell-accent: var(--about-personality);
+  --cell-text: var(--brass-text, #735027);
+}
+
+.experienceCell[data-tone="response"] {
+  --cell-accent: var(--about-response);
+  --cell-text: var(--about-response);
+}
+
 .experienceCell:last-child {
   border-right: 0;
 }
 
 .experienceCell:hover {
-  background: rgba(181, 128, 60, 0.11);
+  background: color-mix(in srgb, var(--cell-accent) 10%, transparent);
 }
 
 .experienceCell > span,
@@ -362,7 +426,7 @@
 .experienceCell > p {
   align-self: end;
   margin-bottom: 1rem;
-  color: #785329;
+  color: var(--cell-text);
 }
 
 .experienceCell h3 {
@@ -401,8 +465,25 @@
 }
 
 .atlas {
+  --atlas-accent: var(--about-personality);
+  --atlas-on-accent: var(--about-ink);
   margin-top: clamp(3.5rem, 7vw, 7rem);
   border: 1px solid var(--about-rule);
+}
+
+.atlas[data-tone="cognitive"] {
+  --atlas-accent: var(--about-cognitive);
+  --atlas-on-accent: var(--about-cream);
+}
+
+.atlas[data-tone="personality"] {
+  --atlas-accent: var(--about-personality);
+  --atlas-on-accent: var(--about-ink);
+}
+
+.atlas[data-tone="response"] {
+  --atlas-accent: var(--about-response);
+  --atlas-on-accent: var(--about-cream);
 }
 
 .atlasStatus {
@@ -413,8 +494,10 @@
   gap: 2rem;
   padding: 1rem 1.5rem;
   border-bottom: 1px solid var(--about-rule);
-  background: var(--about-brass);
-  color: var(--about-ink);
+  background: var(--atlas-accent);
+  color: var(--atlas-on-accent);
+  transition: background-color 360ms cubic-bezier(0.2, 0.7, 0.1, 1),
+    color 360ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 
 .atlasStatus span,
@@ -430,12 +513,42 @@
   text-align: right;
 }
 
+.atlasToneRail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.atlasToneRail i {
+  display: grid;
+  width: 1.65rem;
+  height: 1.65rem;
+  place-items: center;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  font-style: normal;
+  opacity: 0.42;
+  transition: opacity 240ms ease, transform 360ms cubic-bezier(0.2, 0.7, 0.1, 1),
+    background-color 240ms ease;
+}
+
+.atlas[data-tone="cognitive"] .atlasToneRail i[data-tone="cognitive"],
+.atlas[data-tone="personality"] .atlasToneRail i[data-tone="personality"],
+.atlas[data-tone="response"] .atlasToneRail i[data-tone="response"] {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  opacity: 1;
+  transform: scale(1.12);
+}
+
 .atlasGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .disciplineCard {
+  --card-accent: var(--about-brass);
+  --card-active-accent: var(--about-brass);
   position: relative;
   display: grid;
   min-width: 0;
@@ -456,6 +569,21 @@
     transform 360ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 
+.disciplineCard[data-tone="cognitive"] {
+  --card-accent: var(--about-cognitive);
+  --card-active-accent: var(--signal-cognitive-soft, #b9ccc5);
+}
+
+.disciplineCard[data-tone="personality"] {
+  --card-accent: var(--about-personality);
+  --card-active-accent: var(--about-personality);
+}
+
+.disciplineCard[data-tone="response"] {
+  --card-accent: var(--about-response);
+  --card-active-accent: var(--signal-response-soft, #d7aa8f);
+}
+
 .disciplineCard:nth-child(3n) {
   border-right: 0;
 }
@@ -465,12 +593,14 @@
 }
 
 .disciplineCard:hover {
-  background: rgba(181, 128, 60, 0.09);
+  background: color-mix(in srgb, var(--card-accent) 9%, transparent);
 }
 
 .disciplineCard[data-active="true"] {
   z-index: 1;
-  background: var(--about-ink);
+  background:
+    linear-gradient(var(--card-active-accent), var(--card-active-accent)) top / 100% 0.35rem no-repeat,
+    var(--about-ink);
   color: var(--about-cream);
   box-shadow: 0 0 0 1px var(--about-ink);
 }
@@ -495,8 +625,8 @@
 }
 
 .disciplineCard[data-active="true"] .disciplineMarker {
-  background: var(--about-brass);
-  border-color: var(--about-brass);
+  background: var(--card-active-accent);
+  border-color: var(--card-active-accent);
   transform: scale(1.5);
 }
 
@@ -556,6 +686,8 @@
 }
 
 .principles li {
+  --principle-accent: var(--about-brass);
+  position: relative;
   display: grid;
   min-height: 9rem;
   grid-template-columns: 3.5rem minmax(0, 1fr) auto;
@@ -565,9 +697,42 @@
   transition: padding-left 280ms ease, background 280ms ease;
 }
 
+.principles li::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0.22rem;
+  background: var(--principle-accent);
+  content: "";
+  transform: scaleY(0);
+  transform-origin: bottom;
+  transition: transform 360ms cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.principles li[data-tone="cognitive"] {
+  --principle-accent: var(--about-cognitive);
+}
+
+.principles li[data-tone="personality"] {
+  --principle-accent: var(--about-personality);
+}
+
+.principles li[data-tone="response"] {
+  --principle-accent: var(--about-response);
+}
+
+.principles li[data-tone="integrated"] {
+  --principle-accent: var(--about-ink);
+}
+
 .principles li:hover {
   padding-left: 1rem;
-  background: rgba(181, 128, 60, 0.08);
+  background: color-mix(in srgb, var(--principle-accent) 8%, transparent);
+}
+
+.principles li:hover::before {
+  transform: scaleY(1);
 }
 
 .principles li > span {
@@ -585,6 +750,12 @@
 .principles li i {
   font-style: normal;
   color: rgba(16, 17, 20, 0.45);
+  transition: color 220ms ease, transform 280ms cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.principles li:hover i {
+  color: var(--principle-accent);
+  transform: translate3d(0.25rem, -0.25rem, 0);
 }
 
 .cta {
@@ -637,6 +808,16 @@
   transition: background 260ms ease, color 260ms ease, border-color 260ms ease;
 }
 
+.primaryCta span,
+.secondaryCta span {
+  transition: transform 280ms cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.primaryCta:hover span,
+.secondaryCta:hover span {
+  transform: translate3d(0.3rem, -0.2rem, 0);
+}
+
 .primaryCta {
   border-color: var(--about-brass);
   background: var(--about-brass);
@@ -678,6 +859,13 @@
   from {
     opacity: 0;
     transform: translate3d(0, 1.5rem, 0);
+  }
+}
+
+@keyframes about-title-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 108%, 0);
   }
 }
 
@@ -902,9 +1090,26 @@
   .portraitPanel,
   .heroEnter,
   .heroEnterLate,
-  .heroEnterLatest {
+  .heroEnterLatest,
+  .heroTitleLine > span {
     opacity: 1;
     clip-path: none;
     transform: none;
+  }
+
+  .experienceProgress {
+    transform: scaleX(1);
+  }
+}
+
+@media (scripting: none) {
+  .heroTitleLine > span {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .experienceProgress {
+    transform: scaleX(1);
   }
 }

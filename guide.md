@@ -737,6 +737,41 @@ Release infrastructure gates:
 - for public motion work, verify the final static composition with reduced
   motion and without JavaScript; scroll-linked enhancement must not hide copy,
   add dead scroll space, move focus targets, or change route static rendering
+- the public "Warm Signal" palette is defined once in `src/app/globals.css`:
+  cream/ink remain the dominant editorial surfaces, while
+  `--signal-cognitive`, `--signal-personality`, and `--signal-response` carry
+  CPR meaning; use `--brass-text` rather than bright brass for small text on a
+  light surface, and use the surface-specific focus tokens for visible focus
+- use the shared `ScrollReveal` vocabulary (`data-reveal="rise|fade|scale|wipe|line"`)
+  for one-shot section entrances; for a staggered composition, observe one
+  `data-reveal-group="rise|fade|scale|split|rail|mask|counter|assembly"` parent
+  and mark only its direct children with `data-reveal-item`. The driver assigns
+  a bounded delay in DOM order, batches mutation rescans into one animation
+  frame, and immediately resolves every reveal ancestor when keyboard focus
+  enters it. `data-reveal-parts` remains available for bespoke internal
+  line/decorative reveals while keeping an interactive root stationary
+- all `ScrollMotion` instances share one passive viewport scroll listener, one
+  resize listener, and one animation-frame scheduler. Layer and ambient
+  ownership is resolved against the nearest `data-scroll-scene`, so a parent
+  scene must never wake or transform a nested scene. Keep per-scene
+  IntersectionObserver/ResizeObserver scoping and remove compositor hints as
+  soon as a scene or reveal leaves its active/pending state
+- `data-scroll-layer` belongs only on decorative or non-interactive visual
+  layers, never on a wrapper containing a link, button, radio, tab, or other
+  focus target; ambient loops must sit under `ScrollMotion` with `data-ambient`
+  so they pause outside the nearby viewport
+- the landing overture, Assessment signal explorer, and Blindspot perception
+  field are the only large desktop scrubbed stages. They stay bounded to about
+  1.4–1.65 viewports, keep every link and map/signal control stationary, and
+  become normal unpinned compositions on mobile, coarse pointers, reduced
+  motion, missing observer APIs, or no JavaScript. `SectionSignalRail` is
+  decorative (`aria-hidden`), observes existing document sections, and must
+  never add controls, reorder content, or announce scroll-originated state
+  through `aria-live`
+- clipped hero-word rolls, object-field assembly, and twin-arrow CTA exchanges
+  are one-shot or user-triggered motion. Their reduced-motion and no-script
+  branches must render the complete final state immediately; do not extend
+  their timing beyond the existing sub-second entrance rhythm
 - browser-check public visual changes at 320, 390, 768, 900, 1024, 1280, and
   1440 px, including horizontal overflow, sticky transitions, keyboard focus,
   and hydrated interaction state

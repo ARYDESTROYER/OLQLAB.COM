@@ -21,39 +21,43 @@ export function MarketingChrome({
   tail?: ReactNode;
 }) {
   return (
-    <main className="relative min-h-screen bg-[#EFE8DA] text-[#101114]">
+    <div className="relative min-h-screen bg-cream text-ink">
+      <a className="skip-link" href="#marketing-content">
+        Skip to content
+      </a>
       <PublicHeader />
 
-      <section className="relative mx-auto max-w-7xl px-6 pt-24 pb-24 md:px-10 md:pt-32 md:pb-32">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "radial-gradient(120% 90% at 92% 110%, rgba(166,130,74,0.08), transparent 55%)",
-          }}
-        />
-        <div className="relative">
-          <div className="reveal">
-            <Eyebrow>{eyebrow}</Eyebrow>
+      <main id="marketing-content" tabIndex={-1}>
+        <section className="marketing-chrome-hero relative mx-auto max-w-7xl overflow-hidden px-6 pt-24 pb-24 md:px-10 md:pt-32 md:pb-32">
+          <div className="marketing-chrome-spectrum" aria-hidden>
+            <span />
+            <span />
+            <span />
           </div>
-          <HeroTitle title={title} />
-          <p className="reveal reveal-delay-2 mt-10 max-w-2xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
-            {description}
-          </p>
+          <div className="relative z-[2]">
+            <div className="reveal">
+              <Eyebrow>{eyebrow}</Eyebrow>
+            </div>
+            <HeroTitle title={title} />
+            <p className="reveal reveal-delay-2 mt-10 max-w-2xl text-base leading-relaxed text-ink/72 md:text-lg">
+              {description}
+            </p>
+          </div>
+        </section>
+
+        <div className="mx-auto max-w-7xl px-6 md:px-10">
+          <div className="border-t border-ink/12" />
         </div>
-      </section>
 
-      <div className="mx-auto max-w-7xl px-6 md:px-10">
-        <div className="border-t border-[#101114]/12" />
-      </div>
+        <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">
+          {children}
+        </section>
 
-      <section className="mx-auto max-w-7xl px-6 py-24 md:px-10 md:py-32">{children}</section>
-
-      {tail}
+        {tail}
+      </main>
 
       <EditorialFooter />
-    </main>
+    </div>
   );
 }
 
@@ -69,17 +73,21 @@ function HeroTitle({ title }: { title: string }) {
       aria-label={title}
       className="font-display mt-10 max-w-5xl text-balance text-[clamp(2.5rem,7.5vw,7rem)] leading-[0.96] tracking-[-0.03em]"
     >
-      <span className="word-rise" aria-hidden>
+      <span className="hero-word-rise" aria-hidden>
         {words.map((word, i) => {
           const isLast = i === words.length - 1;
           return (
-            <span key={`${word}-${i}`}>
+            <span
+              className="hero-word-clip"
+              key={`${word}-${i}`}
+              style={{
+                marginRight: isLast ? 0 : "0.28em",
+              }}
+            >
               <span
-                style={{
-                  animationDelay: `${0.18 + i * 0.07}s`,
-                  marginRight: isLast ? 0 : "0.28em",
-                }}
-                className="inline-block"
+                className="hero-word"
+                data-direction={i % 3 === 1 ? "down" : "up"}
+                style={{ animationDelay: `${0.12 + i * 0.055}s` }}
               >
                 {word}
               </span>
@@ -90,10 +98,9 @@ function HeroTitle({ title }: { title: string }) {
       {trailing ? (
         <span
           aria-hidden
-          className="brass-period inline-block"
+          className="brass-period word-rise-period inline-block"
           style={{
-            opacity: 0,
-            animation: `reveal-fade 700ms cubic-bezier(0.2, 0.7, 0.1, 1) ${periodDelay}s forwards`,
+            animationDelay: `${periodDelay}s`,
           }}
         >
           {trailing}

@@ -1,0 +1,364 @@
+.motion {
+  --overture-progress: clamp(
+    0,
+    calc((var(--scroll-progress, 0.36) - 0.36) * 5.1),
+    1
+  );
+  position: relative;
+  overflow: clip;
+}
+
+.stage {
+  position: relative;
+}
+
+.motion:not([data-scroll-enhanced="true"]) .chapterMark,
+.motion:not([data-scroll-enhanced="true"]) .scrollCue {
+  display: none;
+}
+
+.stage :global(.landing-hero__shell) {
+  position: relative;
+  z-index: 2;
+}
+
+.headlineCell,
+.introCell {
+  will-change: auto;
+}
+
+.headlineCopy {
+  transform: translate3d(
+      calc(var(--overture-progress) * -2.2vw),
+      calc(var(--overture-progress) * -2.4rem),
+      0
+    )
+    scale(calc(1 - var(--overture-progress) * 0.055));
+  transform-origin: left bottom;
+}
+
+.introStatement {
+  transform: translate3d(
+      calc(var(--overture-progress) * -2.8vw),
+      calc(var(--overture-progress) * -0.35rem),
+      0
+    )
+    scale(calc(1 + var(--overture-progress) * 0.035));
+  transform-origin: left center;
+}
+
+.chapterMark {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.chapterMark::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(52vw, 44rem);
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--ink) 28%, transparent) 16% 84%,
+    transparent
+  );
+  content: "";
+  opacity: calc(0.12 + var(--overture-progress) * 0.42);
+  transform: translate(-50%, calc(8.5rem - var(--overture-progress) * 4rem))
+    scaleX(var(--overture-progress));
+  transform-origin: center;
+}
+
+.signalArtifact {
+  position: absolute;
+  z-index: 1;
+  display: grid;
+  width: clamp(3.25rem, 6vw, 5.25rem);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid currentColor;
+  background: var(--cream);
+  color: var(--ink);
+  font-family: var(--font-instrument-serif), "Times New Roman", serif;
+  font-size: clamp(1.9rem, 3.5vw, 3rem);
+  line-height: 1;
+  opacity: calc(0.16 + var(--overture-progress) * 0.78);
+  transform: translate3d(
+      calc(var(--artifact-from-x) * (1 - var(--overture-progress))),
+      calc(var(--artifact-from-y) * (1 - var(--overture-progress))),
+      0
+    )
+    rotate(calc(var(--artifact-turn) * (1 - var(--overture-progress))))
+    scale(calc(0.74 + var(--overture-progress) * 0.26));
+}
+
+.signalArtifact::after {
+  position: absolute;
+  right: 0.4rem;
+  bottom: 0.35rem;
+  width: 0.32rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+.signalC {
+  --artifact-from-x: -24vw;
+  --artifact-from-y: -22vh;
+  --artifact-turn: -11deg;
+  right: calc(50% + clamp(4.4rem, 8vw, 7rem));
+  bottom: clamp(2rem, 6vh, 4.5rem);
+  border-radius: 50%;
+  color: var(--signal-cognitive);
+}
+
+.signalP {
+  --artifact-from-x: 5vw;
+  --artifact-from-y: 26vh;
+  --artifact-turn: 9deg;
+  right: calc(50% - 2.6rem);
+  bottom: clamp(2rem, 6vh, 4.5rem);
+  background: var(--signal-personality-soft);
+  color: var(--ink);
+}
+
+.signalR {
+  --artifact-from-x: 28vw;
+  --artifact-from-y: -16vh;
+  --artifact-turn: 13deg;
+  left: calc(50% + clamp(4.4rem, 8vw, 7rem));
+  bottom: clamp(2rem, 6vh, 4.5rem);
+  color: var(--signal-response);
+}
+
+.signalLabel {
+  position: absolute;
+  right: clamp(1.25rem, 3vw, 3rem);
+  bottom: clamp(1.25rem, 3vw, 2.25rem);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.61rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: calc(0.24 + var(--overture-progress) * 0.68);
+  transform: translateY(calc((1 - var(--overture-progress)) * 1rem));
+}
+
+.signalLabel::before {
+  width: clamp(1.5rem, 3vw, 3rem);
+  height: 1px;
+  background: currentColor;
+  content: "";
+}
+
+.scrollCue {
+  position: absolute;
+  bottom: clamp(1.25rem, 3vw, 2.25rem);
+  left: clamp(1.25rem, 3vw, 3rem);
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 0.65;
+  opacity: calc(0.72 - var(--overture-progress) * 0.52);
+}
+
+.scrollCue span {
+  animation: arrow-fall 2s var(--ease-editorial) infinite;
+}
+
+.scrollCue span:nth-child(2) {
+  animation-delay: 180ms;
+}
+.scrollCue span:nth-child(3) {
+  animation-delay: 360ms;
+}
+
+@keyframes arrow-fall {
+  0%,
+  100% {
+    opacity: 0.2;
+    transform: translateY(-0.2rem);
+  }
+  45% {
+    opacity: 0.9;
+    transform: translateY(0.18rem);
+  }
+}
+
+.continuation {
+  position: relative;
+}
+
+.continuation :global(.landing-hero__proof) {
+  display: flex;
+  grid-template-columns: none;
+  flex-direction: column;
+}
+
+.continuation :global(.landing-proof-stats) {
+  display: block;
+  grid-column: auto;
+  grid-template-columns: none;
+  margin-top: 3rem;
+  border-left: 0;
+}
+
+.continuation :global(.landing-proof-stats) > div {
+  grid-template-columns: 4rem minmax(0, 1fr);
+  border-right: 0;
+  padding: 0.85rem 0;
+}
+
+@media (min-width: 64rem) and (min-height: 44rem) and (hover: hover) and (pointer: fine) {
+  .motion[data-scroll-enhanced="true"] {
+    min-height: 142svh;
+  }
+
+  .motion[data-scroll-enhanced="true"] .stage {
+    position: sticky;
+    top: 4.55rem;
+    min-height: calc(100svh - 4.55rem);
+    display: grid;
+    align-items: stretch;
+  }
+
+  .motion[data-scroll-enhanced="true"] .stage :global(.landing-hero__shell) {
+    min-height: calc(100svh - 4.55rem);
+  }
+
+  .motion[data-scroll-enhanced="true"] .headlineCell,
+  .motion[data-scroll-enhanced="true"] .introCell {
+    min-height: calc(100svh - 4.55rem);
+  }
+}
+
+@media (min-width: 64rem) {
+  .continuation {
+    display: grid;
+    grid-template-columns: minmax(0, 2.15fr) minmax(19rem, 0.85fr);
+  }
+
+  .continuation :global(.landing-signal) {
+    grid-column: 1;
+  }
+
+  .continuation :global(.landing-hero__proof) {
+    grid-column: 2;
+    border-left: 1px solid var(--rule-strong);
+  }
+
+  .signalLabel {
+    right: calc(28% + 2rem);
+  }
+}
+
+@media (max-width: 63.99rem) {
+  .headlineCopy,
+  .introStatement,
+  .signalArtifact,
+  .signalLabel {
+    opacity: 1;
+    transform: none;
+  }
+
+  .chapterMark {
+    display: none;
+  }
+
+  .scrollCue {
+    display: none;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .motion {
+    min-height: auto;
+  }
+
+  .stage {
+    position: relative;
+    top: auto;
+    min-height: auto;
+  }
+
+  .headlineCell,
+  .introCell,
+  .stage :global(.landing-hero__shell) {
+    min-height: auto;
+  }
+
+  .headlineCopy,
+  .introStatement,
+  .signalArtifact,
+  .signalLabel {
+    opacity: 1;
+    transform: none;
+  }
+
+  .chapterMark,
+  .scrollCue {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .motion {
+    min-height: auto;
+  }
+
+  .stage {
+    position: relative;
+    top: auto;
+    min-height: auto;
+  }
+
+  .headlineCell,
+  .introCell,
+  .stage :global(.landing-hero__shell) {
+    min-height: auto;
+  }
+
+  .headlineCopy,
+  .introStatement,
+  .signalArtifact,
+  .signalLabel {
+    opacity: 1;
+    transform: none;
+  }
+
+  .scrollCue span {
+    animation: none;
+  }
+}
+
+@media (scripting: none) {
+  .motion {
+    min-height: auto;
+  }
+
+  .stage {
+    position: relative;
+    top: auto;
+    min-height: auto;
+  }
+
+  .headlineCopy,
+  .introStatement,
+  .signalArtifact,
+  .signalLabel {
+    opacity: 1;
+    transform: none;
+  }
+}

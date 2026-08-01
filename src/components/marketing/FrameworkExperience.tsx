@@ -104,16 +104,21 @@ export default function FrameworkExperience() {
     const observeCards = () => {
       observer?.disconnect();
       observer = undefined;
-      if (staticExperience.matches) return;
+      if (staticExperience.matches || typeof IntersectionObserver === "undefined") return;
 
       observer = new IntersectionObserver(
         (entries) => {
+          if (archetypeRefs.current.includes(document.activeElement as HTMLButtonElement)) {
+            return;
+          }
           const activeEntry = entries.find((entry) => entry.isIntersecting);
           const code = activeEntry?.target.getAttribute("data-pattern-code") as
             | ArchetypeCode
             | null
             | undefined;
-          if (code) setActiveArchetype(code);
+          if (code) {
+            setActiveArchetype((current) => (current === code ? current : code));
+          }
         },
         {
           rootMargin: "-34% 0px -50% 0px",
@@ -198,6 +203,27 @@ export default function FrameworkExperience() {
 
           <div className={styles.dimensionStage} data-active={activeDimension}>
             <div className={styles.dimensionGeometry} aria-hidden="true">
+              <svg className={styles.dimensionLinks} viewBox="0 0 100 100">
+                <path className={styles.dimensionOutline} d="M50 24 L25 74 L75 74 Z" />
+                <path
+                  className={styles.dimensionSpoke}
+                  data-signal="C"
+                  d="M50 24 L50 54"
+                  pathLength="1"
+                />
+                <path
+                  className={styles.dimensionSpoke}
+                  data-signal="P"
+                  d="M25 74 L50 54"
+                  pathLength="1"
+                />
+                <path
+                  className={styles.dimensionSpoke}
+                  data-signal="R"
+                  d="M75 74 L50 54"
+                  pathLength="1"
+                />
+              </svg>
               <span className={styles.geometryC}>C</span>
               <span className={styles.geometryP}>P</span>
               <span className={styles.geometryR}>R</span>
@@ -273,8 +299,10 @@ export default function FrameworkExperience() {
                 regions={archetypes}
               />
               <div className={styles.focusCopy}>
-                <h3 className="font-display">{selectedArchetype.label}</h3>
-                <p>{selectedArchetype.description}</p>
+                <div className={styles.focusResolution} key={selectedArchetype.code}>
+                  <h3 className="font-display">{selectedArchetype.label}</h3>
+                  <p>{selectedArchetype.description}</p>
+                </div>
                 <span>Pattern, not verdict.</span>
               </div>
             </aside>
@@ -288,6 +316,11 @@ export default function FrameworkExperience() {
                     data-pattern-code={archetype.code}
                     onClick={() => setActiveArchetype(archetype.code)}
                     onFocus={() => setActiveArchetype(archetype.code)}
+                    onPointerEnter={(event) => {
+                      if (event.pointerType === "mouse") {
+                        setActiveArchetype(archetype.code);
+                      }
+                    }}
                     ref={(node) => {
                       archetypeRefs.current[index] = node;
                     }}

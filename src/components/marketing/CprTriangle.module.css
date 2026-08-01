@@ -88,7 +88,9 @@
   stroke: var(--map-rule);
   vector-effect: non-scaling-stroke;
   opacity: 0;
-  transition: opacity 640ms cubic-bezier(0.2, 0.7, 0.1, 1) 120ms;
+  transition:
+    opacity 640ms cubic-bezier(0.2, 0.7, 0.1, 1) 120ms,
+    stroke 360ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 
 .edge {
@@ -101,15 +103,30 @@
   stroke-width: 0.9;
 }
 
+.edge[data-connection-active="true"],
+.median[data-connection-active="true"] {
+  stroke: var(--map-accent);
+}
+
+.activeHalo,
 .activeRing {
   fill: none;
-  stroke: var(--map-accent);
-  stroke-width: 1.35;
   vector-effect: non-scaling-stroke;
   transition:
     cx 520ms cubic-bezier(0.2, 0.7, 0.1, 1),
     cy 520ms cubic-bezier(0.2, 0.7, 0.1, 1),
     r 520ms cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.activeHalo {
+  stroke: color-mix(in srgb, var(--map-accent) 34%, transparent);
+  stroke-width: 5;
+  opacity: 0.72;
+}
+
+.activeRing {
+  stroke: var(--map-accent);
+  stroke-width: 1.35;
 }
 
 .root:global(.is-revealed) .edge,
@@ -154,6 +171,8 @@
 
 button.node {
   cursor: pointer;
+  transform: translate(-50%, -50%) scale(1);
+  transition-delay: 0ms;
 }
 
 .vertex {
@@ -182,6 +201,7 @@ button.node {
 .root:global(.is-revealed) .node {
   transform: translate(-50%, -50%) scale(1);
   opacity: 1;
+  transition-delay: 0ms;
 }
 
 .node[data-active="true"],
@@ -304,6 +324,7 @@ button.node:focus-visible {
   .edge,
   .median,
   .activeRing,
+  .activeHalo,
   .node {
     transition: none !important;
   }

@@ -5,6 +5,7 @@ import styles from "@/app/about/about.module.css";
 
 type Discipline = {
   code: string;
+  tone: "cognitive" | "personality" | "response";
   label: string;
   description: string;
 };
@@ -15,12 +16,24 @@ export default function AboutDisciplineAtlas({
   disciplines: readonly Discipline[];
 }) {
   const [activeCode, setActiveCode] = useState(disciplines[0]?.code ?? "");
+  const activeDiscipline =
+    disciplines.find((item) => item.code === activeCode) ?? disciplines[0];
 
   return (
-    <div className={styles.atlas} role="group" aria-labelledby="practice-title">
+    <div
+      className={styles.atlas}
+      role="group"
+      aria-labelledby="practice-title"
+      data-tone={activeDiscipline?.tone}
+    >
       <div className={styles.atlasStatus} aria-live="polite" aria-atomic="true">
         <span>Practice signal</span>
-        <strong>{disciplines.find((item) => item.code === activeCode)?.label}</strong>
+        <span className={styles.atlasToneRail} aria-hidden="true">
+          <i data-tone="cognitive">C</i>
+          <i data-tone="personality">P</i>
+          <i data-tone="response">R</i>
+        </span>
+        <strong>{activeDiscipline?.label}</strong>
       </div>
 
       <div className={styles.atlasGrid}>
@@ -31,9 +44,9 @@ export default function AboutDisciplineAtlas({
             <button
               key={discipline.code}
               type="button"
-              className={`${styles.disciplineCard} reveal-on-scroll`}
+              className={styles.disciplineCard}
               data-active={isActive}
-              data-stagger={index + 1}
+              data-tone={discipline.tone}
               aria-pressed={isActive}
               onClick={() => setActiveCode(discipline.code)}
               onFocus={() => setActiveCode(discipline.code)}

@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import ScrollMotion from "@/components/effects/ScrollMotion";
 import AboutDisciplineAtlas from "@/components/marketing/AboutDisciplineAtlas";
 import { EditorialFooter } from "@/components/marketing/Editorial";
 import PublicHeader from "@/components/navigation/PublicHeader";
@@ -16,36 +17,42 @@ export const metadata = createPageMetadata({
 const disciplines = [
   {
     code: "culture",
+    tone: "response",
     label: "Culture Diagnostic",
     description:
       "Surface the culture beneath the org chart — what is said versus what is actually done. We map the rituals, defaults, and unspoken rules so you can change the ones that no longer serve you.",
   },
   {
     code: "blindspot",
+    tone: "personality",
     label: "Leadership Blindspot Coaching",
     description:
       "The patterns leaders cannot see in themselves, named and worked through. Direct, uncomfortable, kind — and rooted in behavioral science rather than personality labels.",
   },
   {
     code: "od",
+    tone: "response",
     label: "Organisational Development",
     description:
       "Structure, roles, and rituals reshaped to support how people actually work. Less re-org theatre, more operating-system clarity.",
   },
   {
     code: "behavior",
+    tone: "cognitive",
     label: "Behavioral Analysis",
     description:
       "Decoding what behavior signals about capability, fit, and growth potential. Evidence-based reads instead of gut calls dressed up as judgment.",
   },
   {
     code: "exec",
+    tone: "personality",
     label: "Executive Coaching",
     description:
       "One-on-one work for senior leaders carrying weight that rarely lifts on its own. Confidential, high-frequency, and aimed at change you can measure.",
   },
   {
     code: "talent",
+    tone: "cognitive",
     label: "Talent Management",
     description:
       "Identify, develop, and retain the people whose growth shapes the company's future. Pipelines, succession, and the patient work of building bench strength.",
@@ -74,8 +81,15 @@ export default function AboutPage() {
               <span aria-hidden="true" />
               About OLQ Lab
             </p>
-            <h1 id="about-title" className={`${styles.heroTitle} ${styles.heroEnterLate}`}>
-              Your guide on the leadership path<span className={styles.period}>.</span>
+            <h1 id="about-title" className={styles.heroTitle}>
+              <span className={styles.heroTitleLine}>
+                <span>Your guide on </span>
+              </span>
+              <span className={styles.heroTitleLine}>
+                <span>
+                  the leadership path<span className={styles.period}>.</span>
+                </span>
+              </span>
             </h1>
             <div className={`${styles.heroIntro} ${styles.heroEnterLatest}`}>
               <p>
@@ -110,19 +124,21 @@ export default function AboutPage() {
         </section>
 
         <section className={styles.conviction} aria-labelledby="conviction-title">
-          <div className={`${styles.convictionInner} reveal-on-scroll`}>
-            <p className={styles.sectionIndex}>01 / Orientation</p>
-            <h2 id="conviction-title">
-              Leadership is not about volume. It is about understanding people deeply,
-              <em> including yourself.</em>
-            </h2>
-            <p className={styles.convictionByline}>A working conviction, not a slogan.</p>
-          </div>
-          <div className={styles.convictionSignals} aria-hidden="true">
-            <span>C</span>
-            <span>P</span>
-            <span>R</span>
-          </div>
+          <ScrollMotion className={styles.convictionMotion}>
+            <div className={`${styles.convictionInner} reveal-on-scroll`}>
+              <p className={styles.sectionIndex}>01 / Orientation</p>
+              <h2 id="conviction-title">
+                Leadership is not about volume. It is about understanding people deeply,
+                <em> including yourself.</em>
+              </h2>
+              <p className={styles.convictionByline}>A working conviction, not a slogan.</p>
+            </div>
+            <div className={styles.convictionSignals} aria-hidden="true">
+              <span data-scroll-layer="far">C</span>
+              <span data-scroll-layer="mid">P</span>
+              <span data-scroll-layer="near">R</span>
+            </div>
+          </ScrollMotion>
         </section>
 
         <section id="founder-story" className={styles.story} aria-labelledby="story-title">
@@ -144,26 +160,39 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className={styles.experienceGrid}>
-            <article className={`${styles.experienceCell} reveal-on-scroll`} data-stagger="1">
+          <ScrollMotion className={styles.experienceGrid}>
+            <span className={styles.experienceProgress} aria-hidden="true" />
+            <article
+              className={`${styles.experienceCell} reveal-on-scroll`}
+              data-stagger="1"
+              data-tone="cognitive"
+            >
               <span>01</span>
               <p>Indian Navy</p>
               <h3>Command under pressure</h3>
               <small>Operational discipline where judgment and trust have consequences.</small>
             </article>
-            <article className={`${styles.experienceCell} reveal-on-scroll`} data-stagger="2">
+            <article
+              className={`${styles.experienceCell} reveal-on-scroll`}
+              data-stagger="2"
+              data-tone="personality"
+            >
               <span>02</span>
               <p>People strategy</p>
               <h3>Systems behind behavior</h3>
               <small>Multinational experience across culture, talent, and organisational change.</small>
             </article>
-            <article className={`${styles.experienceCell} reveal-on-scroll`} data-stagger="3">
+            <article
+              className={`${styles.experienceCell} reveal-on-scroll`}
+              data-stagger="3"
+              data-tone="response"
+            >
               <span>03</span>
               <p>OLQ Lab</p>
               <h3>Insight into practice</h3>
               <small>Assessment, candid coaching, and follow-through built around real work.</small>
             </article>
-          </div>
+          </ScrollMotion>
         </section>
 
         <section className={styles.practice} aria-labelledby="practice-title">
@@ -196,7 +225,12 @@ export default function AboutPage() {
           </div>
           <ol className={styles.principles}>
             {principles.map((principle, index) => (
-              <li key={principle} className="reveal-on-scroll" data-stagger={index + 1}>
+              <li
+                key={principle}
+                className="reveal-on-scroll"
+                data-stagger={index + 1}
+                data-tone={(["cognitive", "personality", "response", "integrated"] as const)[index]}
+              >
                 <span>{String(index + 1).padStart(2, "0")}</span>
                 <p>{principle}</p>
                 <i aria-hidden="true">↗</i>
@@ -210,7 +244,7 @@ export default function AboutPage() {
             <p className={styles.ctaIndex}>05 / Begin within</p>
             <h2 id="about-cta-title">See the patterns shaping how you lead.</h2>
           </div>
-          <div className={`${styles.ctaActions} reveal-on-scroll`} data-stagger="1">
+          <div className={styles.ctaActions}>
             <Link href="/assessments" className={styles.primaryCta}>
               Explore assessments <span aria-hidden="true">↗</span>
             </Link>

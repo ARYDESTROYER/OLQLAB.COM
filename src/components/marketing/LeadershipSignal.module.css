@@ -1,7 +1,7 @@
 .motion {
   position: relative;
   overflow: clip;
-  background: #efe8da;
+  background: var(--cream);
 }
 
 .signal {
@@ -17,9 +17,9 @@
   justify-content: space-between;
   gap: 1.5rem;
   border-bottom: 1px solid rgb(16 17 20 / 28%);
-  background: #e5d8c2;
+  background: var(--cream-deep);
   padding: 0.85rem 1rem;
-  color: #101114;
+  color: var(--ink);
   font-family: var(--font-plex-mono), ui-monospace, monospace;
   font-size: 0.64rem;
   font-weight: 650;
@@ -34,7 +34,7 @@
   grid-template-columns: repeat(6, minmax(0, 1fr));
   grid-template-rows: repeat(2, minmax(clamp(8.25rem, 11.5vw, 10.75rem), 1fr));
   overflow: hidden;
-  background: #efe8da;
+  background: var(--cream);
 }
 
 .mosaicCell {
@@ -45,7 +45,7 @@
   overflow: hidden;
   border-right: 1px solid rgb(16 17 20 / 24%);
   border-bottom: 1px solid rgb(16 17 20 / 24%);
-  color: #101114;
+  color: var(--ink);
 }
 
 .mosaicCell:nth-child(6n) {
@@ -57,52 +57,59 @@
 }
 
 .paper {
-  background: #f4eee0;
+  background: var(--cream-warm);
 }
 
 .tealSoft {
-  background: #b9ccc5;
+  background: var(--signal-cognitive-soft);
 }
 
 .goldSoft {
-  background: #efd49c;
+  background: var(--signal-personality-soft);
 }
 
 .brass {
-  background: #c88f47;
+  background: var(--brass);
 }
 
 .rustSoft {
-  background: #d7aa8f;
+  background: var(--signal-response-soft);
 }
 
 .cognitive {
-  --signal-accent: #173e45;
-  --signal-on-accent: #fff8eb;
+  --signal-accent: var(--signal-cognitive);
+  --signal-on-accent: var(--on-signal-dark);
   background: var(--signal-accent);
   color: var(--signal-on-accent);
 }
 
 .personality {
-  --signal-accent: #d19a51;
-  --signal-on-accent: #101114;
+  --signal-accent: var(--signal-personality);
+  --signal-on-accent: var(--ink);
   background: var(--signal-accent);
   color: var(--signal-on-accent);
 }
 
 .response {
-  --signal-accent: #743b2d;
-  --signal-on-accent: #fff8eb;
+  --signal-accent: var(--signal-response);
+  --signal-on-accent: var(--on-signal-dark);
   background: var(--signal-accent);
   color: var(--signal-on-accent);
 }
 
 .mosaicAnchor {
+  padding: clamp(1rem, 1.8vw, 1.55rem);
+}
+
+.mosaicAnchorInner {
+  position: relative;
+  z-index: 1;
   display: flex;
+  width: 100%;
+  height: 100%;
   align-items: flex-start;
   flex-direction: column;
   justify-content: space-between;
-  padding: clamp(1rem, 1.8vw, 1.55rem);
 }
 
 .mosaicAnchor::after {
@@ -158,13 +165,16 @@
 }
 
 .mosaicOrbit {
+  position: relative;
   display: grid;
   width: clamp(3.25rem, 5.3vw, 5.25rem);
   aspect-ratio: 1;
   place-items: center;
   border: 1px solid rgb(16 17 20 / 52%);
   border-radius: 50%;
-  transition: transform 80ms linear;
+  transition:
+    transform 80ms linear,
+    border-color var(--motion-medium) ease;
 }
 
 .mosaicOrbit span,
@@ -172,8 +182,35 @@
   width: 0.46rem;
   aspect-ratio: 1;
   border-radius: 50%;
-  background: #101114;
+  background: var(--ink);
   box-shadow: 0 0 0 0.45rem rgb(16 17 20 / 8%);
+}
+
+.mosaicPoint {
+  position: relative;
+}
+
+.mosaicOrbit::after,
+.mosaicPoint::after,
+.mobileOrbit::after {
+  position: absolute;
+  inset: -0.48rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  content: "";
+  opacity: 0.08;
+  transform: scale(0.72);
+  pointer-events: none;
+}
+
+.mosaicOrbit[data-ambient]::after,
+.mosaicPoint[data-ambient]::after,
+.mobileOrbit[data-ambient]::after {
+  animation: signal-pulse 4.8s ease-in-out infinite;
+}
+
+.mosaicPoint::after {
+  color: var(--ink);
 }
 
 .trace {
@@ -187,6 +224,7 @@
   transform-origin: left;
   background: rgb(255 248 235 / 74%);
   box-shadow: 0 0 16px rgb(255 248 235 / 36%);
+  animation: signal-trace-glow 3.6s ease-in-out infinite;
   pointer-events: none;
 }
 
@@ -248,6 +286,7 @@
 }
 
 .mobileOrbit {
+  position: relative;
   display: grid;
   width: 3.4rem;
   aspect-ratio: 1;
@@ -281,7 +320,29 @@
   height: 100%;
   transform: scaleX(var(--scroll-progress, 0));
   transform-origin: left;
-  background: #101114;
+  background: var(--ink);
+}
+
+@keyframes signal-pulse {
+  0%,
+  100% {
+    opacity: 0.06;
+    transform: scale(0.72);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(1.08);
+  }
+}
+
+@keyframes signal-trace-glow {
+  0%,
+  100% {
+    opacity: 0.46;
+  }
+  50% {
+    opacity: 0.92;
+  }
 }
 
 @media (max-width: 56.24rem) {
@@ -331,6 +392,7 @@
   .mobileOrbit,
   .trace,
   .progressTrack span {
+    animation: none !important;
     transition: none;
     transform: none !important;
   }

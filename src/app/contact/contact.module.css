@@ -5,6 +5,10 @@
   --contact-brass: #b5803c;
   --contact-orange: #d98a3b;
   --contact-rule: rgba(16, 17, 20, 0.16);
+  --contact-cognitive: var(--signal-cognitive, #173e45);
+  --contact-personality: var(--signal-personality, #d19a51);
+  --contact-personality-soft: var(--signal-personality-soft, #efd49c);
+  --contact-response: var(--signal-response, #743b2d);
   min-height: 100vh;
   overflow-x: clip;
   background: var(--contact-cream);
@@ -82,18 +86,22 @@
   line-height: 0.82;
 }
 
-.heroTitle > span {
+.heroTitleLine {
   display: block;
-  opacity: 0;
-  transform: translateY(0.35em);
-  animation: contact-title-in 850ms cubic-bezier(0.2, 0.7, 0.1, 1) forwards;
+  overflow: clip;
+  padding: 0 0.06em 0.08em 0;
 }
 
-.heroTitle > span:nth-child(2) {
+.heroTitleLine > span {
+  display: block;
+  animation: contact-title-in 850ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
+}
+
+.heroTitleLine:nth-child(2) > span {
   animation-delay: 90ms;
 }
 
-.heroTitle > span:nth-child(3) {
+.heroTitleLine:nth-child(3) > span {
   animation-delay: 180ms;
 }
 
@@ -194,13 +202,29 @@
   background-size: 25% 25%;
 }
 
+.signalMotion {
+  display: flex;
+  min-height: 17rem;
+  flex: 1;
+}
+
+.signalOrbitLayer,
+.signalCoreLayer,
+.signalLineLayer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+
 .signalOrbit {
   position: relative;
   width: clamp(9rem, 18vw, 15rem);
   aspect-ratio: 1;
   border: 1px solid rgba(239, 232, 218, 0.64);
   border-radius: 50%;
-  animation: contact-orbit-breathe 5s ease-in-out infinite;
+  animation: contact-orbit-arrive 1.2s cubic-bezier(0.2, 0.7, 0.1, 1) both;
 }
 
 .signalOrbit::before,
@@ -225,21 +249,25 @@
 }
 
 .signalCore {
-  position: absolute;
+  position: relative;
   width: 0.72rem;
   height: 0.72rem;
   border-radius: 50%;
   background: var(--contact-cream);
+  box-shadow:
+    0 0 0 0.6rem color-mix(in srgb, var(--contact-cognitive) 52%, transparent),
+    0 0 0 1.2rem color-mix(in srgb, var(--contact-response) 22%, transparent);
+  animation: contact-core-arrive 900ms 260ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
 }
 
 .signalLine {
-  position: absolute;
+  position: relative;
   width: 1px;
   height: 38%;
   background: linear-gradient(transparent, var(--contact-orange), transparent);
   transform: rotate(38deg);
   transform-origin: center;
-  animation: contact-signal-sweep 7s linear infinite;
+  animation: contact-signal-arrive 1.15s 180ms cubic-bezier(0.2, 0.7, 0.1, 1) both;
 }
 
 .signalList {
@@ -249,6 +277,7 @@
 }
 
 .signalList li {
+  --signal-accent: var(--contact-brass);
   display: grid;
   grid-template-columns: 2.6rem 1fr;
   gap: 0.75rem;
@@ -257,12 +286,28 @@
   border-bottom: 1px solid rgba(239, 232, 218, 0.18);
 }
 
+.signalList li:nth-child(1) {
+  --signal-accent: var(--contact-cognitive);
+}
+
+.signalList li:nth-child(2) {
+  --signal-accent: var(--contact-personality);
+}
+
+.signalList li:nth-child(3) {
+  --signal-accent: var(--contact-response);
+}
+
+.signalList li:nth-child(4) {
+  --signal-accent: var(--contact-cream);
+}
+
 .signalList li:last-child {
   border-bottom: 0;
 }
 
 .signalNumber {
-  color: var(--contact-orange);
+  color: var(--signal-accent);
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.64rem;
 }
@@ -323,13 +368,37 @@
 }
 
 .orientationGrid {
+  position: relative;
   grid-column: 1 / -1;
   display: grid;
   border-top: 1px solid var(--contact-rule);
   border-left: 1px solid var(--contact-rule);
 }
 
+.orientationProgress {
+  position: absolute;
+  top: -1px;
+  right: 0;
+  left: 0;
+  z-index: 2;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    var(--contact-cognitive) 0 25%,
+    var(--contact-personality) 25% 50%,
+    var(--contact-response) 50% 75%,
+    var(--contact-ink) 75% 100%
+  );
+  transform: scaleX(var(--scroll-progress, 1));
+  transform-origin: left;
+  transition: transform 90ms linear;
+  pointer-events: none;
+}
+
 .orientationGrid article {
+  --orientation-accent: var(--contact-brass);
+  --orientation-text: var(--brass-text, #735027);
+  position: relative;
   min-height: 11rem;
   padding: 1.35rem;
   border-right: 1px solid var(--contact-rule);
@@ -337,9 +406,48 @@
   transition: background-color 220ms ease, color 220ms ease;
 }
 
+.orientationGrid article::after {
+  position: absolute;
+  right: 1.35rem;
+  bottom: 1.35rem;
+  width: 0.48rem;
+  height: 0.48rem;
+  border-radius: 50%;
+  background: var(--orientation-accent);
+  content: "";
+  transform: scale(0.7);
+  transition: transform 320ms cubic-bezier(0.2, 0.7, 0.1, 1),
+    box-shadow 320ms ease;
+}
+
+.orientationGrid article[data-tone="cognitive"] {
+  --orientation-accent: var(--contact-cognitive);
+  --orientation-text: var(--contact-cognitive);
+}
+
+.orientationGrid article[data-tone="personality"] {
+  --orientation-accent: var(--contact-personality);
+  --orientation-text: var(--brass-text, #735027);
+}
+
+.orientationGrid article[data-tone="response"] {
+  --orientation-accent: var(--contact-response);
+  --orientation-text: var(--contact-response);
+}
+
+.orientationGrid article[data-tone="integrated"] {
+  --orientation-accent: var(--contact-ink);
+  --orientation-text: var(--contact-ink);
+}
+
 .orientationGrid article:hover {
-  background: var(--contact-ink);
+  background: color-mix(in srgb, var(--orientation-accent) 88%, var(--contact-ink));
   color: var(--contact-cream);
+}
+
+.orientationGrid article:hover::after {
+  box-shadow: 0 0 0 0.45rem color-mix(in srgb, var(--orientation-accent) 24%, transparent);
+  transform: scale(1.15);
 }
 
 .orientationGrid article > span,
@@ -351,7 +459,11 @@
 }
 
 .orientationGrid article > span {
-  color: var(--contact-brass);
+  color: var(--orientation-text);
+}
+
+.orientationGrid article:hover > span {
+  color: var(--contact-cream);
 }
 
 .orientationGrid h3 {
@@ -493,16 +605,72 @@
 .progressTrack > span {
   display: block;
   height: 100%;
-  background: var(--contact-brass);
+  background: linear-gradient(
+    90deg,
+    var(--contact-cognitive),
+    var(--contact-personality),
+    var(--contact-response),
+    var(--contact-ink)
+  );
   transition: width 400ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 
 .question {
+  --question-accent: var(--contact-brass);
+  --question-check: var(--contact-personality-soft);
+  --question-text: var(--brass-text, #735027);
+  position: relative;
   min-width: 0;
   margin: 0;
   padding: clamp(1.8rem, 3.5vw, 2.75rem) clamp(1.25rem, 3vw, 2.25rem);
   border: 0;
   border-bottom: 1px solid var(--contact-rule);
+  transition: background-color 300ms ease;
+}
+
+.question::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0.2rem;
+  background: var(--question-accent);
+  content: "";
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 420ms cubic-bezier(0.2, 0.7, 0.1, 1);
+}
+
+.question[data-tone="cognitive"] {
+  --question-accent: var(--contact-cognitive);
+  --question-check: var(--signal-cognitive-soft, #b9ccc5);
+  --question-text: var(--contact-cognitive);
+}
+
+.question[data-tone="personality"] {
+  --question-accent: var(--contact-personality);
+  --question-check: var(--contact-personality-soft);
+  --question-text: var(--brass-text, #735027);
+}
+
+.question[data-tone="response"] {
+  --question-accent: var(--contact-response);
+  --question-check: var(--signal-response-soft, #d7aa8f);
+  --question-text: var(--contact-response);
+}
+
+.question[data-tone="integrated"] {
+  --question-accent: var(--contact-ink);
+  --question-check: var(--contact-cream);
+  --question-text: var(--contact-ink);
+}
+
+.question[data-complete="true"] {
+  background: color-mix(in srgb, var(--question-accent) 6%, var(--contact-cream));
+}
+
+.question[data-complete="true"]::before {
+  transform: scaleY(1);
 }
 
 .questionList {
@@ -524,7 +692,7 @@
 }
 
 .questionLegendInner > span:first-child {
-  color: var(--contact-brass);
+  color: var(--question-text);
   font-family: var(--font-plex-mono), monospace;
 }
 
@@ -580,15 +748,16 @@
 }
 
 .option:has(input:checked) {
-  border-color: var(--contact-ink);
+  border-color: var(--question-check);
   background: var(--contact-ink);
   color: var(--contact-cream);
+  animation: contact-option-select 280ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
 
 .option:has(input:checked) .optionMark {
-  border-color: var(--contact-orange);
-  background: var(--contact-orange);
-  box-shadow: 0 0 0 0.18rem rgba(217, 138, 59, 0.2);
+  border-color: var(--question-check);
+  background: var(--question-check);
+  box-shadow: 0 0 0 0.18rem color-mix(in srgb, var(--question-check) 24%, transparent);
 }
 
 .option:has(input:focus-visible) {
@@ -681,7 +850,10 @@
 }
 
 .enterprisePath {
-  background: var(--contact-orange);
+  background:
+    linear-gradient(90deg, var(--contact-cognitive), var(--contact-personality), var(--contact-response))
+      top / 100% 0.4rem no-repeat,
+    var(--contact-personality-soft);
   color: var(--contact-ink);
 }
 
@@ -859,6 +1031,7 @@
     width: 100%;
   }
 
+  .signalMotion,
   .signalGraphic {
     min-height: 15rem;
   }
@@ -940,6 +1113,22 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  .heroTitleLine > span,
+  .signalOrbit,
+  .signalCore,
+  .signalLine {
+    opacity: 1;
+    transform: none;
+  }
+
+  .signalLine {
+    transform: rotate(38deg);
+  }
+
+  .orientationProgress {
+    transform: scaleX(1);
+  }
 }
 
 @media (scripting: none) {
@@ -950,29 +1139,56 @@
   .noScriptSlot {
     display: block;
   }
+
+  .heroTitleLine > span,
+  .signalOrbit,
+  .signalCore {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+
+  .signalLine {
+    animation: none;
+    opacity: 1;
+    transform: rotate(38deg);
+  }
+
+  .orientationProgress {
+    transform: scaleX(1);
+  }
 }
 
 @keyframes contact-title-in {
-  to {
-    opacity: 1;
-    transform: translateY(0);
+  from {
+    opacity: 0;
+    transform: translate3d(0, 108%, 0);
   }
 }
 
-@keyframes contact-orbit-breathe {
-  0%,
-  100% {
-    transform: scale(0.94);
-    opacity: 0.64;
+@keyframes contact-orbit-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0.72);
   }
+}
+
+@keyframes contact-core-arrive {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+}
+
+@keyframes contact-signal-arrive {
+  from {
+    opacity: 0;
+    transform: rotate(38deg) scaleY(0);
+  }
+}
+
+@keyframes contact-option-select {
   50% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes contact-signal-sweep {
-  to {
-    transform: rotate(398deg);
+    transform: translate3d(0, -0.12rem, 0);
   }
 }

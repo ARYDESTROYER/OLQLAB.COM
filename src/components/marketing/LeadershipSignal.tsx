@@ -33,7 +33,7 @@ const signals = [
 
 const mosaicCells = [
   { kind: "anchor", signal: 0 },
-  { kind: "orbit", tone: "tealSoft", depth: "far" },
+  { kind: "orbit", tone: "tealSoft", depth: "far", ambient: true },
   { kind: "point", tone: "paper", depth: "mid" },
   { kind: "orbit", tone: "goldSoft", depth: "near" },
   { kind: "point", tone: "paper", depth: "far" },
@@ -41,7 +41,7 @@ const mosaicCells = [
   { kind: "point", tone: "goldSoft", depth: "mid" },
   { kind: "orbit", tone: "brass", depth: "far" },
   { kind: "point", tone: "paper", depth: "near" },
-  { kind: "orbit", tone: "rustSoft", depth: "mid" },
+  { kind: "orbit", tone: "rustSoft", depth: "mid", ambient: true },
   { kind: "anchor", signal: 2 },
   { kind: "point", tone: "goldSoft", depth: "near" },
 ] as const;
@@ -49,7 +49,10 @@ const mosaicCells = [
 export default function LeadershipSignal() {
   return (
     <ScrollMotion className={styles.motion}>
-      <figure className={styles.signal} aria-labelledby="leadership-signal-caption">
+      <figure
+        className={styles.signal}
+        aria-labelledby="leadership-signal-caption"
+      >
         <figcaption className={styles.header} id="leadership-signal-caption">
           <span>Leadership signal / CPR</span>
           <span>Observe · Interpret · Practise</span>
@@ -64,9 +67,16 @@ export default function LeadershipSignal() {
                   className={`${styles.mosaicCell} ${styles.mosaicAnchor} ${styles[signal.tone]}`}
                   key={signal.code}
                 >
-                  <span className={styles.mosaicTitle}>{signal.title}</span>
-                  <span className={`font-display ${styles.mosaicCode}`}>{signal.code}</span>
-                  <span className={styles.mosaicPrompt}>{signal.prompt}</span>
+                  <div
+                    className={styles.mosaicAnchorInner}
+                    data-scroll-layer={signal.depth}
+                  >
+                    <span className={styles.mosaicTitle}>{signal.title}</span>
+                    <span className={`font-display ${styles.mosaicCode}`}>
+                      {signal.code}
+                    </span>
+                    <span className={styles.mosaicPrompt}>{signal.prompt}</span>
+                  </div>
                 </div>
               );
             }
@@ -79,21 +89,36 @@ export default function LeadershipSignal() {
                 key={`${cell.kind}-${index}`}
               >
                 {cell.kind === "orbit" ? (
-                  <span className={styles.mosaicOrbit} data-scroll-layer={cell.depth}>
+                  <span
+                    className={styles.mosaicOrbit}
+                    data-ambient={
+                      "ambient" in cell && cell.ambient ? "true" : undefined
+                    }
+                    data-scroll-layer={cell.depth}
+                  >
                     <span />
                   </span>
                 ) : (
-                  <span className={styles.mosaicPoint} data-scroll-layer={cell.depth} />
+                  <span
+                    className={styles.mosaicPoint}
+                    data-ambient={
+                      "ambient" in cell && cell.ambient ? "true" : undefined
+                    }
+                    data-scroll-layer={cell.depth}
+                  />
                 )}
               </div>
             );
           })}
-          <span className={styles.trace} />
+          <span className={styles.trace} data-ambient />
         </div>
 
         <ol className={styles.modules}>
-          {signals.map((signal) => (
-            <li className={`${styles.module} ${styles[signal.tone]}`} key={signal.code}>
+          {signals.map((signal, index) => (
+            <li
+              className={`${styles.module} ${styles[signal.tone]}`}
+              key={signal.code}
+            >
               <span className={styles.index}>{signal.index}</span>
               <span className={`font-display ${styles.code}`} aria-hidden>
                 {signal.code}
@@ -103,7 +128,12 @@ export default function LeadershipSignal() {
                 <p>{signal.prompt}</p>
                 <span>{signal.action}</span>
               </div>
-              <span className={styles.mobileOrbit} aria-hidden data-scroll-layer={signal.depth}>
+              <span
+                className={styles.mobileOrbit}
+                aria-hidden
+                data-ambient={index === 1 ? undefined : "true"}
+                data-scroll-layer={signal.depth}
+              >
                 <span />
               </span>
             </li>
@@ -111,8 +141,9 @@ export default function LeadershipSignal() {
         </ol>
 
         <p className="sr-only">
-          The CPR framework observes three connected leadership signals: Cognitive, how
-          you think; Personality, how you engage; and Response, how you adapt.
+          The CPR framework observes three connected leadership signals:
+          Cognitive, how you think; Personality, how you engage; and Response,
+          how you adapt.
         </p>
 
         <div className={styles.progressTrack} aria-hidden>

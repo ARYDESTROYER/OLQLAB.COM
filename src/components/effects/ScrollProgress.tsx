@@ -1,6 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
+
+const MARKETING_ROUTES = new Set([
+  "/",
+  "/about",
+  "/framework",
+  "/assessments",
+  "/coaching",
+  "/blindspot",
+  "/contact",
+  "/oql",
+]);
 
 /**
  * Thin ink-on-rule progress bar fixed to the top of the viewport. Updates a
@@ -9,16 +21,26 @@ import { useEffect, useRef } from "react";
  */
 export default function ScrollProgress() {
   const ref = useRef<HTMLDivElement>(null);
+  const pathname = usePathname();
+  const enabled = MARKETING_ROUTES.has(pathname);
 
   useEffect(() => {
+    if (!enabled) return;
     const el = ref.current;
     if (!el) return;
 
+    const motionPreference = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    );
     let raf = 0;
+    let tracking = false;
     const update = () => {
       const doc = document.documentElement;
       const scrollable = doc.scrollHeight - doc.clientHeight;
-      const ratio = scrollable > 0 ? Math.min(1, Math.max(0, doc.scrollTop / scrollable)) : 0;
+      const ratio =
+        scrollable > 0
+          ? Math.min(1, Math.max(0, doc.scrollTop / scrollable))
+          : 0;
       el.style.setProperty("--scroll-progress", String(ratio));
       raf = 0;
     };
@@ -28,16 +50,42 @@ export default function ScrollProgress() {
       raf = requestAnimationFrame(update);
     };
 
-    update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-
-    return () => {
+    const stopTracking = () => {
+      if (!tracking) return;
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
       if (raf) cancelAnimationFrame(raf);
+      raf = 0;
+      tracking = false;
     };
-  }, []);
+
+    const startTracking = () => {
+      if (tracking || motionPreference.matches) return;
+      tracking = true;
+      update();
+      window.addEventListener("scroll", onScroll, { passive: true });
+      window.addEventListener("resize", onScroll);
+    };
+
+    const onPreferenceChange = () => {
+      if (motionPreference.matches) {
+        stopTracking();
+        el.style.setProperty("--scroll-progress", "0");
+      } else {
+        startTracking();
+      }
+    };
+
+    motionPreference.addEventListener("change", onPreferenceChange);
+    startTracking();
+
+    return () => {
+      motionPreference.removeEventListener("change", onPreferenceChange);
+      stopTracking();
+    };
+  }, [enabled]);
+
+  if (!enabled) return null;
 
   return <div ref={ref} className="scroll-progress" aria-hidden />;
 }

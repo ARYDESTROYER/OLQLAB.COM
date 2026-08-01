@@ -120,9 +120,10 @@ export default function CprTriangle({
 
   return (
     <div
-      className={`reveal-on-scroll ${styles.root} ${styles[appearance]} ${
+      className={`${styles.root} ${styles[appearance]} ${
         styles[layout]
       }${className ? ` ${className}` : ""}`}
+      data-reveal-parts
     >
       <div className={styles.visualColumn}>
         <div className={styles.canvas}>
@@ -136,6 +137,9 @@ export default function CprTriangle({
             {EDGE_CONNECTIONS.map(([from, to]) => (
               <line
                 className={styles.edge}
+                data-connection-active={
+                  selected.code === from || selected.code === to ? "true" : "false"
+                }
                 key={`${from}-${to}`}
                 x1={POSITIONS[from].x}
                 x2={POSITIONS[to].x}
@@ -146,6 +150,9 @@ export default function CprTriangle({
             {MEDIAN_CONNECTIONS.map(([from, to]) => (
               <line
                 className={styles.median}
+                data-connection-active={
+                  selected.code === from || selected.code === to ? "true" : "false"
+                }
                 key={`${from}-${to}`}
                 x1={POSITIONS[from].x}
                 x2={POSITIONS[to].x}
@@ -153,6 +160,12 @@ export default function CprTriangle({
                 y2={POSITIONS[to].y}
               />
             ))}
+            <circle
+              className={styles.activeHalo}
+              cx={selectedPosition.x}
+              cy={selectedPosition.y}
+              r={selectedPosition.ringSize + 3}
+            />
             <circle
               className={styles.activeRing}
               cx={selectedPosition.x}
@@ -193,6 +206,7 @@ export default function CprTriangle({
                     aria-hidden
                     className={nodeClass}
                     data-active={isActive ? "true" : "false"}
+                    data-code={region.code}
                     key={region.code}
                     style={nodeStyle}
                   >
@@ -207,6 +221,7 @@ export default function CprTriangle({
                   aria-label={`${region.code}: ${region.label}`}
                   aria-pressed={isActive}
                   className={nodeClass}
+                  data-code={region.code}
                   key={region.code}
                   onClick={() => select(region.code)}
                   onFocus={() => select(region.code)}
@@ -238,6 +253,7 @@ export default function CprTriangle({
                   <span
                     className={`${styles.node} ${styles[position.kind]}`}
                     data-active={selected.code === region.code ? "true" : "false"}
+                    data-code={region.code}
                     key={region.code}
                     style={nodeStyle}
                   >

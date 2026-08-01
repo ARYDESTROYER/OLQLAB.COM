@@ -65,7 +65,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${plusJakarta.variable} ${instrumentSerif.variable} ${plexMono.variable}`}
     >
-      <body className="paper-grain min-h-screen bg-[#EFE8DA] text-[#101114] antialiased">
+      <body className="paper-grain min-h-screen bg-cream text-ink antialiased">
         <ScrollProgress />
         <ScrollReveal />
         {children}

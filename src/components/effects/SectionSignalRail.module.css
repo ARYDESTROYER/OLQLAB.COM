@@ -1,0 +1,112 @@
+.rail {
+  --rail-tone: var(--ink);
+  position: sticky;
+  top: 7.5rem;
+  display: none;
+  align-self: start;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
+}
+
+.rail[data-observer-ready="true"] {
+  display: grid;
+}
+
+.progress {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 0.22rem;
+  transform: scaleY(calc((var(--active-index, 0) + 1) / var(--rail-count, 1)));
+  transform-origin: top;
+  background: var(--rail-tone);
+  transition:
+    transform 520ms var(--ease-snap),
+    background-color 320ms ease;
+}
+
+.item {
+  --item-tone: var(--ink);
+  display: grid;
+  min-height: 3.6rem;
+  grid-template-columns: 2.35rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.7rem;
+  border-bottom: 1px solid var(--rule);
+  padding: 0.8rem 0.85rem;
+  color: color-mix(in srgb, var(--ink) 54%, transparent);
+  transition:
+    color 320ms ease,
+    background-color 320ms ease;
+}
+
+.item:last-child {
+  border-bottom: 0;
+}
+
+.item[data-tone="cognitive"] {
+  --item-tone: var(--signal-cognitive);
+}
+.item[data-tone="personality"] {
+  --item-tone: var(--brass-text);
+}
+.item[data-tone="response"] {
+  --item-tone: var(--signal-response);
+}
+
+.item[data-active="true"] {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--item-tone) 11%, var(--paper));
+}
+
+.marker {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.63rem;
+  font-weight: 650;
+  letter-spacing: 0.11em;
+}
+
+.marker::before {
+  display: inline-block;
+  width: 0.36rem;
+  margin-right: 0.45rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--item-tone);
+  content: "";
+  transform: scale(0.45);
+  transition: transform 300ms var(--ease-snap);
+}
+
+.item[data-active="true"] .marker::before {
+  transform: scale(1);
+}
+
+.label {
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+}
+
+@media (max-width: 63.99rem) {
+  .rail[data-observer-ready="true"] {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress,
+  .item,
+  .marker::before {
+    transition: none;
+  }
+}
+
+@media (scripting: none) {
+  .rail,
+  .rail[data-observer-ready="true"] {
+    display: none;
+  }
+}

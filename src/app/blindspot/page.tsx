@@ -73,7 +73,14 @@ export default function BlindspotPage() {
       <main id="blindspot-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="blindspot-title">
           <div className={styles.heroCopy}>
-            <Eyebrow tone="light">Blindspot work</Eyebrow>
+            <div className={styles.heroSpectrum} aria-hidden>
+              <span />
+              <span />
+              <span />
+            </div>
+            <Eyebrow className={styles.heroEyebrow} tone="light">
+              Blindspot work
+            </Eyebrow>
             <h1 id="blindspot-title" className={styles.heroTitle}>
               What you cannot see
               <em> still shapes the room.</em>
@@ -125,7 +132,7 @@ export default function BlindspotPage() {
         </section>
 
         <section className={styles.gapSection} aria-labelledby="gap-title">
-          <div className={styles.gapHeading}>
+          <div className={`${styles.gapHeading} reveal-on-scroll`}>
             <Eyebrow tone="light">The useful gap</Eyebrow>
             <h2 id="gap-title">
               Intent is only half
@@ -154,7 +161,7 @@ export default function BlindspotPage() {
         </section>
 
         <section className={styles.practice} aria-labelledby="practice-title">
-          <div className={styles.practiceLead}>
+          <div className={`${styles.practiceLead} reveal-on-scroll`}>
             <Eyebrow>From awareness to practice</Eyebrow>
             <h2 id="practice-title" className={styles.sectionTitle}>
               Do not stop at the reveal.
@@ -180,14 +187,14 @@ export default function BlindspotPage() {
 
         <section className={styles.cta} aria-labelledby="sprint-title">
           <div className={styles.ctaInner}>
-            <div>
+            <div className="reveal-on-scroll">
               <Eyebrow>Run a sprint</Eyebrow>
               <h2 id="sprint-title">
                 For the leaders stepping into more<span>.</span>
               </h2>
             </div>
             <div className={styles.ctaAside}>
-              <p>
+              <p className="reveal-on-scroll" data-stagger="1">
                 Ideal for leaders stepping into expanded scope, post-reorg
                 transitions, or high-stakes performance cycles.
               </p>

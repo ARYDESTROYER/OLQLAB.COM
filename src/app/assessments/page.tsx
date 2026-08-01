@@ -6,7 +6,7 @@ import {
   TextLink,
 } from "@/components/marketing/Editorial";
 import Magnetic from "@/components/effects/Magnetic";
-import CprTriangle from "@/components/marketing/CprTriangle";
+import AssessmentSignalExplorer from "@/components/marketing/AssessmentSignalExplorer";
 import { createPageMetadata } from "@/lib/site-metadata";
 
 export const metadata = createPageMetadata({
@@ -74,7 +74,7 @@ export default function AssessmentsPage() {
       tail={<CohortCTA />}
     >
       {/* CATALOGUE */}
-      <div className="reveal-on-scroll max-w-2xl">
+      <div className="reveal-on-scroll max-w-2xl" data-reveal="rise">
         <Eyebrow>The catalogue</Eyebrow>
         <h2 className="font-display mt-6 text-balance text-[clamp(2rem,4.5vw,3.75rem)] leading-[1.02] tracking-[-0.025em]">
           Seven tracks. One leader
@@ -86,15 +86,9 @@ export default function AssessmentsPage() {
         </p>
       </div>
 
-      <div className="mt-16 md:mt-24">
-        <CprTriangle
-          regions={assessmentRegions}
-          defaultActive="CPR"
-          hint="Select a region of the triangle. Arrow keys move between regions."
-        />
-      </div>
+      <AssessmentSignalExplorer regions={assessmentRegions} />
 
-      <div className="reveal-on-scroll mt-20 flex flex-wrap items-center gap-x-8 gap-y-5 md:mt-28">
+      <div className="mt-20 flex flex-wrap items-center gap-x-8 gap-y-5 md:mt-28">
         <Magnetic strength={0.18}>
           <PrimaryCTA href="/signin" className="cta-shimmer">
             Begin an assessment
@@ -118,7 +112,7 @@ function CohortCTA() {
           Start with a guided diagnostic program and get participant insights, leadership
           reports, and rollout support.
         </p>
-        <div className="reveal-on-scroll mt-12 flex flex-wrap justify-center gap-x-8 gap-y-5">
+        <div className="mt-12 flex flex-wrap justify-center gap-x-8 gap-y-5">
           <Magnetic strength={0.2}>
             <GhostCTA href="/contact" className="cta-shimmer">
               Contact the team
