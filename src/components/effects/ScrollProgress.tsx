@@ -10,6 +10,7 @@ const MARKETING_ROUTES = new Set([
   "/assessments",
   "/coaching",
   "/blindspot",
+  "/work",
   "/contact",
   "/oql",
 ]);

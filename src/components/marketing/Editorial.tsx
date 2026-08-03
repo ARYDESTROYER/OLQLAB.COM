@@ -313,6 +313,7 @@ export function EditorialFooter() {
               { label: "Assessments", href: "/assessments" },
               { label: "Coaching", href: "/coaching" },
               { label: "Blindspot work", href: "/blindspot" },
+              { label: "Work in practice", href: "/work" },
             ]}
           />
           <FooterColumn

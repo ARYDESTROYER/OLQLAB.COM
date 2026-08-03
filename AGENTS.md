@@ -68,7 +68,7 @@ Entry headers follow the pattern `## Entry YYYY-MM-DD-NN` where `NN` is the nth 
 
 1. `npm run lint` — must show **0 errors**. Pre-existing warnings (currently 3 in `ReportEditorClient.tsx` / `report-format.ts`) are fine; don't introduce new ones.
 2. `npm run build` — must complete cleanly. Inspect the route manifest at the end:
-   - Marketing pages (`/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, `/oql`) **must** show `○` (Static) — they're CDN-cached. If your change accidentally drags one to `ƒ` (Dynamic), investigate before pushing.
+   - Marketing pages (`/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, `/oql`) **must** show `○` (Static) — they're CDN-cached. If your change accidentally drags one to `ƒ` (Dynamic), investigate before pushing.
    - Authenticated routes (`/dashboard`, `/admin/*`, `/reports/*`, `/assessment/*`) **must** show `ƒ` (Dynamic) — they're auth-gated.
    - `/signin` and `/signin/confirm` **must** remain `ƒ` (Dynamic) — they redirect already-signed-in users.
 3. For UI changes, render a static preview when you can't run the full app locally (no `DATABASE_URL` in dev). The `tmp/` directory is untracked and meant for these.

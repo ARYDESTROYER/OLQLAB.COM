@@ -3,6 +3,7 @@ import Link from "next/link";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
 import LeadershipSignal from "@/components/marketing/LeadershipSignal";
+import WorkInPracticePreview from "@/components/marketing/WorkInPracticePreview";
 import ScrollMotion from "@/components/effects/ScrollMotion";
 import SectionSignalRail from "@/components/effects/SectionSignalRail";
 import { createPageMetadata } from "@/lib/site-metadata";
@@ -291,6 +292,8 @@ export default function HomePage() {
             </ol>
           </div>
         </section>
+
+        <WorkInPracticePreview />
 
         <section
           className="landing-framework"

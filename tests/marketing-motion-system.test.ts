@@ -118,6 +118,22 @@ describe("public marketing motion system", () => {
     expect(motion).toContain("clearMotion();");
   });
 
+  it("includes Work in practice in the shared public scroll progress system", () => {
+    const progress = read("../src/components/effects/ScrollProgress.tsx");
+    const workCss = read("../src/app/work/work.module.css");
+    const previewCss = read(
+      "../src/components/marketing/WorkInPracticePreview.module.css",
+    );
+
+    expect(progress).toContain('"/work"');
+    expect(workCss).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(workCss).toContain("@media (forced-colors: active)");
+    expect(previewCss).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(previewCss).toContain("@media (forced-colors: active)");
+    expect(workCss).not.toContain("animation-iteration-count: infinite");
+    expect(previewCss).not.toContain("animation-iteration-count: infinite");
+  });
+
   it("coalesces pointer and all scroll scenes through shared animation frames", () => {
     const magnetic = read("../src/components/effects/Magnetic.tsx");
     const motion = read("../src/components/effects/ScrollMotion.tsx");

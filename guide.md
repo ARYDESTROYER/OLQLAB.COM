@@ -743,8 +743,9 @@ Release infrastructure gates:
   is not sufficient because sign-in throttling deliberately fails closed when its
   migration is absent, which otherwise looks like a healthy app that silently sends
   no magic-link email
-- inspect the build manifest: marketing pages remain `○` static while
-  sign-in, participant, leader, admin, and API routes remain `ƒ` dynamic
+- inspect the build manifest: `/`, `/about`, `/framework`, `/assessments`,
+  `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` remain `○` static
+  while sign-in, participant, leader, admin, and API routes remain `ƒ` dynamic
 - for public motion work, verify the final static composition with reduced
   motion and without JavaScript; scroll-linked enhancement must not hide copy,
   add dead scroll space, move focus targets, or change route static rendering
@@ -808,6 +809,13 @@ Release infrastructure gates:
   forced colour, coarse pointers, and missing observer APIs receive a complete
   unpinned composition. Scroll work remains intersection-scoped and
   animation-frame bounded, without installing a global custom cursor
+- treat `/work` as a static, server-rendered, photo-led archive. Canonical event
+  and image presentation data live in `src/content/work-events.ts`; the landing
+  preview, About link, footer link, and sitemap provide discovery. Keep the
+  photography semantic with useful alt text and visible captions, reserve
+  priority loading for the hero image, and lazy-load the field-note imagery.
+  Reduced-motion and no-script paths must show the complete composition; do not
+  introduce an autoplay carousel or make the archive depend on client JavaScript
 
 Architecture scenarios to validate manually:
 1. migration integrity for legacy assessments and impacts
@@ -976,6 +984,22 @@ Admin upload guidance:
 - Upload validation allows signature-matching `jpg`, `png`, and `webp` up to 4 MiB;
   the multipart envelope is capped below Vercel's 4.5 MB request limit.
 - Removing an uploaded image clears `imageUrl`, `imageAlt`, and `imageCaption` together.
+
+## 14.2 Work photography asset guidance
+
+- Keep source photography outside `public/`; originals are never altered or
+  deployed. Only selected, publication-approved derivatives belong under
+  `public/work/*.webp`.
+- Normalize orientation, convert to sRGB WebP, strip EXIF/IPTC/XMP metadata,
+  retain the exact dimensions declared in `src/content/work-events.ts`, and keep
+  each deployed derivative below 450 KB.
+- `src/content/work-events.ts` owns the public date, location, format, alt text,
+  and caption for each field note. Publish only owner-confirmed facts or details
+  directly visible in the supplied material; use a broad location when an exact
+  venue is unavailable, and never infer client identities or programme outcomes
+  from a photograph.
+- Publication consent for the current workshop set was confirmed by the owner.
+  The interface does not add warning copy to the photographs.
 
 ## 15. Journal policy
 

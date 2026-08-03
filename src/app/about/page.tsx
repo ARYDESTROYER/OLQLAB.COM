@@ -158,6 +158,9 @@ export default function AboutPage() {
               The setting changes. The essential work does not: read the situation clearly,
               understand the people inside it, and turn reflection into deliberate action.
             </p>
+            <Link href="/work" className={styles.inlineLink}>
+              See the work in practice <span aria-hidden="true">↗</span>
+            </Link>
           </div>
 
           <ScrollMotion className={styles.experienceGrid}>

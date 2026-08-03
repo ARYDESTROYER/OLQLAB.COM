@@ -1756,3 +1756,36 @@ This file is the append-only engineering diary for implementation work in this r
   - No files were staged, committed, pushed, or deployed.
 - Next step:
   - Review the visual diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then repeat the key desktop/mobile Blindspot interaction and hosted Safari/Chromium fallback checks before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-03-02
+- Timestamp (UTC): 2026-08-03T07:39:05Z
+- Timestamp (Local): 2026-08-03 13:09:05 IST (+0530)
+- Task: Publish consented workshop photography as a static Work in practice field-note archive.
+- Why: The public site explained OLQ Lab's method clearly but offered little documentary evidence of real cohorts and workshops. A restrained photo-led layer adds human credibility and context without turning the landing page into a generic gallery or adding another heavy client-side interaction.
+- What changed:
+  - `public/work/*.webp`: added ten selected, orientation-correct, metadata-free workshop derivatives while leaving the source photographs outside the repository and untouched.
+  - `src/content/work-events.ts`: added one typed, server-side presentation source for four field notes, their dates, broad locations, formats, visible-activity descriptions, alt text, captions, dimensions, crops, and CPR-aligned tones.
+  - `src/app/work/page.tsx` and `src/app/work/work.module.css`: added a fully static Work in practice route with a photo-led hero, field-note index, four semantic event chapters, surface-aware colour contrast, responsive editorial galleries, a short-viewport treatment, and an accessible closing pathway.
+  - `src/components/marketing/WorkInPracticePreview.tsx`, `src/components/marketing/WorkInPracticePreview.module.css`, and `src/app/page.tsx`: added an asymmetric two-image landing preview after the practice sequence, with archive-consistent numbering, visible captions, restrained reveal motion, and a direct `/work` pathway.
+  - `src/app/about/page.tsx`, `src/app/about/about.module.css`, and `src/components/marketing/Editorial.tsx`: linked the founder story and footer Practice column to the new archive and gave the About link appropriate story-body spacing.
+  - `src/app/sitemap.ts`, `src/components/effects/ScrollProgress.tsx`, `src/components/navigation/PublicHeader.tsx`, and `AGENTS.md`: registered `/work` in discovery, shared public progress, and static-route contracts.
+  - `tests/work-in-practice.test.ts`, `tests/marketing-interaction-contracts.test.ts`, and `tests/marketing-motion-system.test.ts`: added asset, metadata, content, semantics, sitemap, ordering, motion-fallback, and decorative-layer regression coverage.
+  - `guide.md` and `journal.md`: documented the static archive contract, photography derivative rules, directly supported public-copy policy, consent status, validation evidence, and hand-off.
+- How:
+  - Curated ten photographs from the owner-supplied workshop folder, normalized EXIF orientation, resized the long edge to at most 2400 px, converted to sRGB WebP, and removed EXIF/IPTC/XMP metadata. The public derivatives range from 118 KB to 362 KB; source originals remain unchanged in `/Users/ary/Downloads/OLQ Lab -Pics/`.
+  - Kept the archive server-rendered and content-led: semantic `article`, `time`, `dl`, `figure`, and `figcaption` elements remain in document flow; one genuine above-fold hero is prioritized and every field-note or landing image remains lazy. There is no carousel, autoplay, lightbox, new scroll listener, or client-only content dependency.
+  - Limited event descriptions to activities visible in the supplied photographs and used broad `India` locations where an exact venue was not established. The Kopargaon context is visible in the supplied Solution Mindset material. The owner confirmed that all photographed participants consented to internet publication and requested no on-page warning copy.
+  - Used independent content, privacy, architecture, accessibility, and final implementation reviews. Their findings corrected archive numbering, light/dark accent contrast, the Work closing CTA, About-link spacing, short-screen hero composition, and language that initially implied outcomes not established by the supplied material.
+- Validation/output:
+  - Full Node 22 `npm run ci` passed: lint, strict typecheck, 61 test files, 215 tests, Prisma generation, and the optimized production build. Focused Work/motion/interaction validation passed 3 files and 29 tests.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; sign-in, participant, report, admin, and API routes remain `ƒ` Dynamic.
+  - A second clean `npm run build` passed after the development renderer was stopped. Local optimized `next start` smoke returned 200 for all nine public routes, retained four semantic Work dates and both landing-preview assets, returned 404 for the intentionally removed `/privacy` and `/terms`, and served `/work` with `x-nextjs-cache: HIT`, `x-nextjs-prerender: 1`, and `Cache-Control: s-maxage=31536000`.
+  - Asset tests verified all ten WebP derivatives exist, match their declared dimensions, remain below 450 KB, and expose no EXIF, IPTC, or XMP payloads.
+  - In-app browser QA progressively reviewed the landing preview and all Work chapters on desktop and mobile, then checked `/` and `/work` at 320, 390, 768, 900, 1024, 1280, and 1440 px plus 1440×560. All 16 final route/viewport cases had one main/footer, bounded headings, zero media or caption clipping, zero horizontal overflow, no application error, and no browser warning/error logs. The About work link resolves to a 28 px story-body gap.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+- Risks/unknowns:
+  - Three field notes intentionally use the broad location `India`; the event titles and camera-local dates should receive a content-owner pass if exact venue, programme naming, or timezone-qualified dates are needed before production promotion.
+  - Hosted staging and Safari/Chromium checks remain appropriate for CDN image optimization, installed-font timing, reduced motion, and forced colours. The local server reported only expected missing-auth-environment warnings and a development-only LCP heuristic during an intentionally rapid scroll sweep.
+  - No schema, authentication, shared database, provider, or admin behavior was changed. No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review the field-note wording and imagery, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, and repeat the landing/Work desktop-mobile smoke before promoting the standing staging-to-main PR.

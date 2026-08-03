@@ -11,7 +11,7 @@ import HeaderAuthSlot from "@/components/navigation/HeaderAuthSlot";
  *
  * This component intentionally does NOT call `getServerAuthSession()` so that
  * every marketing route (`/`, `/about`, `/framework`, `/assessments`,
- * `/coaching`, `/blindspot`, `/contact`, `/oql`) has zero dynamic-API
+ * `/coaching`, `/blindspot`, `/work`, `/contact`, `/oql`) has zero dynamic-API
  * dependencies and can be statically generated and CDN-cached.
  */
 export default function PublicHeader() {

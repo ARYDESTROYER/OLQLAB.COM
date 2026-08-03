@@ -10,6 +10,7 @@ import ContactPage from "@/app/contact/page";
 import FrameworkPage from "@/app/framework/page";
 import HomePage from "@/app/page";
 import OqlPage from "@/app/oql/page";
+import WorkPage from "@/app/work/page";
 import SectionSignalRail from "@/components/effects/SectionSignalRail";
 import AssessmentSignalExplorer from "@/components/marketing/AssessmentSignalExplorer";
 import CprTriangle, {
@@ -21,6 +22,7 @@ import {
 } from "@/components/marketing/Editorial";
 import { PUBLIC_NAV_ITEMS } from "@/components/navigation/NavLinks";
 import StepperFlow from "@/components/marketing/StepperFlow";
+import WorkInPracticePreview from "@/components/marketing/WorkInPracticePreview";
 
 const regions: readonly CprRegion[] = [
   { code: "C", label: "Cognitive", description: "Thinking signal" },
@@ -152,6 +154,25 @@ describe("public marketing interaction contracts", () => {
     expect(markup.match(/class="footer-pathway__item"/g)).toHaveLength(4);
     expect(markup).toContain("data-reveal-parts");
     expect(markup).not.toContain("data-scroll-layer");
+    expect(markup).toContain('href="/work"');
+  });
+
+  it("presents real workshop photography as a captioned landing pathway", () => {
+    const markup = renderToStaticMarkup(createElement(WorkInPracticePreview));
+
+    expect(markup).toContain('aria-labelledby="work-preview-title"');
+    expect(markup).toContain("Inside the work");
+    expect(markup).toContain("Leadership becomes visible");
+    expect(markup.match(/<figure/g)).toHaveLength(2);
+    expect(markup.match(/<figcaption/g)).toHaveLength(2);
+    expect(markup).toContain('href="/work"');
+    expect(markup).not.toContain("data-scroll-layer");
+    expect(markup.indexOf("solution-mindset-campus.webp")).toBeLessThan(
+      markup.indexOf("learning-through-action.webp"),
+    );
+    expect(markup.indexOf("01 / IN THE ROOM")).toBeLessThan(
+      markup.indexOf("02 / IN PRACTICE"),
+    );
   });
 
   it("associates every coaching control with its changing detail", () => {
@@ -261,6 +282,7 @@ describe("public marketing interaction contracts", () => {
       createElement(FrameworkPage),
       createElement(ContactPage),
       createElement(OqlPage),
+      createElement(WorkPage),
       createElement(AssessmentSignalExplorer, { regions }),
     ]
       .map((element) => renderToStaticMarkup(element))

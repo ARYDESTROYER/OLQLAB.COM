@@ -348,6 +348,11 @@
   margin-top: 1.35rem;
 }
 
+.storyBody .inlineLink {
+  display: inline-block;
+  margin-top: 1.75rem;
+}
+
 .experienceGrid {
   position: relative;
   display: grid;
