@@ -1,7 +1,7 @@
 .page {
-  --blindspot-teal: var(--signal-cognitive, #3f8278);
-  --blindspot-amber: var(--signal-personality, #e3a34b);
-  --blindspot-terracotta: var(--signal-response, #a85339);
+  --blindspot-teal: var(--signal-cognitive-vivid, #1f9187);
+  --blindspot-amber: var(--signal-personality-vivid, #e8a33a);
+  --blindspot-terracotta: var(--signal-response-vivid, #d56448);
   min-height: 100vh;
   background: var(--cream);
   color: var(--ink);
@@ -58,7 +58,12 @@
 .heroCopy {
   position: relative;
   z-index: 2;
+  display: flex;
   width: min(100% - 3rem, 80rem);
+  min-height: calc(100vh - 4.5rem);
+  min-height: calc(100svh - 4.5rem);
+  flex-direction: column;
+  justify-content: center;
   margin-inline: auto;
   padding-block: clamp(5.5rem, 10vw, 9.5rem) clamp(4.5rem, 8vw, 7rem);
 }
@@ -173,27 +178,46 @@
   outline-offset: 5px;
 }
 
-.field {
-  --aperture: 8rem;
+.fieldMotion {
+  --aperture: calc(8rem + (var(--scroll-progress-eased, 1) * 130vmax));
+  --sweep-x: calc(-12rem + (var(--scroll-progress, 1) * 130vw));
   position: relative;
   z-index: 2;
-  width: min(100% - 2rem, 90rem);
-  margin-inline: auto;
-  padding-bottom: clamp(2rem, 5vw, 5rem);
-  scroll-margin-top: 6rem;
+  width: 100%;
+  background: #0c0d10;
+  scroll-margin-top: 4.5rem;
+}
+
+.field {
+  position: relative;
+  width: 100%;
 }
 
 .fieldStage {
   position: relative;
+  min-height: calc(100vh - 4.5rem);
+  min-height: calc(100svh - 4.5rem);
 }
 
 .fieldHeader {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 12;
   display: flex;
   align-items: end;
   justify-content: space-between;
   gap: 2rem;
-  border-top: 1px solid rgba(239, 232, 218, 0.25);
-  padding: 1.25rem 0 1.5rem;
+  padding: clamp(1.25rem, 2.5vw, 2rem)
+    max(1.5rem, calc((100% - 80rem) / 2));
+  background: linear-gradient(
+    180deg,
+    rgba(12, 13, 16, 0.98) 0%,
+    rgba(12, 13, 16, 0.78) 58%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
 .fieldHeader span,
@@ -225,9 +249,9 @@
   --spot-x: 22%;
   --spot-y: 27%;
   position: relative;
-  min-height: clamp(35rem, 65vw, 47rem);
+  min-height: calc(100vh - 4.5rem);
+  min-height: calc(100svh - 4.5rem);
   overflow: hidden;
-  border: 1px solid rgba(239, 232, 218, 0.2);
   background:
     radial-gradient(
       circle at var(--spot-x) var(--spot-y),
@@ -256,7 +280,7 @@
   pointer-events: none;
 }
 
-.field[data-field-active="true"] .fieldSweep {
+.fieldMotion[data-scroll-active="true"] .fieldSweep {
   will-change: transform;
 }
 
@@ -281,6 +305,7 @@
   display: grid;
   place-content: center;
   padding: 2rem;
+  opacity: calc(1 - (var(--scroll-progress, 1) * 2));
   text-align: center;
 }
 
@@ -312,17 +337,17 @@
   background:
     radial-gradient(
       circle at 28% 32%,
-      rgba(64, 119, 111, 0.35),
+      color-mix(in srgb, var(--blindspot-teal) 42%, transparent),
       transparent 17rem
     ),
     radial-gradient(
       circle at 75% 65%,
-      rgba(151, 72, 48, 0.28),
+      color-mix(in srgb, var(--blindspot-terracotta) 36%, transparent),
       transparent 20rem
     ),
     radial-gradient(
       circle at 65% 20%,
-      rgba(181, 128, 60, 0.3),
+      color-mix(in srgb, var(--blindspot-amber) 38%, transparent),
       transparent 17rem
     ),
     #111317;
@@ -415,7 +440,7 @@
 }
 
 .latentSignal > span {
-  color: rgba(239, 232, 218, 0.5);
+  color: rgba(239, 232, 218, 0.72);
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.62rem;
   letter-spacing: 0.14em;
@@ -505,7 +530,7 @@
   align-items: center;
   justify-content: end;
   gap: 0.75rem;
-  color: rgba(239, 232, 218, 0.5);
+  color: rgba(239, 232, 218, 0.72);
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.57rem;
   letter-spacing: 0.12em;
@@ -525,7 +550,7 @@
   inset: 0;
   background: var(--brass-soft);
   content: "";
-  transform: scaleX(var(--field-progress));
+  transform: scaleX(var(--scroll-progress, 1));
   transform-origin: left;
 }
 
@@ -636,7 +661,7 @@
 }
 
 .outcomeCode {
-  color: rgba(16, 17, 20, 0.48);
+  color: var(--muted);
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.68rem;
   letter-spacing: 0.15em;
@@ -780,7 +805,7 @@
 }
 
 .practiceIndex {
-  color: rgba(16, 17, 20, 0.48);
+  color: var(--muted);
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.62rem;
   letter-spacing: 0.14em;
@@ -897,10 +922,6 @@
     width: min(100% - 5rem, 80rem);
   }
 
-  .field {
-    width: min(100% - 5rem, 90rem);
-  }
-
   .sectionLead,
   .practice {
     grid-template-columns: minmax(0, 1.08fr) minmax(18rem, 0.92fr);
@@ -927,21 +948,23 @@
   }
 }
 
-@media (min-width: 72rem) {
-  .field[data-field-enhanced="true"] {
+@media (min-width: 72rem) and (min-height: 44rem) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .fieldMotion[data-scroll-enhanced="true"] {
     min-height: 165svh;
-    padding-bottom: 0;
   }
 
-  .field[data-field-enhanced="true"] .fieldStage {
+  .fieldMotion[data-scroll-enhanced="true"] .field {
+    min-height: 165svh;
+  }
+
+  .fieldMotion[data-scroll-enhanced="true"] .fieldStage {
     position: sticky;
     top: 4.5rem;
-    display: grid;
     height: calc(100svh - 4.5rem);
-    grid-template-rows: auto minmax(0, 1fr);
+    min-height: 0;
   }
 
-  .field[data-field-enhanced="true"] .fieldFrame {
+  .fieldMotion[data-scroll-enhanced="true"] .fieldFrame {
     height: 100%;
     min-height: 0;
   }
@@ -963,26 +986,17 @@
     width: min(100% - 2rem, 80rem);
   }
 
-  .field {
-    width: calc(100% - 1rem);
-  }
-
   .heroSpectrum {
     width: min(42vw, 14rem);
   }
 
   .fieldHeader {
     display: block;
-    padding-inline: 0.5rem;
+    padding-inline: 1rem;
   }
 
   .fieldHeader > p {
-    margin-top: 1rem;
-    text-align: left;
-  }
-
-  .fieldFrame {
-    min-height: 38rem;
+    display: none;
   }
 
   .latentSignal {
@@ -1032,10 +1046,6 @@
     justify-content: center;
   }
 
-  .fieldFrame {
-    min-height: 34rem;
-  }
-
   .latentSignal {
     width: 7rem;
   }
@@ -1049,7 +1059,41 @@
   }
 }
 
+@media (max-width: 71.99rem), (max-height: 43.99rem) {
+  .fieldMotion {
+    min-height: auto;
+  }
+
+  .fieldStage {
+    position: relative;
+    top: auto;
+    height: auto;
+  }
+
+  .latentField {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+
+  .fieldPrompt,
+  .fieldFrame::after,
+  .fieldMeter,
+  .fieldSweep {
+    display: none;
+  }
+}
+
 @media (hover: none), (pointer: coarse) {
+  .fieldMotion {
+    min-height: auto;
+  }
+
+  .fieldStage {
+    position: relative;
+    top: auto;
+    height: auto;
+  }
+
   .latentField {
     -webkit-mask-image: none;
     mask-image: none;
@@ -1075,6 +1119,7 @@
 
 @media (max-height: 40rem) and (min-width: 48rem) {
   .heroCopy {
+    min-height: auto;
     padding-block: 4rem;
   }
 
@@ -1083,12 +1128,19 @@
     font-size: clamp(3.5rem, 8vw, 6rem);
   }
 
-  .fieldFrame {
-    min-height: 31rem;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .fieldMotion {
+    min-height: auto;
+  }
+
+  .fieldStage {
+    position: relative;
+    top: auto;
+    height: auto;
+  }
+
   .skipLink {
     transition: none;
   }
@@ -1129,6 +1181,16 @@
 }
 
 @media (scripting: none) {
+  .fieldMotion {
+    min-height: auto;
+  }
+
+  .fieldStage {
+    position: relative;
+    top: auto;
+    height: auto;
+  }
+
   .heroSpectrum,
   .heroEyebrow,
   .heroTitle,
@@ -1154,6 +1216,24 @@
 }
 
 @media (forced-colors: active) {
+  .fieldMotion {
+    min-height: auto;
+    background: Canvas;
+  }
+
+  .fieldStage {
+    position: relative;
+    top: auto;
+    height: auto;
+  }
+
+  .fieldFrame,
+  .latentField {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
   .latentField {
     -webkit-mask-image: none;
     mask-image: none;
@@ -1161,12 +1241,14 @@
 
   .fieldPrompt,
   .fieldFrame::after,
+  .fieldMeter,
   .fieldSweep {
     display: none;
   }
-}
 
-.field[data-field-static="true"] .latentField {
-  -webkit-mask-image: none;
-  mask-image: none;
+  .signalControl {
+    border-color: ButtonText;
+    background: ButtonFace;
+    color: ButtonText;
+  }
 }

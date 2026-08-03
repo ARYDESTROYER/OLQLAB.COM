@@ -751,8 +751,10 @@ Release infrastructure gates:
 - the public "Warm Signal" palette is defined once in `src/app/globals.css`:
   cream/ink remain the dominant editorial surfaces, while
   `--signal-cognitive`, `--signal-personality`, and `--signal-response` carry
-  CPR meaning; use `--brass-text` rather than bright brass for small text on a
-  light surface, and use the surface-specific focus tokens for visible focus
+  CPR meaning. Their `*-vivid` companions are reserved for decorative rails,
+  active signals, and ink-labelled colour fields; use the deep `*-text`
+  aliases (including `--brass-text`) for small text on a light surface, and use
+  the surface-specific focus tokens for visible focus
 - use the shared `ScrollReveal` vocabulary (`data-reveal="rise|fade|scale|wipe|line"`)
   for one-shot section entrances; for a staggered composition, observe one
   `data-reveal-group="rise|fade|scale|split|rail|mask|counter|assembly"` parent
@@ -766,7 +768,9 @@ Release infrastructure gates:
   ownership is resolved against the nearest `data-scroll-scene`, so a parent
   scene must never wake or transform a nested scene. Keep per-scene
   IntersectionObserver/ResizeObserver scoping and remove compositor hints as
-  soon as a scene or reveal leaves its active/pending state
+  soon as a scene or reveal leaves its active/pending state. Bounded sticky
+  stages use the shared `progressMode="sticky"` calculation rather than adding
+  a component-specific scroll/resize loop
 - `data-scroll-layer` belongs only on decorative or non-interactive visual
   layers, never on a wrapper containing a link, button, radio, tab, or other
   focus target; ambient loops must sit under `ScrollMotion` with `data-ambient`
@@ -779,6 +783,10 @@ Release infrastructure gates:
   decorative (`aria-hidden`), observes existing document sections, and must
   never add controls, reorder content, or announce scroll-originated state
   through `aria-live`
+- every public footer exposes the same stationary, colour-coded next-step
+  pathway for Assessments, Framework, Blindspot Work, and Contact. Its panel
+  fills may assemble on entry, but the links themselves must never translate
+  with scroll and must resolve immediately without motion or JavaScript
 - clipped hero-word rolls, object-field assembly, and twin-arrow CTA exchanges
   are one-shot or user-triggered motion. Their reduced-motion and no-script
   branches must render the complete final state immediately; do not extend
@@ -793,10 +801,12 @@ Release infrastructure gates:
   copy); its brief controls must remain at least 44 px tall, avoid horizontal
   clipping, expose semantic progress, and preserve the local-only `mailto:` flow
 - treat the Blindspot perception field as progressive visual enhancement: the
-  hero and substantive page copy stay readable, masked signals have equivalent
-  labelled controls, pointer/pen/touch/focus all reveal a useful state, and
-  reduced-motion, no-script, forced-colour, and coarse-pointer users receive a
-  complete static composition; scroll work remains intersection-scoped and
+  hero and substantive page copy stay readable, the field is a full-bleed
+  viewport chapter immediately after the hero introduction, and masked signals
+  have equivalent labelled controls. Pointer/pen/touch/focus all reveal a
+  useful state; compact or short viewports, reduced motion, no script,
+  forced colour, coarse pointers, and missing observer APIs receive a complete
+  unpinned composition. Scroll work remains intersection-scoped and
   animation-frame bounded, without installing a global custom cursor
 
 Architecture scenarios to validate manually:

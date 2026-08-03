@@ -1724,3 +1724,35 @@ This file is the append-only engineering diary for implementation work in this r
   - Provider delivery is verified, but the one-time link has not been opened from the owner's private inbox in this session. Final callback, JWT-cookie creation, and `/admin` arrival remain an inbox-side check.
 - Next step:
   - Open the newest staging sign-in email once, continue through `/signin/confirm`, and verify the callback lands on the dashboard or admin area. Do not request another link unless this delivered token expires or is consumed.
+
+## Entry 2026-08-03-01
+- Timestamp (UTC): 2026-08-03T05:25:57Z
+- Timestamp (Local): 2026-08-03 10:55:57 IST (+0530)
+- Task: Make Blindspot Work a full-screen scroll chapter and extend a vivid, coherent next-step system across the public site.
+- Why: The perception field still read as a bordered inset panel rather than an inherent full-viewport chapter, Blindspot Work was absent from the primary navigation, and the public experience needed stronger colour and motion continuity without adding distracting loops or moving interactive targets.
+- What changed:
+  - `src/app/blindspot/BlindspotField.tsx`, `src/app/blindspot/blindspot.module.css`, `src/components/effects/ScrollMotion.tsx`, `src/components/effects/ScrollMotion.module.css`, and `src/lib/scroll-motion.ts`: moved the perception field onto the shared scroll scheduler, added a bounded sticky-progress mode and eased progress value, removed its duplicate scroll/resize/observer loop, made the field edge-to-edge and one viewport high below the public header, overlaid its orientation copy, widened the aperture across a 1.65-viewport desktop scene, and made compact/short/coarse/reduced/no-script/forced-colour paths complete and unpinned.
+  - `src/components/navigation/NavLinks.tsx`: added `Blindspot Work` immediately before Contact in the shared desktop and mobile navigation, moved the five-link desktop treatment to the `lg` breakpoint, and tightened the narrow desktop gap so the header remains collision-free.
+  - `src/app/globals.css`, `src/components/effects/SectionSignalRail.tsx`, `src/components/effects/SectionSignalRail.module.css`, `src/components/marketing/AssessmentSignalExplorer.module.css`, and `src/app/about/about.module.css`: introduced vivid cognitive/personality/response companions for decorative fills and rails while retaining deep text aliases, applied the vivid triad to spectra, progress, landing rails, and active section signals, centralized the assessment Personality text colour, and strengthened low-contrast supporting labels.
+  - `src/components/marketing/Editorial.tsx`: added one shared stationary “Choose your next move” footer pathway linking Assessments, Framework, Blindspot Work, and Contact. Only the colour fields assemble on entry; every link remains fixed, semantic, keyboard-focusable, and complete without motion or JavaScript.
+  - `src/components/marketing/MarketingChrome.tsx`: placed the decorative three-bar spectrum on the existing shared motion scheduler across Assessments, Coaching, and OQL while leaving headings, descriptions, and links stationary.
+  - `src/app/page.tsx`: corrected the landing journey's undocumented `data-reveal-group="line"` fallback to the supported `rail` group.
+  - `tests/scroll-motion.test.ts`, `tests/marketing-motion-system.test.ts`, and `tests/marketing-interaction-contracts.test.ts`: added sticky-progress math, full-screen/fallback, navigation-order, footer-pathway, and Blindspot page-layer regression coverage.
+  - `guide.md`: documented vivid-versus-text colour roles, shared sticky progress, the stationary footer pathway, and the full-bleed Blindspot fallback contract.
+- How:
+  - Kept cream and ink as the dominant 70/20 base and used the brighter CPR colours only as controlled signal accents or ink-labelled fields. The selected vivid fills retain WCAG-readable ink contrast; small light-surface text continues to use the deeper semantic aliases.
+  - Preserved the semantic `#perception-field` section, four stationary 44 px signal controls, pointer requestAnimationFrame, and complete server-rendered content. The desktop scene is enabled only for wide, tall, fine-pointer, no-reduced-motion viewports; all other capabilities see the full connected pattern without pinning or masking.
+  - Used in-app browser inspection throughout. Browser evidence caught and repaired an intermediate containment bug where the outer scene was 1.65 viewports but the semantic field parent was only one viewport, which prevented a computed-sticky stage from actually pinning.
+- Validation/output:
+  - Full Node 22 `npm run ci` passed: lint, strict typecheck, 60 test files, 209 tests, Prisma generation, and the optimized production build.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, and `/oql` as `○` Static; sign-in, participant, report, admin, and API routes remain `ƒ` Dynamic.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+  - In-app browser QA covered all eight public routes at 320, 390, 768, 900, 1024, 1280, and 1440 px plus a short 1440×560 viewport. All 64 route/viewport combinations had zero horizontal overflow, no application error, one main and footer, and zero pending reveal targets after a progressive full-page scroll.
+  - Blindspot-specific browser checks proved a 1440 px-wide field, a stationary 72 px-offset desktop stage, scroll progress `0.0000 → 0.5024 → 1.0000`, all four connected signals at completion, a complete non-sticky 390 px composition, four unclipped 44×44 px controls, and no header collision at the five-link 1024 px breakpoint.
+  - Browser console inspection reported no runtime errors. Next's development LCP heuristic warned about the existing founder photo during the intentionally rapid automated scroll sweep; the local server also reported the expected missing `NEXTAUTH_URL`/secret warnings because production credentials were not injected for public-page visual QA.
+- Risks/unknowns:
+  - Hosted Safari/Chromium checks remain appropriate for mask compositing, font timing, reduced motion, and forced colours. The local browser matrix validates layout and progressive fallbacks but does not replace the staging CDN/runtime pass.
+  - Real database, Resend, Blob, OpenAI, hosted authentication, and cron behavior were not exercised because this is a public visual change and local production credentials were intentionally absent.
+  - No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review the visual diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then repeat the key desktop/mobile Blindspot interaction and hosted Safari/Chromium fallback checks before promoting the standing staging-to-main PR.

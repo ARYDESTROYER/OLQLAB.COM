@@ -17,9 +17,9 @@ export default function SectionSignalRail({
   const [activeIndex, setActiveIndex] = useState(0);
   const railRef = useRef<HTMLDivElement>(null);
   const tones = {
-    cognitive: "var(--signal-cognitive)",
-    personality: "var(--brass-text)",
-    response: "var(--signal-response)",
+    cognitive: "var(--signal-cognitive-vivid)",
+    personality: "var(--signal-personality-vivid)",
+    response: "var(--signal-response-vivid)",
     ink: "var(--ink)",
   } as const;
 

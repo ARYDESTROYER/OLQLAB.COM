@@ -246,7 +246,7 @@
 }
 
 .dimensionRail li[data-dimension="P"] {
-  --rail-color: #8b5a1f;
+  --rail-color: var(--signal-personality-text, #735027);
   --rail-soft: var(--explorer-personality-soft);
 }
 

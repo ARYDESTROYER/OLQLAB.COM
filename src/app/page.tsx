@@ -441,7 +441,7 @@ export default function HomePage() {
               <SectionSignalRail items={journeyRail} />
               <div>
                 <p className="landing-kicker">A path, not a promise</p>
-                <ol className="landing-journey-list" data-reveal-group="line">
+                <ol className="landing-journey-list" data-reveal-group="rail">
                   {journey.map((step) => (
                     <li
                       id={`growth-${step.numeral}`}

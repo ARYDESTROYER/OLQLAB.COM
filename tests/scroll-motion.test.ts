@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { calculateScrollMotion } from "@/lib/scroll-motion";
+import {
+  calculateScrollMotion,
+  calculateStickyScrollProgress,
+} from "@/lib/scroll-motion";
 
 describe("calculateScrollMotion", () => {
   it("starts at zero before a scene enters the viewport", () => {
@@ -27,5 +30,18 @@ describe("calculateScrollMotion", () => {
 
     expect(start).toMatchObject({ farY: -8, midY: 15, nearY: -24, turn: -1.2 });
     expect(end).toMatchObject({ farY: 8, midY: -15, nearY: 24, turn: 1.2 });
+  });
+});
+
+describe("calculateStickyScrollProgress", () => {
+  it("advances only across the bounded sticky travel", () => {
+    expect(calculateStickyScrollProgress(72, 1320, 800, 72)).toBe(0);
+    expect(calculateStickyScrollProgress(-224, 1320, 800, 72)).toBe(0.5);
+    expect(calculateStickyScrollProgress(-520, 1320, 800, 72)).toBe(1);
+  });
+
+  it("clamps progress outside the sticky scene", () => {
+    expect(calculateStickyScrollProgress(900, 1320, 800, 72)).toBe(0);
+    expect(calculateStickyScrollProgress(-900, 1320, 800, 72)).toBe(1);
   });
 });

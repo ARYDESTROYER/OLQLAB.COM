@@ -420,7 +420,7 @@
 }
 
 .experienceCell > span {
-  color: rgba(16, 17, 20, 0.4);
+  color: var(--muted);
 }
 
 .experienceCell > p {

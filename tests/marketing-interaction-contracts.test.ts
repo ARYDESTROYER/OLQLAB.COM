@@ -3,6 +3,7 @@ import { createElement, type ComponentProps } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BlindspotField } from "@/app/blindspot/BlindspotField";
+import BlindspotPage from "@/app/blindspot/page";
 import { ContactBriefBuilder } from "@/app/contact/ContactBriefBuilder";
 import AboutPage from "@/app/about/page";
 import ContactPage from "@/app/contact/page";
@@ -14,7 +15,11 @@ import AssessmentSignalExplorer from "@/components/marketing/AssessmentSignalExp
 import CprTriangle, {
   type CprRegion,
 } from "@/components/marketing/CprTriangle";
-import { PrimaryCTA } from "@/components/marketing/Editorial";
+import {
+  EditorialFooter,
+  PrimaryCTA,
+} from "@/components/marketing/Editorial";
+import { PUBLIC_NAV_ITEMS } from "@/components/navigation/NavLinks";
 import StepperFlow from "@/components/marketing/StepperFlow";
 
 const regions: readonly CprRegion[] = [
@@ -125,6 +130,30 @@ describe("public marketing interaction contracts", () => {
     expect(source).toContain("window.requestAnimationFrame");
   });
 
+  it("places Blindspot Work before Contact in both public navigation modes", () => {
+    expect(PUBLIC_NAV_ITEMS.map((item) => item.label)).toEqual([
+      "About",
+      "Framework",
+      "Assessments",
+      "Blindspot Work",
+      "Contact",
+    ]);
+  });
+
+  it("offers one stationary, color-coded next-step pathway in every footer", () => {
+    const markup = renderToStaticMarkup(createElement(EditorialFooter));
+
+    expect(markup).toContain('aria-label="Explore OLQ Lab by what you need"');
+    expect(markup).toContain("Choose your next move.");
+    expect(markup).toContain("See my pattern");
+    expect(markup).toContain("Understand the model");
+    expect(markup).toContain("Work a blindspot");
+    expect(markup).toContain("Start a conversation");
+    expect(markup.match(/class="footer-pathway__item"/g)).toHaveLength(4);
+    expect(markup).toContain("data-reveal-parts");
+    expect(markup).not.toContain("data-scroll-layer");
+  });
+
   it("associates every coaching control with its changing detail", () => {
     const markup = renderToStaticMarkup(
       createElement(StepperFlow, {
@@ -228,6 +257,7 @@ describe("public marketing interaction contracts", () => {
     const markup = [
       createElement(HomePage),
       createElement(AboutPage),
+      createElement(BlindspotPage),
       createElement(FrameworkPage),
       createElement(ContactPage),
       createElement(OqlPage),

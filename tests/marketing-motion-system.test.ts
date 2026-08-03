@@ -28,8 +28,11 @@ describe("public marketing motion system", () => {
 
     [
       "--signal-cognitive:",
+      "--signal-cognitive-vivid:",
       "--signal-personality:",
+      "--signal-personality-vivid:",
       "--signal-response:",
+      "--signal-response-vivid:",
       "--focus-light:",
       "--ease-editorial:",
       '[data-reveal="rise"]',
@@ -55,6 +58,51 @@ describe("public marketing motion system", () => {
       ".stepper-vnum",
       ".stepper-vlabel",
     ].forEach((selector) => expect(reducedMotion).toContain(selector));
+  });
+
+  it("keeps Blindspot full-bleed, bounded, and static in every fallback", () => {
+    const field = read("../src/app/blindspot/BlindspotField.tsx");
+    const css = read("../src/app/blindspot/blindspot.module.css");
+    const desktop = blockAfter(
+      css,
+      "@media (min-width: 72rem) and (min-height: 44rem) and (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference)",
+    );
+    const compact = blockAfter(
+      css,
+      "@media (max-width: 71.99rem), (max-height: 43.99rem)",
+    );
+    const coarse = blockAfter(css, "@media (hover: none), (pointer: coarse)");
+    const reduced = blockAfter(css, "@media (prefers-reduced-motion: reduce)");
+    const noScript = blockAfter(css, "@media (scripting: none)");
+    const forcedColors = blockAfter(css, "@media (forced-colors: active)");
+
+    expect(field).toContain('progressMode="sticky"');
+    expect(field).toContain("stickyOffset={72}");
+    expect(field).not.toContain('window.addEventListener("scroll"');
+    expect(field).not.toContain('window.addEventListener("resize"');
+    expect(css).toMatch(/\.fieldMotion\s*\{[\s\S]*?width:\s*100%/);
+    expect(css).toMatch(/\.fieldFrame\s*\{[\s\S]*?min-height:\s*calc\(100svh - 4\.5rem\)/);
+    expect(desktop).toMatch(
+      /\.fieldMotion\[data-scroll-enhanced="true"\]\s*\{[\s\S]*?min-height:\s*165svh/,
+    );
+    expect(desktop).toMatch(
+      /\.fieldMotion\[data-scroll-enhanced="true"\] \.field\s*\{[\s\S]*?min-height:\s*165svh/,
+    );
+    expect(desktop).toMatch(
+      /\.fieldMotion\[data-scroll-enhanced="true"\] \.fieldStage\s*\{[\s\S]*?position:\s*sticky/,
+    );
+
+    for (const fallback of [compact, coarse, reduced, noScript, forcedColors]) {
+      expect(fallback).toMatch(/\.fieldMotion\s*\{[\s\S]*?min-height:\s*auto/);
+      expect(fallback).toMatch(
+        /\.fieldStage\s*\{[\s\S]*?position:\s*relative[\s\S]*?top:\s*auto/,
+      );
+      expect(fallback).not.toContain("position: sticky");
+    }
+
+    for (const fallback of [compact, coarse, reduced, noScript, forcedColors]) {
+      expect(fallback).toContain("mask-image: none");
+    }
   });
 
   it("fails open when reveal or scroll capabilities are unavailable", () => {

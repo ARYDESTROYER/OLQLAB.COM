@@ -1,5 +1,6 @@
 .scene {
   --scroll-progress: 0;
+  --scroll-progress-eased: 0;
   --scroll-far-x: 0px;
   --scroll-far-y: 0px;
   --scroll-mid-x: 0px;

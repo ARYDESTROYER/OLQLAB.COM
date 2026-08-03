@@ -2,6 +2,37 @@ import Link from "next/link";
 import Image from "next/image";
 import type { ReactNode } from "react";
 
+const footerPathways = [
+  {
+    code: "01 / SEE",
+    title: "See my pattern",
+    detail: "Explore the assessment paths.",
+    href: "/assessments",
+    tone: "cognitive",
+  },
+  {
+    code: "02 / UNDERSTAND",
+    title: "Understand the model",
+    detail: "Read the CPR framework.",
+    href: "/framework",
+    tone: "personality",
+  },
+  {
+    code: "03 / NOTICE",
+    title: "Work a blindspot",
+    detail: "Surface what is hard to see alone.",
+    href: "/blindspot",
+    tone: "response",
+  },
+  {
+    code: "04 / BEGIN",
+    title: "Start a conversation",
+    detail: "Shape the right starting point together.",
+    href: "/contact",
+    tone: "ink",
+  },
+] as const;
+
 export function Eyebrow({
   children,
   className = "",
@@ -221,6 +252,34 @@ export function MailLink({
 export function EditorialFooter() {
   return (
     <footer className="border-t border-ink/12">
+      <nav
+        className="footer-pathway"
+        aria-label="Explore OLQ Lab by what you need"
+        data-reveal-parts
+      >
+        <div className="footer-pathway__intro">
+          <p>START WHERE YOU ARE</p>
+          <h2>Choose your next move.</h2>
+        </div>
+        <ol className="footer-pathway__list">
+          {footerPathways.map((pathway) => (
+            <li
+              className="footer-pathway__item"
+              data-tone={pathway.tone}
+              key={pathway.href}
+            >
+              <Link href={pathway.href}>
+                <span className="footer-pathway__code">{pathway.code}</span>
+                <span className="footer-pathway__title">{pathway.title}</span>
+                <span className="footer-pathway__detail">{pathway.detail}</span>
+                <span className="footer-pathway__arrow" aria-hidden>
+                  ↗
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ol>
+      </nav>
       <div className="mx-auto max-w-7xl px-6 py-16 md:px-10 md:py-20">
         <div className="grid gap-12 md:grid-cols-[2fr_1fr_1fr_1fr]">
           <div>

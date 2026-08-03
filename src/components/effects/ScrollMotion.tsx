@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useId, useRef, type ReactNode } from "react";
-import { calculateScrollMotion } from "@/lib/scroll-motion";
+import {
+  calculateScrollMotion,
+  calculateStickyScrollProgress,
+} from "@/lib/scroll-motion";
 import styles from "./ScrollMotion.module.css";
 
 type ScrollMotionProps = {
   children: ReactNode;
   className?: string;
+  progressMode?: "viewport" | "sticky";
+  stickyOffset?: number;
 };
 
 type MotionSubscriber = () => void;
@@ -56,6 +61,8 @@ function setLength(root: HTMLDivElement, property: string, value: number) {
 export default function ScrollMotion({
   children,
   className,
+  progressMode = "viewport",
+  stickyOffset = 0,
 }: ScrollMotionProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const sceneId = useId();
@@ -140,6 +147,7 @@ export default function ScrollMotion({
       root.removeAttribute("data-scroll-enhanced");
       setActive(false);
       root.style.setProperty("--scroll-progress", "1");
+      root.style.setProperty("--scroll-progress-eased", "1");
       [
         "--scroll-far-x",
         "--scroll-far-y",
@@ -168,8 +176,21 @@ export default function ScrollMotion({
         rect.height,
         window.innerHeight,
       );
+      const progress =
+        progressMode === "sticky"
+          ? calculateStickyScrollProgress(
+              rect.top,
+              rect.height,
+              window.innerHeight,
+              stickyOffset,
+            )
+          : values.progress;
       root.dataset.scrollEnhanced = "true";
-      root.style.setProperty("--scroll-progress", values.progress.toFixed(4));
+      root.style.setProperty("--scroll-progress", progress.toFixed(4));
+      root.style.setProperty(
+        "--scroll-progress-eased",
+        (progress * progress).toFixed(4),
+      );
       setLength(root, "--scroll-far-x", values.farX);
       setLength(root, "--scroll-far-y", values.farY);
       setLength(root, "--scroll-mid-x", values.midX);
@@ -262,13 +283,14 @@ export default function ScrollMotion({
         }
       });
     };
-  }, [sceneId]);
+  }, [progressMode, sceneId, stickyOffset]);
 
   return (
     <div
       ref={rootRef}
       className={`${styles.scene}${className ? ` ${className}` : ""}`}
       data-scroll-scene={sceneId}
+      data-scroll-progress-mode={progressMode}
     >
       {children}
     </div>

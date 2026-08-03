@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import PublicHeader from "@/components/navigation/PublicHeader";
+import ScrollMotion from "@/components/effects/ScrollMotion";
 import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
 
 export function MarketingChrome({
@@ -28,22 +29,30 @@ export function MarketingChrome({
       <PublicHeader />
 
       <main id="marketing-content" tabIndex={-1}>
-        <section className="marketing-chrome-hero relative mx-auto max-w-7xl overflow-hidden px-6 pt-24 pb-24 md:px-10 md:pt-32 md:pb-32">
-          <div className="marketing-chrome-spectrum" aria-hidden>
-            <span />
-            <span />
-            <span />
-          </div>
-          <div className="relative z-[2]">
-            <div className="reveal">
-              <Eyebrow>{eyebrow}</Eyebrow>
+        <ScrollMotion className="marketing-chrome-motion">
+          <section className="marketing-chrome-hero relative mx-auto max-w-7xl overflow-hidden px-6 pt-24 pb-24 md:px-10 md:pt-32 md:pb-32">
+            <div
+              className="marketing-chrome-spectrum-motion"
+              data-scroll-layer="far"
+              aria-hidden
+            >
+              <div className="marketing-chrome-spectrum">
+                <span />
+                <span />
+                <span />
+              </div>
             </div>
-            <HeroTitle title={title} />
-            <p className="reveal reveal-delay-2 mt-10 max-w-2xl text-base leading-relaxed text-ink/72 md:text-lg">
-              {description}
-            </p>
-          </div>
-        </section>
+            <div className="relative z-[2]">
+              <div className="reveal">
+                <Eyebrow>{eyebrow}</Eyebrow>
+              </div>
+              <HeroTitle title={title} />
+              <p className="reveal reveal-delay-2 mt-10 max-w-2xl text-base leading-relaxed text-ink/72 md:text-lg">
+                {description}
+              </p>
+            </div>
+          </section>
+        </ScrollMotion>
 
         <div className="mx-auto max-w-7xl px-6 md:px-10">
           <div className="border-t border-ink/12" />

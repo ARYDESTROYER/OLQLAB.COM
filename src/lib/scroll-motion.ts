@@ -41,3 +41,22 @@ export function calculateScrollMotion(
     turn: signed * 1.2,
   };
 }
+
+/**
+ * Progress for a bounded sticky scene. The value stays at zero until the
+ * scene reaches its sticky offset, then advances across only the additional
+ * scroll distance created by the scene before resolving to one.
+ */
+export function calculateStickyScrollProgress(
+  top: number,
+  height: number,
+  viewportHeight: number,
+  stickyOffset = 0,
+) {
+  const safeHeight = Math.max(0, height);
+  const safeViewport = Math.max(1, viewportHeight);
+  const safeOffset = Math.max(0, stickyOffset);
+  const travel = Math.max(1, safeHeight - safeViewport + safeOffset);
+
+  return clamp((safeOffset - top) / travel, 0, 1);
+}

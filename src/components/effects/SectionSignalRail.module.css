@@ -47,13 +47,13 @@
 }
 
 .item[data-tone="cognitive"] {
-  --item-tone: var(--signal-cognitive);
+  --item-tone: var(--signal-cognitive-vivid);
 }
 .item[data-tone="personality"] {
-  --item-tone: var(--brass-text);
+  --item-tone: var(--signal-personality-vivid);
 }
 .item[data-tone="response"] {
-  --item-tone: var(--signal-response);
+  --item-tone: var(--signal-response-vivid);
 }
 
 .item[data-active="true"] {
