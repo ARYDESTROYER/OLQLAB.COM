@@ -6,6 +6,7 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import ProfileMenu from "@/components/navigation/ProfileMenu";
 import WorkspaceLinkStatus from "@/components/navigation/WorkspaceLinkStatus";
+import WorkspaceRouteWarmer from "@/components/navigation/WorkspaceRouteWarmer";
 import {
   getFocusedSessionNavigation,
   hasParticipantWorkspaceAccess,
@@ -191,6 +192,7 @@ export default function AppShell({
 
   return (
     <div className="workspace-shell min-h-screen">
+      <WorkspaceRouteWarmer role={role} />
       <a className="skip-link" href="#workspace-content">
         Skip to workspace content
       </a>

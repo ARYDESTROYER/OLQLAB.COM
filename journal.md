@@ -1881,3 +1881,30 @@ This file is the append-only engineering diary for implementation work in this r
   - No schema, migration, sign-in callback chain, shared database row, provider configuration, email, Blob object, OpenAI request, cron job, or production environment was mutated. No files were staged, committed, pushed, or deployed.
 - Next step:
   - Review the working diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then measure Dashboard → Assessment Centre → My Reports and the main admin list/detail transitions with a real session at desktop and mobile widths before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-04-04
+- Timestamp (UTC): 2026-08-04T13:55:29Z
+- Timestamp (Local): 2026-08-04 19:25:29 IST (+0530)
+- Task: Warm role-visible workspace routes after sign-in without caching live authorization data.
+- Why: Signed-in navigation should feel immediate even when a destination link is hidden in the mobile menu or has not yet entered the viewport. Forcing complete authenticated pages into a five-minute client cache would run avoidable database work and could reuse stale role, Organisation, enrollment, or report-release data, so the optimization needed a narrower browser-memory boundary.
+- What changed:
+  - `src/components/navigation/WorkspaceRouteWarmer.tsx` and `src/components/navigation/AppShell.tsx`: added a production-only, non-visual route warmer to the normal workspace shell. It prefetches one route per idle opportunity, skips the route currently displayed both when scheduling and when execution arrives, pauses while offline/hidden or on Data Saver/2G, resumes on visibility/network changes, cancels pending work on unmount, and never mounts inside a focused assessment session.
+  - `src/lib/workspace-navigation.ts`: defined the exact role-scoped warm sets and the constrained-network policy. Employees warm Dashboard, Assessment Center, and My Reports; leaders also warm Team Reports; admins warm Dashboard and Admin, after which the visible Admin links use Next's native automatic prefetching for subsections.
+  - `src/app/(app)/admin/page.tsx`: repeated the request-scoped live-admin check at the operational-data leaf before reading counts or jobs, closing the shared-layout reuse gap exposed by prefetch review without adding a duplicate User query in the same render request.
+  - `tests/workspace-navigation.test.ts` and `tests/workspace-performance-contracts.test.ts`: added exact role-matrix, forbidden-route, constrained-connection, focused-session, production-only, cancellation, no-persistent-cache, queue-advancement/current-route, and Admin overview guard regressions.
+  - `guide.md`: documented the in-memory AUTO prefetch boundary, its cascade and resource guards, the live Admin overview check, and the hosted browser/network acceptance gate.
+- How:
+  - Used public `router.prefetch(href)` with no options. In installed Next 16.2.12 this selects AUTO/LoadingBoundary behavior for the dynamic authenticated tree, warming route code, shared layouts, and static loading UI without opting into `PrefetchKind.FULL`, `prefetch={true}`, invalidation polling, Cache Storage, local storage, IndexedDB, or a service worker.
+  - Kept the warm list finite and role-derived, excluded dynamic assessment/session/report/detail URLs and the heavier static Landing route, staggered work with `requestIdleCallback` plus a delayed compatibility fallback, and let visible native links continue to use Next's own prioritization.
+  - Used independent Next-runtime, access/freshness, and final code reviews. Their findings narrowed Admin warming to a two-stage cascade, added the Admin overview leaf guard, rechecked changing connection conditions during the sequence, and prevented a queued prefetch from redundantly fetching the route a user had already opened.
+- Validation/output:
+  - Exact Node 22.23.1 `npm run ci` passed after implementation: ESLint with 0 errors, strict typecheck, 64 test files, 230 tests, Prisma generation, and the optimized Next.js 16.2.12 production build.
+  - Focused workspace tests passed 2 files and 11 tests. The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; dashboard, assessment, report, admin, sign-in, and API routes remain `ƒ` Dynamic.
+  - In-app browser inspection confirmed the currently deployed staging build still redirects an unauthenticated `/dashboard` request to `/signin`; the resulting page has one main landmark, zero horizontal overflow, zero broken images, and no Next error overlay. The available browser profile did not carry an authenticated staging session, so it could not exercise this local-only warmer before deployment.
+  - `git diff --check` passed. `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+- Risks/unknowns:
+  - AUTO prefetch makes the loading shell and route assets ready; it deliberately does not promise a data-complete page with no server round trip. That remaining request is what preserves immediate role/revocation and current assessment/report decisions.
+  - The exact before/after signed-in transition timing, request count, transfer size, Data Saver behavior, and demotion/enrollment freshness still require a real authenticated production-build session after staging deployment. No shared database, authentication provider, email, schema, migration, environment, or deployed code was changed in this task.
+  - Changes remain local and unstaged; nothing was committed, pushed, or deployed.
+- Next step:
+  - Review and stage only the intended files, push to `staging`, wait for Vercel `READY`, then capture Dashboard → Assessment Center → My Reports/Team Reports and Dashboard → Admin request/timing evidence with a real session before promoting the standing staging-to-main PR.

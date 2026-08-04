@@ -503,6 +503,24 @@ Updated runtime behavior:
   each destination owns its one main landmark. Workspace links expose the active
   page with `aria-current` and a fixed-size `useLinkStatus` pending indicator so
   navigation feedback does not shift the link label.
+- On a normal signed-in view, `WorkspaceRouteWarmer` uses Next's default AUTO
+  `router.prefetch()` strategy to warm role-visible route code, shared layouts,
+  and loading boundaries one destination per browser idle turn. Employees warm
+  Dashboard, Assessment Centre, and My Reports; leaders also warm Team Reports;
+  admins warm Dashboard and the Admin overview, whose visible native links then
+  let Next warm the admin subsections. The current route is skipped, and focused
+  assessment sessions never run background warming. Programmatic warming is
+  production-only so local development does not compile unused routes in the
+  background.
+- The route warmer pauses for hidden or offline tabs and does not run on Data
+  Saver, `slow-2g`, or `2g` connections. It must not be changed to
+  `prefetch={true}`, `PrefetchKind.FULL`, invalidation polling, or persistent
+  Cache Storage/local-storage/service-worker data caching: the browser may retain
+  the prefetched shell in Next's in-memory router cache, but personalized page
+  data, identity, role, Organisation state, enrollment, and report release remain
+  live when the destination opens. The Admin overview repeats the request-scoped
+  live-admin guard before reading operational counts; React request caching
+  deduplicates that lookup when the admin layout renders in the same request.
 - Dashboard and Assessment Centre reuse the request-scoped live User/Organisation
   row returned by `getLiveSession()`, parallelize independent reads, and request
   counts rather than complete relation payloads when only counts are rendered.
@@ -798,6 +816,11 @@ Release infrastructure gates:
   mobile widths: active and pending navigation states remain visible, loading
   boundaries do not add a second `main`, mobile menus remain viewport-bounded, and
   participant/admin authorization still reflects current database state
+- inspect the production browser network after sign-in: idle AUTO prefetches may
+  request role-visible route shells sequentially, but must not issue admin/report
+  API data calls, run during a focused assessment, or continue on Data Saver/2G;
+  after a role, Organisation, enrollment, or report-release change, opening the
+  warmed route must still reflect the current database decision
 - validate `resolveAssessmentAccessMany()` against the single-item contract for
   direct and Organisation enrollment, future-user cutoffs, due unenroll precedence,
   report metadata, ADMIN denial, missing assessments, and schema compatibility

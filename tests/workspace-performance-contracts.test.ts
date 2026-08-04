@@ -11,12 +11,16 @@ describe("authenticated workspace performance contracts", () => {
     const adminLoading = read("../src/app/(app)/admin/loading.tsx");
     const shell = read("../src/components/navigation/AppShell.tsx");
     const linkStatus = read("../src/components/navigation/WorkspaceLinkStatus.tsx");
+    const routeWarmer = read(
+      "../src/components/navigation/WorkspaceRouteWarmer.tsx",
+    );
     const reportEditor = read(
       "../src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx",
     );
     const responseReview = read(
       "../src/app/(app)/admin/assessments/[id]/participants/[userId]/responses/page.tsx",
     );
+    const adminOverview = read("../src/app/(app)/admin/page.tsx");
 
     for (const loading of [appLoading, adminLoading]) {
       expect(loading).toContain('role="status"');
@@ -34,12 +38,37 @@ describe("authenticated workspace performance contracts", () => {
     expect(shell).toContain('className="hidden sm:inline"');
     expect(shell).toContain("}, [pathname]);");
     expect(shell).not.toContain("prefetch={true}");
+    expect(shell).toContain("<WorkspaceRouteWarmer role={role} />");
+    const focusedBranch = shell.slice(
+      shell.indexOf("if (focusedSession)"),
+      shell.indexOf("\n  return (", shell.indexOf("if (focusedSession)")),
+    );
+    expect(focusedBranch).not.toContain("<WorkspaceRouteWarmer");
+    expect(routeWarmer).toContain("requestIdleCallback");
+    expect(routeWarmer).toContain("cancelIdleCallback");
+    expect(routeWarmer).toContain("document.visibilityState");
+    expect(routeWarmer).toContain("navigator.onLine");
+    expect(routeWarmer).toContain('process.env.NODE_ENV !== "production"');
+    expect(routeWarmer).toContain("shouldWarmWorkspaceRoutes(connection)");
+    expect(routeWarmer).toContain(
+      'connection?.addEventListener?.("change", resumeWhenConnectionAllows)',
+    );
+    expect(routeWarmer).toContain("takeNextWorkspaceWarmRoute(");
+    expect(routeWarmer).toContain("window.location.pathname");
+    expect(routeWarmer).toContain("router.prefetch(href)");
+    expect(routeWarmer).not.toContain("PrefetchKind.FULL");
+    expect(routeWarmer).not.toContain("onInvalidate");
+    expect(routeWarmer).not.toContain("localStorage");
+    expect(routeWarmer).not.toContain("caches.open");
+    expect(routeWarmer).not.toContain("serviceWorker");
     expect(linkStatus).toContain("useLinkStatus");
     expect(linkStatus).toContain('role="status"');
     expect(reportEditor).not.toContain("<main");
     expect(responseReview).not.toContain("<main");
     expect(responseReview).toContain("const controller = new AbortController()");
     expect(responseReview).toContain("return () => controller.abort()");
+    expect(adminOverview).toContain("const check = await getLiveAdminSession()");
+    expect(adminOverview).toContain('if (!check) redirect("/dashboard")');
   });
 
   it("keeps marketing observers out of authenticated root hydration", () => {
