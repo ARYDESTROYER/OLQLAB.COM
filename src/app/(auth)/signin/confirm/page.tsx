@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { db } from "@/lib/db";
-import { getServerAuthSession } from "@/lib/auth";
+import { getLiveSession } from "@/lib/api-auth";
 import { validateVerificationCallbackUrl } from "@/lib/magic-link-continue";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
+import ContinueButton from "./ContinueButton";
 
 type ConfirmSignInPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -13,68 +15,90 @@ function getSingleParam(value: string | string[] | undefined) {
 }
 
 export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInPageProps) {
-  const session = await getServerAuthSession();
-  if (session?.user) {
+  const check = await getLiveSession();
+  if (check) {
     redirect("/dashboard");
   }
 
   const params = await searchParams;
   const rawTokenUrl = getSingleParam(params.tokenUrl);
-  const rawEmail = getSingleParam(params.email).toLowerCase().trim();
   const validated = validateVerificationCallbackUrl(rawTokenUrl);
 
   if (!validated) {
     return (
-      <main className="mx-auto max-w-xl space-y-6 p-6 md:p-10">
-        <section className="rounded-3xl border border-rose-200 bg-rose-50 p-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-rose-900">Sign-in link is invalid</h1>
-          <p className="mt-3 text-sm text-rose-800">
-            This sign-in link cannot be used. Please request a fresh sign-in link.
-          </p>
-          <div className="mt-6">
-            <Link
-              href="/signin"
-              className="rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-900"
-            >
-              Back to Sign-in
-            </Link>
-          </div>
-        </section>
-      </main>
+      <div className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+        <a className="skip-link" href="#signin-confirm-content">
+          Skip to content
+        </a>
+        <PublicHeader />
+        <main
+          id="signin-confirm-content"
+          className="scroll-mt-24 flex-1"
+          tabIndex={-1}
+        >
+          <section className="mx-auto flex w-full max-w-3xl flex-col px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
+            <div className="reveal">
+              <Eyebrow>Sign-in</Eyebrow>
+              <h1 className="font-display mt-8 text-balance text-[clamp(2.25rem,6vw,4.5rem)] leading-[1] tracking-[-0.03em]">
+                This sign-in link is invalid<span className="brass-period">.</span>
+              </h1>
+              <p className="mt-8 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
+                The link can no longer be used. Request a fresh sign-in link to continue.
+              </p>
+              <div className="mt-12">
+                <Link
+                  href="/signin"
+                  className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--focus-light)]"
+                >
+                  <span>Back to sign-in</span>
+                  <span
+                    aria-hidden
+                    className="transition-transform duration-300 group-hover:translate-x-1"
+                  >
+                    →
+                  </span>
+                </Link>
+              </div>
+            </div>
+          </section>
+        </main>
+        <EditorialFooter />
+      </div>
     );
   }
 
-  const lookupEmail = rawEmail || validated.email;
-  const user = await db.user.findUnique({
-    where: { email: lookupEmail },
-    select: {
-      firstName: true,
-      lastName: true,
-    },
-  });
-
-  const fullName = `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "there";
-
   return (
-    <main className="mx-auto max-w-xl space-y-6 p-6 md:p-10">
-      <section className="rounded-3xl bg-gradient-to-r from-amber-100 via-orange-50 to-cyan-100 p-8">
-        <h1 className="text-3xl font-semibold tracking-tight">Welcome to OLQLab, {fullName}</h1>
-        <p className="mt-3 text-sm text-slate-700">
-          Click continue below to complete your secure sign-in.
-        </p>
-      </section>
+    <div className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+      <a className="skip-link" href="#signin-confirm-content">
+        Skip to content
+      </a>
+      <PublicHeader />
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6">
-        <form action="/api/auth/continue" method="post" className="space-y-4">
-          <input type="hidden" name="tokenUrl" value={validated.absoluteUrl} />
-          <button className="w-full rounded-xl bg-slate-900 px-4 py-3 font-medium text-white" type="submit">
-            Continue to Sign-in
-          </button>
-        </form>
-        <p className="mt-4 text-xs text-slate-500">
-          Sign-in is completed only after pressing Continue.
-        </p>
-      </section>
-    </main>
+      <main
+        id="signin-confirm-content"
+        className="scroll-mt-24 flex-1"
+        tabIndex={-1}
+      >
+        <section className="mx-auto w-full max-w-7xl px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
+          <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
+            <div className="reveal">
+              <Eyebrow>One last step</Eyebrow>
+              <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,7vw,5.5rem)] leading-[0.96] tracking-[-0.03em]">
+                Welcome back<span className="brass-period">.</span>
+              </h1>
+              <p className="mt-8 max-w-md text-base leading-relaxed text-[#101114]/72 md:text-lg">
+                Click continue below to complete your secure sign-in.
+              </p>
+            </div>
+
+            <div className="reveal reveal-delay-1">
+              <ContinueButton tokenUrl={validated.absoluteUrl} />
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <EditorialFooter />
+    </div>
   );
 }

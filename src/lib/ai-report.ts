@@ -74,8 +74,7 @@ export async function generateAiNarrative(
   traits: TraitScores,
   competencies: CompetencyScore[],
   context: {
-    fullName: string;
-    email: string;
+    participantReference: string;
     assessmentTitle: string;
   },
 ): Promise<AiNarrative | null> {
@@ -83,7 +82,14 @@ export async function generateAiNarrative(
   if (!apiKey) return null;
 
   const model = process.env.REPORT_LLM_MODEL || "gpt-4o-mini";
-  const client = new OpenAI({ apiKey });
+  // Report submission must remain recoverable when the model provider is slow.
+  // The local narrative fallback is preferable to holding the participant request
+  // open until the hosting platform terminates it.
+  const client = new OpenAI({
+    apiKey,
+    maxRetries: 1,
+    timeout: 20_000,
+  });
 
   const inputPayload = {
     person: context,

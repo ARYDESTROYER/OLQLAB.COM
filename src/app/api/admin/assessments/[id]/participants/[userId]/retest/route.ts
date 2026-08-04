@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { isMissingTableError } from "@/lib/prisma-errors";
 import { hasAnyAssessmentParticipation } from "@/lib/assessment-access";
+import { recordAuditLog } from "@/lib/audit-log";
 
 async function validateParticipantScope(assessmentId: string, userId: string) {
   const [assessment, participant, hasParticipation] = await Promise.all([
@@ -12,7 +13,7 @@ async function validateParticipantScope(assessmentId: string, userId: string) {
     }),
     db.user.findUnique({
       where: { id: userId },
-      select: { id: true, role: true },
+      select: { id: true, role: true, tenantId: true },
     }),
     hasAnyAssessmentParticipation(assessmentId, userId),
   ]);
@@ -82,26 +83,36 @@ export async function POST(
 
   let retestEligibility: { eligibleAt: Date };
   try {
-    retestEligibility = await db.retestEligibility.upsert({
-      where: {
-        assessmentId_userId: {
+    retestEligibility = await db.$transaction(async (tx) => {
+      const eligibility = await tx.retestEligibility.upsert({
+        where: {
+          assessmentId_userId: {
+            assessmentId,
+            userId,
+          },
+        },
+        create: {
           assessmentId,
           userId,
+          eligibleAt,
+          setByAdminId: check.session.user.id,
         },
-      },
-      create: {
-        assessmentId,
-        userId,
-        eligibleAt,
-        setByAdminId: check.session.user.id,
-      },
-      update: {
-        eligibleAt,
-        setByAdminId: check.session.user.id,
-      },
-      select: {
-        eligibleAt: true,
-      },
+        update: {
+          eligibleAt,
+          setByAdminId: check.session.user.id,
+        },
+        select: { eligibleAt: true },
+      });
+      await recordAuditLog(
+        {
+          tenantId: scope.participant.tenantId,
+          actorId: check.session.user.id,
+          action: "ASSESSMENT_RETEST_ELIGIBILITY_SET",
+          metadata: { assessmentId, userId, mode, eligibleAt },
+        },
+        tx,
+      );
+      return eligibility;
     });
   } catch (error) {
     if (isMissingTableError(error, "retesteligibility")) {
@@ -139,11 +150,19 @@ export async function DELETE(
   if ("error" in scope) return scope.error;
 
   try {
-    await db.retestEligibility.deleteMany({
-      where: {
-        assessmentId,
-        userId,
-      },
+    await db.$transaction(async (tx) => {
+      await tx.retestEligibility.deleteMany({
+        where: { assessmentId, userId },
+      });
+      await recordAuditLog(
+        {
+          tenantId: scope.participant.tenantId,
+          actorId: check.session.user.id,
+          action: "ASSESSMENT_RETEST_ELIGIBILITY_CLEARED",
+          metadata: { assessmentId, userId },
+        },
+        tx,
+      );
     });
   } catch (error) {
     if (isMissingTableError(error, "retesteligibility")) {

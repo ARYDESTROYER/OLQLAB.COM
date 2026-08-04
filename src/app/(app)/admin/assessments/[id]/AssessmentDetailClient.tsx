@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/components/admin/Toast";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { buildAssessmentCsvTemplate } from "@/lib/assessment-question-csv";
 
 const QUESTION_IMAGE_ACCEPT = "image/jpeg,image/png,image/webp";
@@ -397,7 +398,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(true);
+  const [tabLoading, setTabLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
   const [busy, setBusy] = useState(false);
+  const detailRequestRef = useRef<AbortController | null>(null);
+  const enrollmentUsersRequestRef = useRef<AbortController | null>(null);
+  const hasLoadedRef = useRef(false);
+  const loadedTabsRef = useRef(new Set<TabKey>());
 
   const [detail, setDetail] = useState<AssessmentDetail | null>(null);
   const [access, setAccess] = useState<AssessmentAccessData | null>(null);
@@ -463,6 +470,25 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   const [previewBusy, setPreviewBusy] = useState(false);
   const [uploadingQuestionId, setUploadingQuestionId] = useState<string | null>(null);
   const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null);
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmation, setConfirmation] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    variant: "danger" | "default";
+    action: () => Promise<void>;
+  } | null>(null);
+
+  async function runConfirmedAction() {
+    if (!confirmation) return;
+    setConfirmBusy(true);
+    try {
+      await confirmation.action();
+      setConfirmation(null);
+    } finally {
+      setConfirmBusy(false);
+    }
+  }
 
   const filteredParticipants = useMemo(
     () =>
@@ -479,6 +505,9 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
   );
 
   const loadEnrollmentUsers = useCallback(async (query: string) => {
+    enrollmentUsersRequestRef.current?.abort();
+    const controller = new AbortController();
+    enrollmentUsersRequestRef.current = controller;
     setUserSearchBusy(true);
     try {
       const params = new URLSearchParams();
@@ -486,92 +515,138 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       params.set("sortBy", "name");
       params.set("sortOrder", "asc");
       params.set("limit", "50");
+      params.set("includeContext", "0");
       if (query.trim()) params.set("q", query.trim());
 
-      const res = await fetch(`/api/admin/users?${params.toString()}`);
+      const res = await fetch(`/api/admin/users?${params.toString()}`, {
+        signal: controller.signal,
+      });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         toast((data as { error?: string }).error || "Failed to load participant options.", "error");
         return;
       }
 
+      if (enrollmentUsersRequestRef.current !== controller) return;
       setUsers(((data as { users?: User[] }).users || []).filter((item) => item.role !== "ADMIN"));
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast(
+        error instanceof Error ? error.message : "Failed to load participant options.",
+        "error",
+      );
     } finally {
-      setUserSearchBusy(false);
+      if (enrollmentUsersRequestRef.current === controller && !controller.signal.aborted) {
+        setUserSearchBusy(false);
+      }
     }
   }, []);
 
-  const loadAll = useCallback(async () => {
-    setLoading(true);
+  function invalidateTabs(...keys: TabKey[]) {
+    keys.forEach((key) => loadedTabsRef.current.delete(key));
+  }
+
+  const loadAll = useCallback(async (forceTab = true) => {
+    detailRequestRef.current?.abort();
+    if (!forceTab && hasLoadedRef.current && loadedTabsRef.current.has(tab)) {
+      setTabLoading(false);
+      setLoadError("");
+      return;
+    }
+    if (forceTab) loadedTabsRef.current.delete(tab);
+    const controller = new AbortController();
+    detailRequestRef.current = controller;
+    if (hasLoadedRef.current) setTabLoading(true);
+    else setLoading(true);
+    setLoadError("");
+    let succeeded = false;
+    const shouldLoadTab = forceTab || !loadedTabsRef.current.has(tab);
+    const shouldLoadDetail = forceTab || !hasLoadedRef.current;
+    const shouldHydrateForms = !hasLoadedRef.current;
     try {
-      const [detailRes, accessRes, participantsRes, jobsRes, tenantsRes, adminUsersRes, questionsRes] = await Promise.all([
-        fetch(`/api/admin/assessments/${assessmentId}`),
-        fetch(`/api/admin/assessments/${assessmentId}/access`),
-        fetch(`/api/admin/assessments/${assessmentId}/participants`),
-        fetch(`/api/admin/assessments/${assessmentId}/jobs`),
-        fetch("/api/admin/tenants"),
-        fetch("/api/admin/users?role=ADMIN&limit=500&sortBy=name&sortOrder=asc"),
-        fetch(`/api/admin/assessments/${assessmentId}/questions`),
+      const tabRequests: Promise<Response>[] = [];
+      if (shouldLoadTab && tab === "CONTENT") {
+        tabRequests.push(
+          fetch(`/api/admin/assessments/${assessmentId}/questions`, { signal: controller.signal }),
+        );
+      } else if (shouldLoadTab && tab === "ACCESS") {
+        tabRequests.push(
+          fetch(`/api/admin/assessments/${assessmentId}/access`, { signal: controller.signal }),
+          fetch("/api/admin/tenants?limit=500&sortBy=name&sortOrder=asc", {
+            signal: controller.signal,
+          }),
+        );
+      } else if (shouldLoadTab && tab === "PARTICIPANTS") {
+        tabRequests.push(
+          fetch(`/api/admin/assessments/${assessmentId}/participants`, { signal: controller.signal }),
+        );
+      } else if (shouldLoadTab && tab === "POLICY") {
+        tabRequests.push(
+          fetch("/api/admin/users?role=ADMIN&limit=500&sortBy=name&sortOrder=asc&includeContext=0", {
+            signal: controller.signal,
+          }),
+        );
+      } else if (shouldLoadTab && tab === "JOBS") {
+        tabRequests.push(
+          fetch(`/api/admin/assessments/${assessmentId}/jobs`, { signal: controller.signal }),
+        );
+      }
+
+      const [detailRes, responses] = await Promise.all([
+        shouldLoadDetail
+          ? fetch(`/api/admin/assessments/${assessmentId}`, {
+              signal: controller.signal,
+            })
+          : Promise.resolve(null),
+        Promise.all(tabRequests),
       ]);
-
-      const [detailData, accessData, participantsData, jobsData, tenantsData, adminUsersData, questionsData] = await Promise.all([
-        detailRes.json(),
-        accessRes.json(),
-        participantsRes.json(),
-        jobsRes.json(),
-        tenantsRes.json(),
-        adminUsersRes.json(),
-        questionsRes.json(),
-      ]);
-
-      if (detailRes.ok) {
-        setDetail(detailData.assessment);
-        setContentForm({
-          title: detailData.assessment.title,
-        });
-        setPolicyForm({
-          isPublished: Boolean(detailData.assessment.isPublished),
-          showResultsToEmployee:
-            detailData.assessment.policy?.showResultsToEmployee ?? true,
-          resultReleaseDelayHours:
-            detailData.assessment.policy?.resultReleaseDelayHours ?? 0,
-          introDescription:
-            detailData.assessment.policy?.introDescription ||
-            'You will answer personality items and practical workplace scenarios. There are no "wrong" answers. Choose what best reflects your natural style.',
-          introBulletsText:
-            detailData.assessment.policy?.introBullets?.join("\n") ||
-            "Set aside 10-15 minutes without interruption.\nRespond honestly to maximize insight quality.\nYou can complete in one sitting and submit once all questions are answered.",
-          postSubmitMessage:
-            detailData.assessment.policy?.postSubmitMessage ||
-            "Thanks for completing your assessment.",
-          leaderCanViewFullReport:
-            detailData.assessment.policy?.leaderCanViewFullReport ?? true,
-          reportWorkflow:
-            detailData.assessment.policy?.reportWorkflow ?? "AI_STANDARD",
-          questionPresentationMode:
-            detailData.assessment.policy?.questionPresentationMode ?? "ALL_AT_ONCE",
-          randomizeQuestionOrder:
-            detailData.assessment.policy?.randomizeQuestionOrder ?? false,
-          submissionAlertAdminIds:
-            detailData.assessment.policy?.submissionAlertAdminIds ?? [],
-        });
+      if (detailRes) {
+        const detailData = await detailRes.json().catch(() => ({}));
+        if (!detailRes.ok || !(detailData as { assessment?: AssessmentDetail }).assessment) {
+          throw new Error(
+            (detailData as { error?: string }).error || "Failed to load assessment details.",
+          );
+        }
+        const nextDetail = (detailData as { assessment: AssessmentDetail }).assessment;
+        setDetail(nextDetail);
+        if (shouldHydrateForms) {
+          setContentForm({ title: nextDetail.title });
+          setPolicyForm({
+            isPublished: Boolean(nextDetail.isPublished),
+            showResultsToEmployee:
+              nextDetail.policy?.showResultsToEmployee ?? true,
+            resultReleaseDelayHours:
+              nextDetail.policy?.resultReleaseDelayHours ?? 0,
+            introDescription:
+              nextDetail.policy?.introDescription ||
+              'You will answer personality items and practical workplace scenarios. There are no "wrong" answers. Choose what best reflects your natural style.',
+            introBulletsText:
+              nextDetail.policy?.introBullets?.join("\n") ||
+              "Set aside 10-15 minutes without interruption.\nRespond honestly to maximize insight quality.\nYou can complete in one sitting and submit once all questions are answered.",
+            postSubmitMessage:
+              nextDetail.policy?.postSubmitMessage ||
+              "Thanks for completing your assessment.",
+            leaderCanViewFullReport:
+              nextDetail.policy?.leaderCanViewFullReport ?? true,
+            reportWorkflow:
+              nextDetail.policy?.reportWorkflow ?? "AI_STANDARD",
+            questionPresentationMode:
+              nextDetail.policy?.questionPresentationMode ?? "ALL_AT_ONCE",
+            randomizeQuestionOrder:
+              nextDetail.policy?.randomizeQuestionOrder ?? false,
+            submissionAlertAdminIds:
+              nextDetail.policy?.submissionAlertAdminIds ?? [],
+          });
+        }
       }
 
-      if (accessRes.ok) {
-        setAccess(accessData);
-      }
-
-      if (participantsRes.ok) {
-        setParticipants(participantsData.participants || []);
-      }
-
-      if (jobsRes.ok) {
-        setJobs(jobsData.jobs || []);
-      }
-
-      setTenants(tenantsData.tenants || []);
-      setAdminUsers((adminUsersData.users || []).filter((item: User) => item.role === "ADMIN"));
-      if (questionsRes.ok) {
+      let responseIndex = 0;
+      if (shouldLoadTab && tab === "CONTENT") {
+        const questionsRes = responses[responseIndex];
+        const questionsData = await questionsRes.json().catch(() => ({}));
+        if (!questionsRes.ok) {
+          throw new Error((questionsData as { error?: string }).error || "Failed to load questions.");
+        }
         const nextSections = questionsData.sections || [];
         setSections(nextSections);
         setQuestions(((questionsData.questions || []) as QuestionRow[]).map(normalizeQuestionRow));
@@ -579,14 +654,72 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           ...prev,
           sectionId: prev.sectionId || nextSections[0]?.id || "",
         }));
+      } else if (shouldLoadTab && tab === "ACCESS") {
+        const accessRes = responses[responseIndex++];
+        const tenantsRes = responses[responseIndex];
+        const [accessData, tenantsData] = await Promise.all([
+          accessRes.json().catch(() => ({})),
+          tenantsRes.json().catch(() => ({})),
+        ]);
+        if (!accessRes.ok || !tenantsRes.ok) {
+          throw new Error(
+            (accessData as { error?: string }).error ||
+              (tenantsData as { error?: string }).error ||
+              "Failed to load access management.",
+          );
+        }
+        setAccess(accessData as AssessmentAccessData);
+        setTenants((tenantsData as { tenants?: Tenant[] }).tenants || []);
+      } else if (shouldLoadTab && tab === "PARTICIPANTS") {
+        const participantsRes = responses[responseIndex];
+        const participantsData = await participantsRes.json().catch(() => ({}));
+        if (!participantsRes.ok) {
+          throw new Error(
+            (participantsData as { error?: string }).error || "Failed to load participants.",
+          );
+        }
+        setParticipants((participantsData as { participants?: Participant[] }).participants || []);
+      } else if (shouldLoadTab && tab === "POLICY") {
+        const adminUsersRes = responses[responseIndex];
+        const adminUsersData = await adminUsersRes.json().catch(() => ({}));
+        if (!adminUsersRes.ok) {
+          throw new Error(
+            (adminUsersData as { error?: string }).error || "Failed to load admin recipients.",
+          );
+        }
+        setAdminUsers(
+          ((adminUsersData as { users?: User[] }).users || []).filter(
+            (item) => item.role === "ADMIN",
+          ),
+        );
+      } else if (shouldLoadTab && tab === "JOBS") {
+        const jobsRes = responses[responseIndex];
+        const jobsData = await jobsRes.json().catch(() => ({}));
+        if (!jobsRes.ok) {
+          throw new Error((jobsData as { error?: string }).error || "Failed to load jobs.");
+        }
+        setJobs((jobsData as { jobs?: JobRow[] }).jobs || []);
       }
+      succeeded = true;
+      if (shouldLoadTab) loadedTabsRef.current.add(tab);
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      loadedTabsRef.current.delete(tab);
+      const message = error instanceof Error ? error.message : "Failed to load assessment.";
+      setLoadError(message);
+      if (hasLoadedRef.current) toast(message, "error");
     } finally {
-      setLoading(false);
+      if (detailRequestRef.current === controller) {
+        if (succeeded) hasLoadedRef.current = true;
+        setLoading(false);
+        setTabLoading(false);
+      }
     }
-  }, [assessmentId]);
+  }, [assessmentId, tab]);
 
   useEffect(() => {
-    loadAll();
+    void loadAll(false);
+    return () => detailRequestRef.current?.abort();
   }, [loadAll]);
 
   useEffect(() => {
@@ -596,7 +729,10 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       void loadEnrollmentUsers(userSearchQuery);
     }, 250);
 
-    return () => window.clearTimeout(handle);
+    return () => {
+      window.clearTimeout(handle);
+      enrollmentUsersRequestRef.current?.abort();
+    };
   }, [enrollForm.scope, loadEnrollmentUsers, tab, userSearchQuery]);
 
   async function saveContent() {
@@ -660,6 +796,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       else toast(data.error || "Failed to create enrollment.", "error");
       if (res.ok) {
         setEnrollForm((prev) => ({ ...prev, targetId: "" }));
+        invalidateTabs("ACCESS", "PARTICIPANTS");
         await loadAll();
       }
     } finally {
@@ -758,9 +895,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     }
   }
 
-  async function removeQuestion(questionId: string) {
-    if (!window.confirm("Delete this question? This cannot be undone.")) return;
-
+  async function executeRemoveQuestion(questionId: string) {
     setBusy(true);
     try {
       const res = await fetch(
@@ -777,6 +912,17 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     } finally {
       setBusy(false);
     }
+  }
+
+  function removeQuestion(questionId: string) {
+    setConfirmation({
+      title: "Delete question?",
+      message:
+        "This permanently deletes the question. Assessments with attempt history will reject the operation to preserve evidence.",
+      confirmLabel: "Delete question",
+      variant: "danger",
+      action: () => executeRemoveQuestion(questionId),
+    });
   }
 
   function updateQuestion(questionId: string, patch: Partial<QuestionRow>) {
@@ -1025,14 +1171,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     }
   }
 
-  async function removeQuestionImage(question: QuestionRow) {
+  async function executeRemoveQuestionImage(question: QuestionRow) {
     if (!question.imageUrl) {
       toast("No image is attached to this question.", "error");
       return;
     }
-
-    const confirmed = window.confirm("Remove this question image?");
-    if (!confirmed) return;
 
     setUploadingQuestionId(question.id);
     try {
@@ -1059,6 +1202,20 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       setUploadingQuestionId(null);
       setDragOverQuestionId((current) => (current === question.id ? null : current));
     }
+  }
+
+  function removeQuestionImage(question: QuestionRow) {
+    if (!question.imageUrl) {
+      toast("No image is attached to this question.", "error");
+      return;
+    }
+    setConfirmation({
+      title: "Remove question image?",
+      message: "The image will no longer appear in the participant assessment.",
+      confirmLabel: "Remove image",
+      variant: "danger",
+      action: () => executeRemoveQuestionImage(question),
+    });
   }
 
   function downloadCsvTemplate() {
@@ -1219,6 +1376,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         setWizardOpen(false);
         setWizardStep(1);
         setWizardPreview(null);
+        invalidateTabs("ACCESS", "PARTICIPANTS", "JOBS");
         await loadAll();
       }
     } finally {
@@ -1231,9 +1389,13 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       method: "POST",
     });
     const data = await res.json();
-    if (res.ok) toast("Job started.", "success");
-    else toast(data.error || "Failed to run job.", "error");
-    await loadAll();
+    if (res.ok) {
+      toast("Job started.", "success");
+      invalidateTabs("ACCESS", "PARTICIPANTS", "JOBS");
+      await loadAll();
+    } else {
+      toast(data.error || "Failed to run job.", "error");
+    }
   }
 
   async function startAssessmentPreview() {
@@ -1250,7 +1412,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       }
 
       router.push(
-        `/assessment/session/${(data as { sessionId: string }).sessionId}?preview=1&returnTo=${encodeURIComponent(
+        `/assessment/session/${(data as { sessionId: string }).sessionId}?returnTo=${encodeURIComponent(
           `/admin/assessments/${assessmentId}`,
         )}`,
       );
@@ -1264,10 +1426,16 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       toast("No report exists yet for this participant.", "error");
       return;
     }
+    if (file.size > 4 * 1024 * 1024) {
+      toast("PDF exceeds the 4 MB upload limit.", "error");
+      return;
+    }
+    if (file.type && file.type !== "application/pdf") {
+      toast("Select a PDF file.", "error");
+      return;
+    }
 
-    const notifyNow = window.confirm(
-      "Upload successful report PDF. Notify participant immediately by email link?",
-    );
+    const notifyNow = false;
 
     const formData = new FormData();
     formData.append("file", file);
@@ -1285,7 +1453,12 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       );
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        toast(notifyNow ? "PDF uploaded and user notified." : "PDF uploaded. Notification deferred.", "success");
+        toast(
+          notifyNow
+            ? "PDF uploaded and user notified."
+            : "PDF uploaded as a draft. Publish or notify when it is ready.",
+          "success",
+        );
       } else {
         toast((data as { error?: string }).error || "Failed to upload PDF.", "error");
       }
@@ -1304,7 +1477,25 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       | "UNPUBLISH"
       | "NOTIFY_USER"
       | "REMOVE_PDF",
+    confirmed = false,
   ) {
+    if (action !== "NOTIFY_USER" && !confirmed) {
+      const copy = {
+        REGENERATE: ["Regenerate report?", "The current report is archived, then replaced from stored assessment responses.", "Regenerate"],
+        RETEST_NOW: ["Allow retest now?", "This changes the participant's retest eligibility immediately.", "Allow retest"],
+        RESET: ["Reset participant attempt?", "The current attempt, responses, scores, report, and PDF are archived before the live attempt is cleared.", "Reset attempt"],
+        UNPUBLISH: ["Unpublish report?", "The participant and shared links will lose access until it is published again.", "Unpublish"],
+        REMOVE_PDF: ["Remove uploaded PDF?", "The current PDF is archived, removed, and the report returns to draft.", "Remove PDF"],
+      }[action];
+      setConfirmation({
+        title: copy[0],
+        message: copy[1],
+        confirmLabel: copy[2],
+        variant: action === "RETEST_NOW" ? "default" : "danger",
+        action: () => participantAction(participant, action, true),
+      });
+      return;
+    }
     setBusy(true);
     try {
       let res: Response;
@@ -1355,11 +1546,6 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           return;
         }
 
-        const confirmed = window.confirm(
-          "Remove uploaded PDF and move this report back to draft?",
-        );
-        if (!confirmed) return;
-
         res = await fetch(`/api/admin/reports/${participant.reportId}/manual-pdf`, {
           method: "DELETE",
         });
@@ -1385,10 +1571,33 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
     }
   }
 
-  if (loading || !detail) {
+  const activeTabLabel =
+    tabs.find((item) => item.key === tab)?.label || "assessment section";
+  const tabReady = loadedTabsRef.current.has(tab);
+  const showActiveTab = tabReady && !tabLoading && !loadError;
+
+  if (loading) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">Loading assessment...</h2>
+      </section>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <section className="rounded-2xl border border-rose-200 bg-rose-50 p-5" role="alert">
+        <h2 className="text-lg font-semibold text-rose-900">Assessment could not be opened</h2>
+        <p className="mt-2 text-sm text-rose-800">
+          {loadError || "The assessment did not return a usable response."}
+        </p>
+        <button
+          className="mt-4 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+          onClick={() => void loadAll()}
+          type="button"
+        >
+          Try again
+        </button>
       </section>
     );
   }
@@ -1421,10 +1630,11 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
           Test Assessment opens the live participant flow in admin preview mode without requiring enrollment or generating a participant report.
         </p>
 
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Assessment management">
           {tabs.map((item) => (
             <button
               key={item.key}
+              aria-pressed={tab === item.key}
               className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${tab === item.key
                 ? "bg-slate-900 text-white"
                 : "border border-slate-300 bg-white text-slate-700"
@@ -1437,7 +1647,24 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         </div>
       </section>
 
-      {tab === "CONTENT" && (
+      {loadError ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3" role="alert">
+          <p className="text-sm text-rose-900">{loadError}</p>
+          <button
+            className="rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-800"
+            onClick={() => void loadAll()}
+            type="button"
+          >
+            Retry this section
+          </button>
+        </div>
+      ) : !tabReady || tabLoading ? (
+        <p className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm text-cyan-900" role="status">
+          Loading {activeTabLabel.toLowerCase()}…
+        </p>
+      ) : null}
+
+      {showActiveTab && tab === "CONTENT" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-lg font-semibold">Assessment Content</h3>
           <div className="mt-3">
@@ -1588,7 +1815,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
               />
               <input
                 className="rounded-lg border border-slate-300 px-2 py-2 text-sm"
-                placeholder="Image URL or /public path (optional)"
+                placeholder="Managed Blob URL or /question-images/ path (optional)"
                 value={questionForm.imageUrl}
                 onChange={(e) => setQuestionForm((prev) => ({ ...prev, imageUrl: e.target.value }))}
               />
@@ -1932,7 +2159,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                         </div>
                         <input
                           className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                          placeholder="Image URL or /public path"
+                          placeholder="Managed Blob URL or /question-images/ path"
                           value={question.imageUrl || ""}
                           onChange={(e) => updateQuestion(question.id, { imageUrl: e.target.value })}
                         />
@@ -2017,6 +2244,10 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             <img
                               src={question.imageUrl}
                               alt={question.imageAlt || "Question image preview"}
+                              loading="lazy"
+                              decoding="async"
+                              crossOrigin={question.imageUrl.startsWith("https://") ? "anonymous" : undefined}
+                              referrerPolicy="no-referrer"
                               className="max-h-56 w-full object-contain bg-slate-50"
                             />
                           </div>
@@ -2223,7 +2454,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         </section>
       )}
 
-      {tab === "ACCESS" && (
+      {showActiveTab && tab === "ACCESS" && (
         <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-lg font-semibold">Access Management</h3>
@@ -2273,9 +2504,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                     value={enrollForm.targetId}
                     onChange={(e) => {
                       const nextTargetId = e.target.value;
-                      const nextUser = users.find((user) => user.id === nextTargetId) || null;
                       setEnrollForm((prev) => ({ ...prev, targetId: nextTargetId }));
-                      if (nextUser) setUserSearchQuery(formatUserOptionLabel(nextUser));
                     }}
                   >
                     <option value="">
@@ -2603,7 +2832,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         </section>
       )}
 
-      {tab === "PARTICIPANTS" && (
+      {showActiveTab && tab === "PARTICIPANTS" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-lg font-semibold">Participants</h3>
           <p className="mt-1 text-xs text-slate-500">
@@ -2725,6 +2954,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
                             >
                               Upload PDF
                             </button>
+                            <span className="self-center text-[10px] text-slate-500">Max 4 MB</span>
                             <button
                               className="rounded-lg border border-teal-300 bg-teal-50 px-2.5 py-1 text-[11px]"
                               onClick={() => participantAction(participant, "NOTIFY_USER")}
@@ -2779,7 +3009,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         </section>
       )}
 
-      {tab === "POLICY" && (
+      {showActiveTab && tab === "POLICY" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-lg font-semibold">Publish & Visibility Policy</h3>
           <div className="mt-3 grid gap-2 md:grid-cols-2">
@@ -2950,7 +3180,7 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
         </section>
       )}
 
-      {tab === "JOBS" && (
+      {showActiveTab && tab === "JOBS" && (
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-lg font-semibold">Unenroll Jobs</h3>
           <div className="mt-3 overflow-auto rounded-xl border border-slate-200">
@@ -2994,6 +3224,16 @@ export default function AssessmentDetailClient({ assessmentId }: { assessmentId:
       )}
 
       {/* Output section removed — using toast notifications instead */}
+      <ConfirmDialog
+        open={confirmation !== null}
+        title={confirmation?.title || "Confirm action"}
+        message={confirmation?.message || "Confirm this action."}
+        confirmLabel={confirmation?.confirmLabel}
+        variant={confirmation?.variant}
+        busy={confirmBusy}
+        onCancel={() => setConfirmation(null)}
+        onConfirm={() => void runConfirmedAction()}
+      />
     </div>
   );
 }

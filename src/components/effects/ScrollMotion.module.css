@@ -1,0 +1,82 @@
+.scene {
+  --scroll-progress: 0;
+  --scroll-progress-eased: 0;
+  --scroll-far-x: 0px;
+  --scroll-far-y: 0px;
+  --scroll-mid-x: 0px;
+  --scroll-mid-y: 0px;
+  --scroll-near-x: 0px;
+  --scroll-near-y: 0px;
+  --scroll-turn: 0deg;
+}
+
+.scene [data-scroll-layer="far"][data-scroll-enhanced-owner] {
+  transform: translate3d(var(--scroll-far-x), var(--scroll-far-y), 0);
+}
+
+.scene [data-scroll-layer="mid"][data-scroll-enhanced-owner] {
+  transform: translate3d(var(--scroll-mid-x), var(--scroll-mid-y), 0);
+}
+
+.scene [data-scroll-layer="near"][data-scroll-enhanced-owner] {
+  transform: translate3d(var(--scroll-near-x), var(--scroll-near-y), 0)
+    rotate(var(--scroll-turn));
+}
+
+.scene [data-scroll-layer][data-scroll-active-owner] {
+  will-change: transform;
+}
+
+/* Ambient loops only run while their scene is near the viewport. This lets a
+   page carry several expressive moments without keeping every animation hot.
+   The ownership attributes are stamped by the nearest ScrollMotion root, so
+   activating a parent scene cannot wake a nested scene's ambient nodes. */
+.scene [data-ambient],
+.scene [data-ambient]::before,
+.scene [data-ambient]::after {
+  animation-play-state: paused;
+}
+
+.scene [data-ambient][data-scroll-ambient-active-owner],
+.scene [data-ambient][data-scroll-ambient-active-owner]::before,
+.scene [data-ambient][data-scroll-ambient-active-owner]::after {
+  animation-play-state: running;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene [data-scroll-layer] {
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .scene [data-ambient],
+  .scene [data-ambient]::before,
+  .scene [data-ambient]::after {
+    animation: none !important;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .scene [data-scroll-layer] {
+    transform: none !important;
+    will-change: auto !important;
+  }
+
+  .scene [data-ambient],
+  .scene [data-ambient]::before,
+  .scene [data-ambient]::after {
+    animation: none !important;
+  }
+}
+
+@media (scripting: none) {
+  .scene [data-scroll-layer] {
+    transform: none !important;
+  }
+
+  .scene [data-ambient],
+  .scene [data-ambient]::before,
+  .scene [data-ambient]::after {
+    animation-play-state: paused;
+  }
+}

@@ -5,6 +5,10 @@ import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { archiveCurrentAttempt } from "@/lib/report-archive";
 import { buildReportHtmlTemplate } from "@/lib/report-format";
+import { participantReference } from "@/lib/report-privacy";
+import { recordAuditLog } from "@/lib/audit-log";
+import { serializeAnswerSnapshot } from "@/lib/assessment-session";
+import { lockAssessmentSession } from "@/lib/assessment-session-lock";
 
 export async function POST(req: NextRequest) {
   const check = await requireAdmin();
@@ -65,6 +69,8 @@ export async function POST(req: NextRequest) {
       { status: 400 },
     );
   }
+  const answerSnapshot = serializeAnswerSnapshot(session.answers);
+  const submittedAtSnapshot = session.submittedAt?.getTime() || null;
 
   const { traits, competencies } = computeScores(
     session.assessment.questions,
@@ -79,8 +85,7 @@ export async function POST(req: NextRequest) {
 
   const baseNarrative = generateNarrative(traits, competencies);
   const aiNarrative = await generateAiNarrative(traits, competencies, {
-    fullName: `${session.user.firstName} ${session.user.lastName}`.trim() || "Participant",
-    email: session.user.email,
+    participantReference: participantReference(session.user.id),
     assessmentTitle: session.assessment.title,
   });
 
@@ -110,7 +115,31 @@ export async function POST(req: NextRequest) {
     ),
   };
 
-  const archived = await db.$transaction(async (tx) => {
+  const commit = await db.$transaction(async (tx) => {
+    await lockAssessmentSession(tx, session.id);
+    const currentSession = await tx.quizSession.findUnique({
+      where: { id: session.id },
+      select: {
+        status: true,
+        submittedAt: true,
+        answers: {
+          select: {
+            questionId: true,
+            value: true,
+            optionId: true,
+            textValue: true,
+          },
+        },
+      },
+    });
+    if (
+      currentSession?.status !== "SUBMITTED" ||
+      (currentSession.submittedAt?.getTime() || null) !== submittedAtSnapshot ||
+      serializeAnswerSnapshot(currentSession.answers) !== answerSnapshot
+    ) {
+      return { kind: "ATTEMPT_CHANGED" as const };
+    }
+
     const archivedEntry = await archiveCurrentAttempt(tx, {
       assessmentId,
       userId,
@@ -136,6 +165,10 @@ export async function POST(req: NextRequest) {
         competencyJson: competencies,
       },
     });
+    await tx.assessmentReportShareToken.updateMany({
+      where: { assessmentId, userId, revokedAt: null },
+      data: { revokedAt: now },
+    });
     await tx.report.upsert({
       where: {
         assessmentId_userId: {
@@ -147,14 +180,45 @@ export async function POST(req: NextRequest) {
         assessmentId,
         userId,
         narrativeJson: JSON.stringify(narrative),
+        status: "DRAFT",
+        availableAt: null,
+        deliveryMethod: null,
       },
       update: {
         narrativeJson: JSON.stringify(narrative),
+        status: "DRAFT",
+        availableAt: null,
+        deliveryMethod: null,
       },
     });
+    await recordAuditLog(
+      {
+        tenantId: session.user.tenantId,
+        actorId: check.liveUser.id,
+        action: "REPORT_REGENERATED",
+        metadata: {
+          assessmentId,
+          userId,
+          archivedReportId: archivedEntry?.id || null,
+          statusAfter: "DRAFT",
+        },
+      },
+      tx,
+    );
 
-    return archivedEntry;
+    return { kind: "UPDATED" as const, archivedEntry };
   });
+
+  if (commit.kind === "ATTEMPT_CHANGED") {
+    return NextResponse.json(
+      {
+        error:
+          "The participant attempt changed while the report was being prepared. Regenerate the current submitted attempt again.",
+        code: "ATTEMPT_CHANGED",
+      },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({
     ok: true,
@@ -162,6 +226,6 @@ export async function POST(req: NextRequest) {
     assessmentId,
     userId,
     regeneratedAt: now.toISOString(),
-    archivedReportId: archived?.id || null,
+    archivedReportId: commit.archivedEntry?.id || null,
   });
 }

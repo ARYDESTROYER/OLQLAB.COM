@@ -1,344 +1,502 @@
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import PublicHeader from "@/components/navigation/PublicHeader";
+import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
+import LeadershipSignal from "@/components/marketing/LeadershipSignal";
+import WorkInPracticePreview from "@/components/marketing/WorkInPracticePreview";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
+import ScrollMotion from "@/components/effects/ScrollMotion";
+import SectionSignalRail from "@/components/effects/SectionSignalRail";
+import { createPageMetadata } from "@/lib/site-metadata";
+import motionStyles from "./LandingOverture.module.css";
 
-const humanTouchCards = [
-  {
-    title: "Transformational Leadership Development",
-    description:
-      "Like a mentor who knows you deeply, we help you uncover your leadership potential. Through personalized coaching grounded in behavioral science, you'll navigate complexity with newfound clarity and confidence.",
-  },
-  {
-    title: "Building Teams That Flourish",
-    description:
-      "Great leaders understand that diversity of thought is strength. We help you build inclusive, high-performing teams where every voice matters and every person can contribute their best.",
-  },
-  {
-    title: "Strategic Talent and Succession Planning",
-    description:
-      "Organisations thrive when they invest in people. We help you identify emerging talent, nurture leadership pipelines, and create cultures where people grow and stay.",
-  },
-];
+export const metadata = createPageMetadata({
+  title: "Leadership begins within",
+  description:
+    "Leadership assessments, blindspot work, and coaching that turn behavioral insight into practical growth.",
+  path: "/",
+});
 
-const cprDimensions = [
+const dimensions = [
   {
+    code: "C",
+    numeral: "01",
     title: "Cognitive",
-    subtitle: "How You Think",
-    description:
-      "Your cognitive dimension reflects how you process information, analyze complexity, and make strategic decisions. Strong cognitive leaders think systemically and act decisively.",
+    subtitle: "How you think",
+    body: "How leaders process complexity, evaluate trade-offs, and make clear decisions under constraint.",
   },
   {
+    code: "P",
+    numeral: "02",
     title: "Personality",
-    subtitle: "How You Engage",
-    description:
-      "Your personality dimension is about your presence and influence. How do you build relationships? How do you inspire others? How do you create the culture around you?",
+    subtitle: "How you engage",
+    body: "How leaders influence, build trust, and shape culture through presence, communication, and empathy.",
   },
   {
+    code: "R",
+    numeral: "03",
     title: "Response",
-    subtitle: "How You Adapt",
-    description:
-      "Your response dimension shows your resilience and adaptability. How do you handle pressure? How do you remain effective in chaos? This dimension reveals your inner strength.",
+    subtitle: "How you adapt",
+    body: "How leaders remain effective under pressure, recover from setbacks, and adjust as conditions change.",
   },
 ];
 
-const benefits = [
+const heroStats = [
+  { num: "35", label: "Years lived in leadership" },
+  { num: "03", label: "Dimensions in the CPR framework" },
+  { num: "22", label: "Years of naval service" },
+];
+
+const services = [
   {
-    title: "Self-Clarity",
-    description: "See yourself as others see you. Understand your true strengths and growth areas.",
+    title: "See the pattern",
+    body: "A rigorous assessment makes the habits beneath your decisions visible—without reducing you to a score.",
   },
   {
-    title: "Reduced Blindspots",
-    description: "Illuminate hidden patterns and transform them into strengths.",
+    title: "Name what matters",
+    body: "A candid conversation turns evidence into language you can use with your team, manager, or coach.",
   },
   {
-    title: "Enhanced Relationships",
-    description: "As you understand yourself better, your relationships naturally deepen.",
-  },
-  {
-    title: "Resilience and Adaptability",
-    description: "Develop the inner strength to navigate uncertainty with wisdom.",
-  },
-  {
-    title: "Authentic Leadership",
-    description: "Stop performing. Start leading from your true self.",
-  },
-  {
-    title: "Organisational Impact",
-    description: "Your growth ripples through your teams, culture, and results.",
+    title: "Practise the shift",
+    body: "Small, observable commitments move insight into daily leadership behaviour and durable change.",
   },
 ];
 
-const journeyStages = [
+const outcomes = [
   {
+    title: "Self-clarity",
+    body: "Understand the strengths, tensions, and blindspots shaping how you lead.",
+    tone: "cognitive",
+  },
+  {
+    title: "Better relationships",
+    body: "Read people and situations with more empathy, precision, and steadiness.",
+    tone: "personality",
+  },
+  {
+    title: "Resilience",
+    body: "Respond to uncertainty deliberately instead of relying on an automatic pattern.",
+    tone: "response",
+  },
+  {
+    title: "Organisational impact",
+    body: "Turn personal growth into clearer decisions, healthier teams, and stronger succession.",
+    tone: "integrated",
+  },
+];
+
+const journey = [
+  {
+    numeral: "01",
     stage: "Awareness",
-    description:
-      "Begin with honest self-reflection. Our assessment reveals your CPR profile-your strengths, growth areas, and the patterns that shape your leadership.",
+    body: "See the patterns that shape your decisions, relationships, and response to pressure.",
   },
   {
+    numeral: "02",
     stage: "Understanding",
-    description:
-      "Go deeper. Through personalized coaching, you'll understand not just what you are, but why. You'll uncover your blindspots and see opportunities for growth.",
+    body: "Explore what sits beneath those patterns and where they help or limit you.",
   },
   {
+    numeral: "03",
     stage: "Integration",
-    description:
-      "Transform insight into action. With guidance and support, you'll develop new capabilities and lead with greater authenticity and effectiveness.",
+    body: "Translate insight into behaviours that colleagues can notice and reinforce.",
   },
   {
+    numeral: "04",
     stage: "Mastery",
-    description:
-      "Sustain your growth. As you evolve, you'll help others on their journey. Leadership becomes a shared practice of continuous learning.",
+    body: "Sustain the practices that make your leadership more honest, useful, and humane.",
   },
 ];
+
+const journeyRail = journey.map((step, index) => ({
+  id: `growth-${step.numeral}`,
+  label: step.stage,
+  tone: (["cognitive", "personality", "response", "ink"] as const)[index],
+}));
 
 export default function HomePage() {
   return (
-    <main className="relative overflow-hidden pb-28">
-      <div className="ambient-orb animate-aurora-one -top-40 left-[-140px] h-[460px] w-[460px] bg-cyan-300/60" />
-      <div className="ambient-orb animate-aurora-two -right-24 top-24 h-[420px] w-[420px] bg-amber-200/70" />
-      <div className="ambient-orb animate-aurora-three bottom-14 left-1/3 h-[360px] w-[360px] bg-emerald-200/45" />
-
+    <div className="relative min-h-screen bg-cream text-ink">
+      <MarketingEffects />
+      <a className="skip-link" href="#landing-content">
+        Skip to content
+      </a>
       <PublicHeader />
 
-      <section className="mx-auto max-w-7xl px-6 pt-16 md:px-10 md:pt-24">
-        <div className="section-frame glass-panel rounded-[2rem] p-8 text-center shadow-[0_36px_80px_-40px_rgba(15,23,42,0.62)] md:p-14">
-          <Image
-            src="/logo.png"
-            alt="OLQLab Logo"
-            width={72}
-            height={72}
-            className="mx-auto mb-6 rounded-full shadow-md"
-            priority
-          />
-          <p className="hero-chip mx-auto">
-            <span className="inline-block h-1.5 w-1.5 rounded-full bg-cyan-500" />
-            Leadership begins within
-          </p>
-          <h1 className="font-display mt-7 text-5xl leading-[0.92] text-slate-900 md:text-7xl">
-            Leadership is a Journey Within
-          </h1>
-          <p className="mx-auto mt-7 max-w-3xl text-base leading-relaxed text-slate-700 md:text-lg">
-            Understand yourself deeply. Lead with clarity and compassion. Like a trusted elder brother, we walk
-            alongside you-offering honest reflection and the wisdom to navigate complexity with grace.
-          </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/assessments"
-              className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-700"
-            >
-              Explore Assessments
-            </Link>
-            <Link
-              href="/about"
-              className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-slate-500"
-            >
-              Learn More
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-12 max-w-6xl px-6 md:px-10">
-        <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-8 md:p-10">
-          <p className="mx-auto max-w-4xl text-center text-base leading-relaxed text-slate-700 md:text-lg">
-            At OLQLab, we believe that true leadership begins with self-awareness. Our assessments reveal not just who
-            you are, but who you&rsquo;re becoming. Through personalized coaching grounded in behavioral science and
-            military-tested wisdom, we help you navigate complexity with grace and lead with authentic impact.
-          </p>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-        <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-          <div className="grid gap-8 md:grid-cols-[1.15fr_0.85fr] md:gap-10">
-            <div>
-              <h2 className="font-display text-4xl leading-tight text-slate-900 md:text-5xl">
-                Your Guide on the Leadership Path
-              </h2>
-              <p className="mt-5 text-sm leading-relaxed text-slate-700 md:text-base">
-                Commander (Dr.) Pratap Pawar brings 35 years of lived experience in leadership-from the disciplined
-                halls of the Indian Navy to the dynamic corridors of corporate excellence. His journey spans 22 years
-                of naval service, including the Kargil conflict and LTTE operations, where he learned that true
-                strength lies in understanding people deeply.
-              </p>
-              <p className="mt-4 text-sm leading-relaxed text-slate-700 md:text-base">
-                With a PhD in Behavioral Psychology and a decade leading people strategy in multinational corporations,
-                Pratap embodies a rare blend: the rigor of military training, the wisdom of academic research, and the
-                empathy of someone who has walked many paths.
-              </p>
-              <blockquote className="mt-5 border-l-2 border-cyan-300 pl-4 text-sm italic leading-relaxed text-slate-700 md:text-base">
-                &ldquo;Leadership isn&rsquo;t about being the loudest in the room. It&rsquo;s about understanding the quiet
-                struggles of those around you, and having the courage to face your own.&rdquo;
-              </blockquote>
-            </div>
-
-            <div className="flex items-center justify-center">
-              <div className="relative h-64 w-64 overflow-hidden rounded-full shadow-lg ring-4 ring-white/60 md:h-80 md:w-80">
-                <Image
-                  src="/pratap-pawar.png"
-                  alt="Commander (Dr.) Pratap Pawar"
-                  fill
-                  className="object-cover"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-        <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">How We Help You Lead</p>
-          <h2 className="font-display mt-3 text-4xl leading-tight text-slate-900 md:text-5xl">
-            Through coaching and assessment across three dimensions.
-          </h2>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {humanTouchCards.map((item) => (
-              <article key={item.title} className="hover-lift-strong feature-card rounded-2xl p-5">
-                <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-        <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-          <h2 className="font-display text-4xl leading-tight text-slate-900 md:text-5xl">
-            The Three Dimensions of Leadership
-          </h2>
-          <p className="mt-4 max-w-3xl text-sm leading-relaxed text-slate-700 md:text-base">
-            Leadership isn&rsquo;t one-dimensional. The Composite Pattern Recognition (CPR) model reveals three essential
-            dimensions that shape how you lead.
-          </p>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-3">
-            {cprDimensions.map((item) => (
-              <article key={item.title} className="hover-lift feature-card rounded-2xl p-5">
-                <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-cyan-800">{item.subtitle}</p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-        <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-          <h2 className="font-display text-4xl leading-tight text-slate-900 md:text-5xl">What Awaits You</h2>
-
-          <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {benefits.map((item) => (
-              <article key={item.title} className="hover-lift rounded-2xl border border-slate-200 bg-white/82 p-5">
-                <h3 className="text-base font-semibold text-slate-900">{item.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto mt-20 max-w-6xl px-6 md:px-10">
-        <div className="scroll-reveal section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-          <h2 className="font-display text-center text-4xl leading-tight text-slate-900 md:text-5xl">
-            Your Transformation Awaits
-          </h2>
-
-          <div className="mt-8 space-y-4">
-            {journeyStages.map((item, idx) => (
-              <article key={item.stage} className="hover-lift feature-card rounded-2xl p-5 md:p-6">
-                <div className="flex gap-4">
-                  <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-                    {idx + 1}
+      <main id="landing-content" tabIndex={-1}>
+        <section className="landing-hero" aria-labelledby="landing-hero-title">
+          <ScrollMotion
+            className={motionStyles.motion}
+            enhancementQuery="(min-width: 64rem) and (min-height: 44rem) and (hover: hover) and (pointer: fine)"
+            progressMode="sticky"
+            stickyOffset={72}
+          >
+            <div className={motionStyles.stage}>
+              <div className="landing-hero__shell">
+                <div
+                  className={`landing-hero__headline-cell ${motionStyles.headlineCell}`}
+                >
+                  <div className="landing-rise">
+                    <Eyebrow>OLQ Lab · Leadership development</Eyebrow>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">{item.stage}</h3>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.description}</p>
+                  <h1
+                    id="landing-hero-title"
+                    aria-label="Leadership. From within."
+                    className={`landing-hero__headline ${motionStyles.headlineCopy}`}
+                  >
+                    <span
+                      aria-hidden
+                      className="landing-rise landing-rise--1 block"
+                    >
+                      Leadership.
+                    </span>
+                    <span
+                      aria-hidden
+                      className="landing-rise landing-rise--2 block font-display italic"
+                    >
+                      From within.
+                    </span>
+                  </h1>
+                </div>
+
+                <div
+                  className={`landing-hero__intro ${motionStyles.introCell}`}
+                >
+                  <p className="landing-kicker landing-rise landing-rise--2">
+                    01 / Orientation
+                  </p>
+                  <p
+                    className={`${motionStyles.introStatement} landing-rise landing-rise--3 text-balance text-xl leading-[1.45] tracking-[-0.02em] text-ink md:text-2xl`}
+                  >
+                    We help leaders see themselves clearly, turn insight into
+                    deliberate behaviour, and lead complexity with steadiness.
+                  </p>
+                  <div className="landing-hero__actions">
+                    <Link
+                      href="/assessments"
+                      className="landing-cta landing-cta--primary"
+                    >
+                      Explore assessments
+                      <span aria-hidden>↗</span>
+                    </Link>
+                    <Link
+                      href="/about"
+                      className="landing-cta landing-cta--secondary"
+                    >
+                      How OLQ Lab works
+                      <span aria-hidden>→</span>
+                    </Link>
                   </div>
                 </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+              </div>
 
-      <section className="mx-auto mt-20 max-w-6xl px-6 md:px-10">
-        <div className="cta-panel relative overflow-hidden rounded-[2rem] p-8 text-center text-white md:p-12">
-          <h2 className="font-display text-4xl leading-tight md:text-6xl">Begin Your Journey</h2>
-          <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-slate-300 md:text-base">
-            Take the first step toward deeper self-understanding and transformational leadership.
-          </p>
-          <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link
-              href="/assessments"
-              className="rounded-xl bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
-            >
-              Explore Assessments
-            </Link>
-            <Link
-              href="/framework"
-              className="rounded-xl border border-slate-500 bg-slate-800/80 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5"
-            >
-              Learn About CPR
-            </Link>
-            <Link
-              href="/contact"
-              className="rounded-xl border border-cyan-200 bg-cyan-50 px-5 py-3 text-sm font-semibold text-slate-900 transition hover:-translate-y-0.5"
-            >
-              Contact
-            </Link>
-          </div>
-        </div>
-      </section>
+              <div className={motionStyles.chapterMark} aria-hidden>
+                <span
+                  className={`${motionStyles.signalArtifact} ${motionStyles.signalC}`}
+                >
+                  C
+                </span>
+                <span
+                  className={`${motionStyles.signalArtifact} ${motionStyles.signalP}`}
+                >
+                  P
+                </span>
+                <span
+                  className={`${motionStyles.signalArtifact} ${motionStyles.signalR}`}
+                >
+                  R
+                </span>
+                <span className={motionStyles.signalLabel}>
+                  Observe · Interpret · Practise
+                </span>
+              </div>
 
-      <footer className="mx-auto mt-20 max-w-7xl px-6 md:px-10">
-        <div className="section-frame glass-panel rounded-[2rem] p-7 md:p-10">
-          <div className="grid gap-6 md:grid-cols-4">
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">About</h4>
-              <div className="mt-3 space-y-2">
-                <Link href="/about" className="block text-sm text-slate-600 hover:text-slate-900">Our Approach</Link>
-                <Link href="/framework" className="block text-sm text-slate-600 hover:text-slate-900">CPR Framework</Link>
-                <Link href="/oql" className="block text-sm text-slate-600 hover:text-slate-900">OLQ Foundations</Link>
-              </div>
+              <span className={motionStyles.scrollCue} aria-hidden>
+                Scroll to reveal
+              </span>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Services</h4>
-              <div className="mt-3 space-y-2">
-                <Link href="/assessments" className="block text-sm text-slate-600 hover:text-slate-900">Assessments</Link>
-                <Link href="/coaching" className="block text-sm text-slate-600 hover:text-slate-900">Coaching</Link>
-                <Link href="/blindspot" className="block text-sm text-slate-600 hover:text-slate-900">Blindspot Work</Link>
-              </div>
+          </ScrollMotion>
+
+          <div className={`landing-hero__shell ${motionStyles.continuation}`}>
+            <div
+              className="landing-signal reveal-on-scroll"
+              data-reveal="scale"
+            >
+              <LeadershipSignal />
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Resources</h4>
-              <div className="mt-3 space-y-2">
-                <Link href="/framework" className="block text-sm text-slate-600 hover:text-slate-900">Framework Notes</Link>
-                <Link href="/contact" className="block text-sm text-slate-600 hover:text-slate-900">Contact</Link>
-                <Link href="/assessments" className="block text-sm text-slate-600 hover:text-slate-900">Offerings</Link>
-              </div>
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-slate-900">Connect</h4>
-              <p className="mt-3 text-sm leading-relaxed text-slate-600">
-                Have questions? We are here to support your leadership journey.
+
+            <aside
+              className="landing-hero__proof reveal-on-scroll"
+              data-reveal="rise"
+            >
+              <p className="landing-kicker">02 / Practice</p>
+              <p className="mt-5 max-w-sm text-base leading-relaxed text-ink/72">
+                Behavioral science, operational experience, and honest
+                conversation—brought together as one practical leadership
+                discipline.
               </p>
-            </div>
+              <dl className="landing-proof-stats">
+                {heroStats.map((stat, index) => (
+                  <div key={stat.label} data-signal={index + 1}>
+                    <dt>{stat.num}</dt>
+                    <dd>{stat.label}</dd>
+                  </div>
+                ))}
+              </dl>
+            </aside>
           </div>
 
-          <div className="mt-7 flex flex-col items-center gap-4 border-t border-slate-200 pt-7 md:flex-row md:justify-between md:gap-0">
-            <div className="flex items-center gap-3">
-              <Image src="/logo.png" alt="OLQLab Logo" width={32} height={32} className="rounded-full opacity-80" />
-              <p className="text-sm font-semibold tracking-wider text-slate-900">OLQLAB</p>
-            </div>
-            <p className="text-center text-sm text-slate-600">&copy; 2026 OLQLab. All rights reserved.</p>
-            <p className="text-center text-sm text-slate-500">Leadership begins within.</p>
+          <div className="landing-color-rail" aria-hidden>
+            <span />
+            <span />
+            <span />
           </div>
-        </div>
-      </footer>
-    </main>
+        </section>
+
+        <section className="landing-section" aria-labelledby="practice-heading">
+          <div className="landing-two-column">
+            <div>
+              <div className="reveal-on-scroll" data-reveal="rise">
+                <Eyebrow>A practice, not a performance</Eyebrow>
+                <h2 id="practice-heading" className="landing-section-title">
+                  Insight you can use
+                  <span className="brass-period">.</span>
+                </h2>
+                <p className="landing-section-lede">
+                  True leadership begins with self-awareness. Our work reveals
+                  not just who you are, but the patterns you can choose to
+                  strengthen, soften, or leave behind.
+                </p>
+              </div>
+              <Link href="/about" className="landing-text-link">
+                Read our philosophy
+                <span aria-hidden>↗</span>
+              </Link>
+            </div>
+
+            <ol className="landing-practice-list" data-reveal-group="rise">
+              {services.map((service, index) => (
+                <li
+                  key={service.title}
+                  data-reveal-item
+                  data-stagger={index + 1}
+                >
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  <div>
+                    <h3>{service.title}</h3>
+                    <p>{service.body}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <WorkInPracticePreview />
+
+        <section
+          className="landing-framework"
+          aria-labelledby="framework-heading"
+        >
+          <div className="mx-auto max-w-[1440px] px-5 py-20 sm:px-8 md:px-12 md:py-28">
+            <div className="grid gap-8 md:grid-cols-[1.6fr_1fr] md:items-end">
+              <div className="reveal-on-scroll" data-reveal="wipe">
+                <Eyebrow tone="light">The CPR framework</Eyebrow>
+                <h2
+                  id="framework-heading"
+                  className="mt-7 max-w-4xl text-balance text-[clamp(2.75rem,6.5vw,6.75rem)] leading-[0.94] tracking-[-0.055em]"
+                >
+                  Three signals.
+                  <span className="block font-display italic text-[var(--brass-soft)]">
+                    One whole leader.
+                  </span>
+                </h2>
+              </div>
+              <div className="md:pb-2">
+                <p
+                  className="reveal-on-scroll max-w-md text-base leading-relaxed text-cream/72 md:text-lg"
+                  data-reveal="rise"
+                  data-stagger="1"
+                >
+                  CPR gives leaders a common language for thought,
+                  relationships, and response—without pretending any one
+                  dimension tells the whole story.
+                </p>
+                <Link
+                  href="/framework"
+                  className="landing-text-link landing-text-link--light"
+                >
+                  Explore the framework
+                  <span aria-hidden>↗</span>
+                </Link>
+              </div>
+            </div>
+
+            <ol className="landing-dimension-grid" data-reveal-group="assembly">
+              {dimensions.map((dimension, index) => (
+                <li
+                  key={dimension.code}
+                  data-reveal-item
+                  data-stagger={index + 1}
+                  data-tone={dimension.code.toLowerCase()}
+                >
+                  <div className="flex items-start justify-between gap-6">
+                    <span className="landing-dimension-code">
+                      {dimension.code}
+                    </span>
+                    <span className="landing-kicker landing-dimension-index">
+                      {dimension.numeral}
+                    </span>
+                  </div>
+                  <h3>{dimension.title}</h3>
+                  <p className="landing-kicker landing-dimension-prompt mt-2">
+                    {dimension.subtitle}
+                  </p>
+                  <p className="landing-dimension-body mt-6 text-base leading-relaxed">
+                    {dimension.body}
+                  </p>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+
+        <section className="landing-section" aria-labelledby="guide-heading">
+          <div className="grid gap-14 md:grid-cols-[0.9fr_1.1fr] md:gap-20 lg:gap-28">
+            <div className="reveal-on-scroll" data-reveal="wipe">
+              <div className="relative aspect-[4/5] overflow-hidden rounded-[1.25rem] bg-ink/5">
+                <Image
+                  src="/pratap-pawar.jpg"
+                  alt="Commander (Dr.) Pratap Pawar"
+                  fill
+                  sizes="(min-width: 768px) 42vw, 100vw"
+                  className="editorial-image object-cover"
+                />
+                <div className="landing-portrait-caption">
+                  <span>22 years</span>
+                  <span>Indian Navy</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="md:self-center">
+              <div className="reveal-on-scroll" data-reveal="rise">
+                <Eyebrow>Your guide</Eyebrow>
+                <h2 id="guide-heading" className="landing-section-title">
+                  Experience, examined
+                  <span className="brass-period">.</span>
+                </h2>
+                <p className="landing-section-lede">
+                  Commander (Dr.) Pratap Pawar brings twenty-two years in the
+                  Indian Navy, a decade leading people strategy, and a doctorate
+                  in behavioral psychology to one enduring question: how do we
+                  help people see themselves clearly enough to lead?
+                </p>
+                <blockquote className="landing-quote">
+                  “Leadership isn’t about being the loudest in the room. It is
+                  about understanding the quiet struggles of those around
+                  you—and having the courage to face your own.”
+                </blockquote>
+              </div>
+              <Link href="/about" className="landing-text-link">
+                Meet Pratap
+                <span aria-hidden>↗</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-growth" aria-labelledby="growth-heading">
+          <div className="mx-auto grid max-w-[1440px] gap-16 px-5 py-20 sm:px-8 md:px-12 md:py-28 lg:grid-cols-[0.9fr_1.1fr] lg:gap-24">
+            <div>
+              <div className="reveal-on-scroll" data-reveal="wipe">
+                <Eyebrow>What changes</Eyebrow>
+                <h2 id="growth-heading" className="landing-section-title">
+                  Awareness,
+                  <span className="block font-display italic text-ink/72">
+                    made practical.
+                  </span>
+                </h2>
+              </div>
+              <div className="landing-outcome-grid" data-reveal-group="rise">
+                {outcomes.map((outcome, index) => (
+                  <article
+                    key={outcome.title}
+                    data-reveal-item
+                    data-stagger={index + 1}
+                    data-tone={outcome.tone}
+                  >
+                    <span>{String(index + 1).padStart(2, "0")}</span>
+                    <h3>{outcome.title}</h3>
+                    <p>{outcome.body}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <div
+              className="reveal-on-scroll grid items-start gap-5 lg:grid-cols-[10rem_minmax(0,1fr)]"
+              data-reveal="rise"
+            >
+              <SectionSignalRail items={journeyRail} />
+              <div>
+                <p className="landing-kicker">A path, not a promise</p>
+                <ol className="landing-journey-list" data-reveal-group="rail">
+                  {journey.map((step) => (
+                    <li
+                      id={`growth-${step.numeral}`}
+                      key={step.numeral}
+                      data-reveal-item
+                    >
+                      <span>{step.numeral}</span>
+                      <div>
+                        <h3>{step.stage}</h3>
+                        <p>{step.body}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="landing-closing" aria-labelledby="closing-heading">
+          <div className="mx-auto grid max-w-[1440px] gap-10 px-5 py-20 sm:px-8 md:px-12 md:py-28 lg:grid-cols-[1.5fr_0.5fr] lg:items-end">
+            <div className="reveal-on-scroll" data-reveal="wipe">
+              <p className="landing-kicker text-cream/65">
+                Start with one honest view
+              </p>
+              <h2
+                id="closing-heading"
+                className="mt-8 max-w-5xl text-balance text-[clamp(3rem,7vw,7.5rem)] leading-[0.92] tracking-[-0.055em]"
+              >
+                See what your leadership is signalling
+                <span className="text-[var(--brass-soft)]">.</span>
+              </h2>
+            </div>
+            <div className="lg:pb-2">
+              <p
+                className="reveal-on-scroll max-w-sm text-base leading-relaxed text-cream/72"
+                data-reveal="rise"
+                data-stagger="1"
+              >
+                Begin with an assessment, then turn the result into a
+                conversation and a practical next step.
+              </p>
+              <Link
+                href="/assessments"
+                className="landing-cta landing-cta--light"
+              >
+                Begin the assessment
+                <span aria-hidden>↗</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <EditorialFooter />
+    </div>
   );
 }

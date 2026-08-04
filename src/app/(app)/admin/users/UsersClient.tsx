@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
@@ -20,6 +20,11 @@ type OrganizationSummary = {
 type UsersMeta = {
   scope: "ALL" | "PARTICIPANTS";
   totalMatchingFilters: number;
+  totalCandidates: number;
+  returned: number;
+  limit: number;
+  hasMore: boolean;
+  truncated: boolean;
   totalAllAccounts: number;
   totalParticipants: number;
   totalAdmins: number;
@@ -95,13 +100,21 @@ function formatBulkPreviewAction(action: BulkPreviewRow["action"]) {
 export default function UsersClient() {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const usersRequestRef = useRef<AbortController | null>(null);
   const [meta, setMeta] = useState<UsersMeta>({
     scope: "ALL",
     totalMatchingFilters: 0,
+    totalCandidates: 0,
+    returned: 0,
+    limit: 100,
+    hasMore: false,
+    truncated: false,
     totalAllAccounts: 0,
     totalParticipants: 0,
     totalAdmins: 0,
   });
+  const [listLimit, setListLimit] = useState(100);
   const [scope, setScope] = useState<"ALL" | "PARTICIPANTS">("ALL");
   const [query, setQuery] = useState("");
   const [selectedTenantId, setSelectedTenantId] = useState("");
@@ -163,7 +176,23 @@ export default function UsersClient() {
     onConfirm: () => void;
     variant: "danger" | "default";
     busy: boolean;
-  }>({ open: false, title: "", message: "", onConfirm: () => { }, variant: "default", busy: false });
+    confirmLabel: string;
+  }>({
+    open: false,
+    title: "",
+    message: "",
+    onConfirm: () => { },
+    variant: "default",
+    busy: false,
+    confirmLabel: "Confirm",
+  });
+
+  function runConfirmed(action: () => Promise<void>) {
+    setConfirmState((prev) => ({ ...prev, busy: true }));
+    void action().finally(() => {
+      setConfirmState((prev) => ({ ...prev, open: false, busy: false }));
+    });
+  }
 
   // Inspect panel
   const [inspectPanel, setInspectPanel] = useState<{
@@ -208,7 +237,7 @@ export default function UsersClient() {
       if (selectedTenantArchived === "ARCHIVED") params.set("tenantArchived", "1");
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
-      if (options?.limit) params.set("limit", String(options.limit));
+      params.set("limit", String(options?.limit ?? listLimit));
       if (options?.format) params.set("format", options.format);
       return params;
     },
@@ -222,51 +251,84 @@ export default function UsersClient() {
       selectedManagerFilter,
       sortBy,
       sortOrder,
+      listLimit,
     ],
   );
 
   const loadUsers = useCallback(async () => {
+    usersRequestRef.current?.abort();
+    const controller = new AbortController();
+    usersRequestRef.current = controller;
+    setListLoading(true);
     const params = buildUsersQueryParams();
-    const res = await fetch(`/api/admin/users?${params.toString()}`);
-    const data = await res.json();
-    const rows = (data.users || []) as UserRow[];
-    const nextOrganizations = (data.organizations || []) as OrganizationSummary[];
-    setUsers(rows);
-    setOrganizations(nextOrganizations);
-    setMeta(
-      (data.meta as UsersMeta | undefined) || {
-        scope: "ALL",
-        totalMatchingFilters: rows.length,
-        totalAllAccounts: rows.length,
-        totalParticipants: rows.filter((row) => row.role !== "ADMIN").length,
-        totalAdmins: rows.filter((row) => row.role === "ADMIN").length,
-      },
-    );
-    setScope(((data.meta as UsersMeta | undefined)?.scope || "ALL") as "ALL" | "PARTICIPANTS");
-    setSelectedUserIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
-    setCreateForm((prev) => {
-      const tenantStillValid = nextOrganizations.some(
-        (organization) => organization.organizationId === prev.tenantId && !organization.isArchived,
+    try {
+      const res = await fetch(`/api/admin/users?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to load users.");
+      }
+      if (usersRequestRef.current !== controller) return;
+      const rows = ((data as { users?: UserRow[] }).users || []) as UserRow[];
+      const nextOrganizations =
+        ((data as { organizations?: OrganizationSummary[] }).organizations || []) as OrganizationSummary[];
+      setUsers(rows);
+      setOrganizations(nextOrganizations);
+      setMeta(
+        (data as { meta?: UsersMeta }).meta || {
+          scope: "ALL",
+          totalMatchingFilters: rows.length,
+          totalCandidates: rows.length,
+          returned: rows.length,
+          limit: 100,
+          hasMore: false,
+          truncated: false,
+          totalAllAccounts: rows.length,
+          totalParticipants: rows.filter((row) => row.role !== "ADMIN").length,
+          totalAdmins: rows.filter((row) => row.role === "ADMIN").length,
+        },
       );
-      if (tenantStillValid) return prev;
+      setScope(((data as { meta?: UsersMeta }).meta?.scope || "ALL") as "ALL" | "PARTICIPANTS");
+      setSelectedUserIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
+      setCreateForm((prev) => {
+        const tenantStillValid = nextOrganizations.some(
+          (organization) => organization.organizationId === prev.tenantId && !organization.isArchived,
+        );
+        if (tenantStillValid) return prev;
 
-      const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
-      return { ...prev, tenantId: firstActive?.organizationId || "" };
-    });
-    setBulkImportTenantId((prev) => {
-      const tenantStillValid = nextOrganizations.some(
-        (organization) => organization.organizationId === prev && !organization.isArchived,
-      );
-      if (tenantStillValid) return prev;
+        const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
+        return { ...prev, tenantId: firstActive?.organizationId || "" };
+      });
+      setBulkImportTenantId((prev) => {
+        const tenantStillValid = nextOrganizations.some(
+          (organization) => organization.organizationId === prev && !organization.isArchived,
+        );
+        if (tenantStillValid) return prev;
 
-      const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
-      return firstActive?.organizationId || "";
-    });
+        const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
+        return firstActive?.organizationId || "";
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast(error instanceof Error ? error.message : "Failed to load users.", "error");
+    } finally {
+      if (usersRequestRef.current === controller && !controller.signal.aborted) {
+        setListLoading(false);
+      }
+    }
   }, [buildUsersQueryParams]);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    const timeout = window.setTimeout(
+      () => void loadUsers(),
+      query.trim() ? 250 : 0,
+    );
+    return () => {
+      window.clearTimeout(timeout);
+      usersRequestRef.current?.abort();
+    };
+  }, [loadUsers, query]);
 
   useEffect(() => {
     if (scope === "PARTICIPANTS" && selectedRole === "ADMIN") {
@@ -441,26 +503,22 @@ export default function UsersClient() {
     setConfirmState({
       open: true,
       title: "Delete User",
-      message: `Are you sure you want to delete "${displayName}" (${user.email})? This action cannot be undone.`,
+      message: `Are you sure you want to delete "${displayName}" (${user.email})? This permanently deletes sessions, answers, scores, reports, enrollments, overrides, share links, auth sessions, and the user record. This cannot be undone.`,
       variant: "danger",
       busy: false,
-      onConfirm: () => executeDeleteUser(user.id),
+      confirmLabel: "Delete Everything",
+      onConfirm: () => runConfirmed(() => executeDeleteUser(user.id)),
     });
   }
 
   async function executeDeleteUser(userId: string) {
-    setConfirmState((prev) => ({ ...prev, busy: true }));
-    try {
-      const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
-      const data = await res.json();
-      if (res.ok) {
-        toast("User deleted.", "success");
-        await loadUsers();
-      } else {
-        toast(data.error || "Failed to delete user.", "error");
-      }
-    } finally {
-      setConfirmState((prev) => ({ ...prev, open: false, busy: false }));
+    const res = await fetch(`/api/admin/users/${userId}`, { method: "DELETE" });
+    const data = await res.json();
+    if (res.ok) {
+      toast("User deleted.", "success");
+      await loadUsers();
+    } else {
+      toast(data.error || "Failed to delete user.", "error");
     }
   }
 
@@ -481,6 +539,11 @@ export default function UsersClient() {
       const data = await res.json();
       if (res.ok) {
         toast("User moved.", "success");
+        setMoveTenantByUser((previous) => {
+          const next = { ...previous };
+          delete next[userId];
+          return next;
+        });
         await loadUsers();
       } else {
         toast(data.error || "Failed to move user.", "error");
@@ -490,17 +553,24 @@ export default function UsersClient() {
     }
   }
 
-  async function makeUserSolo(user: UserRow) {
+  function makeUserSolo(user: UserRow) {
     if (user.tenant?.type === "SOLO") {
       toast("User is already solo.", "error");
       return;
     }
 
-    const confirmed = window.confirm(
-      `Convert ${user.email} to a solo participant organisation? This will move them out of their current organisation.`,
-    );
-    if (!confirmed) return;
+    setConfirmState({
+      open: true,
+      title: "Convert to Solo Participant",
+      message: `Convert ${user.email} to a solo participant Organisation? This moves them out of their current Organisation and clears cross-Organisation manager links.`,
+      variant: "default",
+      busy: false,
+      confirmLabel: "Convert to Solo",
+      onConfirm: () => runConfirmed(() => executeMakeUserSolo(user)),
+    });
+  }
 
+  async function executeMakeUserSolo(user: UserRow) {
     setBusyUserId(user.id);
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
@@ -569,14 +639,21 @@ export default function UsersClient() {
     }
   }
 
-  async function promoteUserToAdmin(user: UserRow) {
+  function promoteUserToAdmin(user: UserRow) {
     if (user.role === "ADMIN") return;
 
-    const confirmed = window.confirm(
-      `Promote ${user.email} to admin? They will gain global admin access.`,
-    );
-    if (!confirmed) return;
+    setConfirmState({
+      open: true,
+      title: "Promote to Admin",
+      message: `Promote ${user.email} to admin? They will gain global admin access.`,
+      variant: "default",
+      busy: false,
+      confirmLabel: "Promote to Admin",
+      onConfirm: () => runConfirmed(() => executePromoteUserToAdmin(user)),
+    });
+  }
 
+  async function executePromoteUserToAdmin(user: UserRow) {
     setBusyUserId(user.id);
     try {
       const res = await fetch(`/api/admin/users/${user.id}`, {
@@ -627,10 +704,6 @@ export default function UsersClient() {
     }
   }
 
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") loadUsers();
-  }
-
   function clearAdvancedFilters() {
     setScope("ALL");
     setSelectedRole("");
@@ -641,6 +714,7 @@ export default function UsersClient() {
     setSortOrder("desc");
     setSelectedTenantId("");
     setQuery("");
+    setListLimit(100);
   }
 
   function toggleAllSelectable(checked: boolean) {
@@ -743,12 +817,23 @@ export default function UsersClient() {
     });
   }
 
-  async function bulkMakeSoloUsers() {
-    const confirmed = window.confirm(
-      `Convert ${selectedRows.length} selected users into solo participants?`,
-    );
-    if (!confirmed) return;
+  function bulkMakeSoloUsers() {
+    if (selectedRows.length === 0) {
+      toast("Select at least one user.", "error");
+      return;
+    }
+    setConfirmState({
+      open: true,
+      title: "Convert Selected Users",
+      message: `Convert ${selectedRows.length} selected users into solo participants? Each user will move into a separate Solo Organisation.`,
+      variant: "default",
+      busy: false,
+      confirmLabel: "Convert Selected",
+      onConfirm: () => runConfirmed(executeBulkMakeSoloUsers),
+    });
+  }
 
+  async function executeBulkMakeSoloUsers() {
     await runBulkAction("Bulk solo conversion", async (user) => {
       if (user.role === "ADMIN") {
         return { ok: false, error: `${user.email}: admin users cannot be converted.` };
@@ -771,12 +856,23 @@ export default function UsersClient() {
     });
   }
 
-  async function bulkDeleteUsers() {
-    const confirmed = window.confirm(
-      `Delete ${selectedRows.length} selected users and all associated data? This cannot be undone.`,
-    );
-    if (!confirmed) return;
+  function bulkDeleteUsers() {
+    if (selectedRows.length === 0) {
+      toast("Select at least one user.", "error");
+      return;
+    }
+    setConfirmState({
+      open: true,
+      title: "Delete Selected Users",
+      message: `Delete ${selectedRows.length} selected users and all associated sessions, answers, reports, enrollment, and authentication data? This cannot be undone.`,
+      variant: "danger",
+      busy: false,
+      confirmLabel: "Delete Selected",
+      onConfirm: () => runConfirmed(executeBulkDeleteUsers),
+    });
+  }
 
+  async function executeBulkDeleteUsers() {
     await runBulkAction("Bulk delete", async (user) => {
       if (user.role === "ADMIN") {
         return { ok: false, error: `${user.email}: admin users cannot be deleted.` };
@@ -1160,7 +1256,6 @@ export default function UsersClient() {
               className="w-full min-w-[240px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
               placeholder="Search users..."
             />
             <select
@@ -1216,6 +1311,25 @@ export default function UsersClient() {
             {" "}
             {meta.totalAllAccounts} accounts, {meta.totalParticipants} participants, {meta.totalAdmins} admins.
           </p>
+          {meta.hasMore ? (
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+              <p>
+                This list is limited to {meta.limit} rows. CSV export will refuse an incomplete file.
+              </p>
+              {meta.limit < 500 ? (
+                <button
+                  className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold hover:bg-amber-100"
+                  onClick={() => setListLimit((current) => Math.min(500, current + 100))}
+                >
+                  Load 100 more
+                </button>
+              ) : (
+                <span className="font-medium">
+                  Narrow the filters to inspect all {meta.totalCandidates} matching users.
+                </span>
+              )}
+            </div>
+          ) : null}
 
           {showAdvancedFilters && (
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-2">
@@ -1336,7 +1450,7 @@ export default function UsersClient() {
         )}
 
         <div className="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-slate-200">
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm" aria-busy={listLoading}>
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">
@@ -1354,7 +1468,13 @@ export default function UsersClient() {
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {listLoading && users.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={5}>
+                    Loading users…
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
                 <EmptyState
                   icon="👤"
                   title="No users found"
@@ -1408,30 +1528,61 @@ export default function UsersClient() {
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <ActionMenu actions={getRowActions(user)} />
 
-                        <select
-                          className="rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
-                          value={moveTenantByUser[user.id] || ""}
-                          onChange={(e) =>
-                            setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
-                          }
-                        >
-                          <option value="">Move to…</option>
-                          {activeOrganizations.map((organization) => (
-                            <option
-                              key={organization.organizationId}
-                              value={organization.organizationId}
+                        {Object.prototype.hasOwnProperty.call(moveTenantByUser, user.id) ? (
+                          <>
+                            <select
+                              className="max-w-48 rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
+                              value={moveTenantByUser[user.id] || ""}
+                              onChange={(e) =>
+                                setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
+                              }
+                              aria-label={`Move ${user.email} to organisation`}
                             >
-                              {organization.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
-                          onClick={() => moveUser(user.id)}
-                          disabled={busyUserId === user.id || user.role === "ADMIN" || bulkBusy}
-                        >
-                          Move
-                        </button>
+                              <option value="">Select organisation…</option>
+                              {activeOrganizations.map((organization) => (
+                                <option
+                                  key={organization.organizationId}
+                                  value={organization.organizationId}
+                                >
+                                  {organization.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] transition-colors hover:bg-slate-50"
+                              onClick={() => moveUser(user.id)}
+                              disabled={busyUserId === user.id || bulkBusy}
+                            >
+                              Confirm move
+                            </button>
+                            <button
+                              className="rounded-lg px-2.5 py-1 text-[11px] text-slate-500 transition-colors hover:bg-slate-100"
+                              onClick={() =>
+                                setMoveTenantByUser((previous) => {
+                                  const next = { ...previous };
+                                  delete next[user.id];
+                                  return next;
+                                })
+                              }
+                              disabled={busyUserId === user.id || bulkBusy}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : user.role !== "ADMIN" ? (
+                          <button
+                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] transition-colors hover:bg-slate-50"
+                            onClick={() =>
+                              setMoveTenantByUser((previous) => ({
+                                ...previous,
+                                [user.id]: "",
+                              }))
+                            }
+                            disabled={bulkBusy}
+                          >
+                            Move organisation
+                          </button>
+                        ) : null}
                       </div>
 
                       {editingUserId === user.id && (
@@ -1511,6 +1662,14 @@ export default function UsersClient() {
           inspectPanel.type === "tests" ? (
             <TestsView
               sessions={(inspectPanel.data.testsTaken || []) as never[]}
+              archives={(inspectPanel.data.reportArchives || []) as never[]}
+              sessionsHasMore={inspectPanel.data.testsTakenHasMore === true}
+              archivesHasMore={inspectPanel.data.reportArchivesHasMore === true}
+              historyLimit={
+                typeof inspectPanel.data.historyLimit === "number"
+                  ? inspectPanel.data.historyLimit
+                  : undefined
+              }
             />
           ) : (
             <AccessView access={(inspectPanel.data.access || []) as never[]} />
@@ -1522,8 +1681,8 @@ export default function UsersClient() {
       <ConfirmDialog
         open={confirmState.open}
         title={confirmState.title}
-        message={`${confirmState.message} This will permanently delete sessions, answers, scores, reports, enrollments, overrides, share links, auth sessions, and the user record.`}
-        confirmLabel="Delete Everything"
+        message={confirmState.message}
+        confirmLabel={confirmState.confirmLabel}
         variant={confirmState.variant}
         busy={confirmState.busy}
         onConfirm={confirmState.onConfirm}

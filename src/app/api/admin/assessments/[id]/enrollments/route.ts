@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
 import { db } from "@/lib/db";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
+import { cancelOutstandingUnenrollJobs } from "@/lib/unenroll-jobs";
+import { IdentityPolicyError } from "@/lib/identity-policy";
 
 type EnrollmentBody = {
   scope?: "USER" | "TENANT";
@@ -30,6 +33,17 @@ export async function POST(
       { status: 400 },
     );
   }
+  if (
+    body?.reportDelayHours !== undefined &&
+    (!Number.isInteger(body.reportDelayHours) ||
+      body.reportDelayHours < 0 ||
+      body.reportDelayHours > 8_760)
+  ) {
+    return NextResponse.json(
+      { error: "reportDelayHours must be a whole number between 0 and 8760." },
+      { status: 400 },
+    );
+  }
 
   const assessment = await db.assessment.findUnique({
     where: { id: assessmentId },
@@ -46,6 +60,7 @@ export async function POST(
       select: {
         id: true,
         role: true,
+        tenantId: true,
       },
     });
 
@@ -62,29 +77,73 @@ export async function POST(
 
     let enrollment;
     try {
-      enrollment = await db.assessmentUserEnrollment.upsert({
-        where: {
-          assessmentId_userId: {
+      enrollment = await db.$transaction(async (tx) => {
+        const liveUser = await tx.user.findUnique({
+          where: { id: user.id },
+          select: { role: true, tenantId: true },
+        });
+        if (!liveUser || liveUser.role === "ADMIN") {
+          throw new IdentityPolicyError(
+            "TARGET_NOT_PARTICIPANT",
+            "Admin users cannot be enrolled as assessment participants.",
+            409,
+          );
+        }
+        const changed = await tx.assessmentUserEnrollment.upsert({
+          where: {
+            assessmentId_userId: {
+              assessmentId,
+              userId: user.id,
+            },
+          },
+          create: {
             assessmentId,
             userId: user.id,
+            active: true,
+            reportMode: body?.reportMode ?? "AUTO",
+            reportDelayHours: body?.reportDelayHours ?? 0,
+            createdByAdminId: check.session.user.id,
           },
-        },
-        create: {
+          update: {
+            active: true,
+            reportMode: body?.reportMode ?? "AUTO",
+            reportDelayHours: body?.reportDelayHours ?? 0,
+            createdByAdminId: check.session.user.id,
+          },
+        });
+        const cancellation = await cancelOutstandingUnenrollJobs(tx, {
           assessmentId,
-          userId: user.id,
-          active: true,
-          reportMode: body?.reportMode ?? "AUTO",
-          reportDelayHours: body?.reportDelayHours ?? 0,
-          createdByAdminId: check.session.user.id,
-        },
-        update: {
-          active: true,
-          reportMode: body?.reportMode ?? "AUTO",
-          reportDelayHours: body?.reportDelayHours ?? 0,
-          createdByAdminId: check.session.user.id,
-        },
+          targetScope: "USER",
+          targetId: user.id,
+        });
+        const clearedOverrides = await tx.assessmentReportAccessOverride.deleteMany({
+          where: { assessmentId, userId: user.id },
+        });
+        await recordAuditLog(
+          {
+            tenantId: liveUser.tenantId,
+            actorId: check.session.user.id,
+            action: "assessment.user_enrolled",
+            metadata: {
+              assessmentId,
+              userId: user.id,
+              reportMode: changed.reportMode,
+              reportDelayHours: changed.reportDelayHours,
+              clearedOverrides: clearedOverrides.count,
+              ...cancellation,
+            },
+          },
+          tx,
+        );
+        return changed;
       });
     } catch (error) {
+      if (error instanceof IdentityPolicyError) {
+        return NextResponse.json(
+          { error: error.message, code: error.code },
+          { status: error.status },
+        );
+      }
       if (!isSchemaCompatibilityError(error)) throw error;
       return NextResponse.json(
         { error: "Database migration required for explicit enrollment actions." },
@@ -138,29 +197,70 @@ export async function POST(
 
   let enrollment;
   try {
-    enrollment = await db.assessmentTenantEnrollment.upsert({
-      where: {
-        assessmentId_tenantId: {
+    enrollment = await db.$transaction(async (tx) => {
+      const changed = await tx.assessmentTenantEnrollment.upsert({
+        where: {
+          assessmentId_tenantId: {
+            assessmentId,
+            tenantId: tenant.id,
+          },
+        },
+        create: {
           assessmentId,
           tenantId: tenant.id,
+          includeFutureUsers: body?.includeFutureUsers ?? true,
+          active: true,
+          reportMode: body?.reportMode ?? "AUTO",
+          reportDelayHours: body?.reportDelayHours ?? 0,
+          createdByAdminId: check.session.user.id,
         },
-      },
-      create: {
+        update: {
+          active: true,
+          includeFutureUsers: body?.includeFutureUsers ?? true,
+          reportMode: body?.reportMode ?? "AUTO",
+          reportDelayHours: body?.reportDelayHours ?? 0,
+          createdByAdminId: check.session.user.id,
+        },
+      });
+      const eligibleUsers = await tx.user.findMany({
+        where: {
+          tenantId: tenant.id,
+          role: { in: ["EMPLOYEE", "LEADER"] },
+          ...(!changed.includeFutureUsers
+            ? { createdAt: { lte: changed.createdAt } }
+            : {}),
+        },
+        select: { id: true },
+      });
+      const cancellation = await cancelOutstandingUnenrollJobs(tx, {
         assessmentId,
-        tenantId: tenant.id,
-        includeFutureUsers: body?.includeFutureUsers ?? true,
-        active: true,
-        reportMode: body?.reportMode ?? "AUTO",
-        reportDelayHours: body?.reportDelayHours ?? 0,
-        createdByAdminId: check.session.user.id,
-      },
-      update: {
-        active: true,
-        includeFutureUsers: body?.includeFutureUsers ?? true,
-        reportMode: body?.reportMode ?? "AUTO",
-        reportDelayHours: body?.reportDelayHours ?? 0,
-        createdByAdminId: check.session.user.id,
-      },
+        targetScope: "TENANT",
+        targetId: tenant.id,
+      });
+      const clearedOverrides = await tx.assessmentReportAccessOverride.deleteMany({
+        where: {
+          assessmentId,
+          userId: { in: eligibleUsers.map((user) => user.id) },
+        },
+      });
+      await recordAuditLog(
+        {
+          tenantId: tenant.id,
+          actorId: check.session.user.id,
+          action: "assessment.organisation_enrolled",
+          metadata: {
+            assessmentId,
+            tenantId: tenant.id,
+            includeFutureUsers: changed.includeFutureUsers,
+            reportMode: changed.reportMode,
+            reportDelayHours: changed.reportDelayHours,
+            clearedOverrides: clearedOverrides.count,
+            ...cancellation,
+          },
+        },
+        tx,
+      );
+      return changed;
     });
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;

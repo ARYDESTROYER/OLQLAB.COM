@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { recordAuditLog } from "@/lib/audit-log";
+import { normalizeQuestionImageUrl } from "@/lib/question-image-policy";
+import { resolveQuestionScale } from "@/lib/assessment-definition";
+import {
+  ASSESSMENT_CONTENT_HISTORY_ERROR,
+  assessmentHasAttemptHistory,
+  lockAssessmentContent,
+} from "@/lib/assessment-content-lock";
 
 type OptionImpactInput = {
   competencyCode?: string;
@@ -73,11 +81,6 @@ function normalizeOptionalText(input?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function parseScaleValue(input: unknown, fallback: number) {
-  if (typeof input !== "number" || !Number.isFinite(input)) return fallback;
-  return Math.round(input);
-}
-
 function normalizeQuestionOptions(options: OptionInput[] | undefined, questionType: string) {
   if (questionType !== "SJT_SINGLE") return [];
 
@@ -117,15 +120,18 @@ function normalizeQuestionImage(input: {
       imageUrl: undefined,
       imageAlt: undefined,
       imageCaption: undefined,
+      invalidImageUrl: false,
     };
   }
 
-  const imageUrl = input.imageUrl.trim() || null;
-  if (!imageUrl) {
+  const imageUrlInput = input.imageUrl.trim();
+  const imageUrl = normalizeQuestionImageUrl(imageUrlInput);
+  if (!imageUrlInput) {
     return {
       imageUrl: null,
       imageAlt: null,
       imageCaption: null,
+      invalidImageUrl: false,
     };
   }
 
@@ -134,7 +140,31 @@ function normalizeQuestionImage(input: {
     imageAlt: typeof input.imageAlt === "string" ? input.imageAlt.trim() || null : undefined,
     imageCaption:
       typeof input.imageCaption === "string" ? input.imageCaption.trim() || null : undefined,
+    invalidImageUrl: !imageUrl,
   };
+}
+
+function comparableOptions(
+  options: Array<{
+    code: string;
+    text: string;
+    impacts: Array<{
+      delta: number;
+      competency: { code: string } | null;
+      assessmentCompetency: { code: string } | null;
+    }>;
+  }>,
+) {
+  return options.map((option) => ({
+    code: option.code,
+    text: option.text,
+    impacts: option.impacts
+      .map((impact) => ({
+        competencyCode: impact.assessmentCompetency?.code || impact.competency?.code || "",
+        delta: impact.delta,
+      }))
+      .sort((a, b) => a.competencyCode.localeCompare(b.competencyCode)),
+  }));
 }
 
 export async function PATCH(
@@ -145,6 +175,11 @@ export async function PATCH(
   if ("error" in check) return check.error;
 
   const { id, questionId } = await params;
+  const admin = await db.user.findUnique({
+    where: { id: check.session.user.id },
+    select: { id: true, tenantId: true },
+  });
+  if (!admin) return NextResponse.json({ error: "Admin not found." }, { status: 404 });
   const body = (await req.json().catch(() => null)) as
     | {
         code?: string;
@@ -167,60 +202,95 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const existing = await db.question.findFirst({
-    where: {
-      id: questionId,
-      assessmentId: id,
-    },
-    select: {
-      id: true,
-      sectionId: true,
-      questionType: true,
-    },
-  });
-
-  if (!existing) {
-    return NextResponse.json({ error: "Question not found." }, { status: 404 });
-  }
-
-  let sectionId = existing.sectionId;
-  if (body.sectionId && body.sectionId !== existing.sectionId) {
-    const section = await db.assessmentSection.findFirst({
-      where: {
-        id: body.sectionId,
-        assessmentId: id,
-      },
-      select: { id: true },
-    });
-
-    if (!section) {
-      return NextResponse.json({ error: "Section not found." }, { status: 404 });
-    }
-    sectionId = section.id;
-  }
-
   const questionImage = normalizeQuestionImage(body);
-  const nextQuestionType =
-    typeof body.questionType === "string"
-      ? pickQuestionType(body.questionType)
-      : existing.questionType;
-  const scaleMin = parseScaleValue(body.scaleMin, 1);
-  const scaleMax = parseScaleValue(body.scaleMax, nextQuestionType === "FREE_TEXT" ? 1 : 5);
-  if (typeof body.scaleMin === "number" || typeof body.scaleMax === "number") {
-    if (scaleMax < scaleMin) {
-      return NextResponse.json(
-        { error: "Scale max must be greater than or equal to scale min." },
-        { status: 400 },
-      );
-    }
+  if (questionImage.invalidImageUrl) {
+    return NextResponse.json(
+      {
+        error:
+          "Image URL must use /question-images/ or an OLQ Lab managed Vercel Blob URL.",
+      },
+      { status: 422 },
+    );
   }
+  const outcome = await db.$transaction(async (tx) => {
+    await lockAssessmentContent(tx, id);
+    const existing = await tx.question.findFirst({
+      where: { id: questionId, assessmentId: id },
+      include: questionDetailInclude,
+    });
+    if (!existing) return { status: "NOT_FOUND" as const };
 
-  const shouldRewriteOptions = Array.isArray(body.options) || nextQuestionType !== "SJT_SINGLE";
-  const normalizedOptions = Array.isArray(body.options)
-    ? normalizeQuestionOptions(body.options, nextQuestionType)
-    : [];
+    let sectionId = existing.sectionId;
+    if (body.sectionId && body.sectionId !== existing.sectionId) {
+      const section = await tx.assessmentSection.findFirst({
+        where: { id: body.sectionId, assessmentId: id },
+        select: { id: true },
+      });
+      if (!section) return { status: "SECTION_NOT_FOUND" as const };
+      sectionId = section.id;
+    }
 
-  const question = await db.$transaction(async (tx) => {
+    const nextQuestionType =
+      typeof body.questionType === "string"
+        ? pickQuestionType(body.questionType)
+        : existing.questionType;
+    const scale = resolveQuestionScale(
+      {
+        questionType: nextQuestionType,
+        scaleMin: body.scaleMin,
+        scaleMax: body.scaleMax,
+      },
+      { scaleMin: existing.scaleMin, scaleMax: existing.scaleMax },
+    );
+    if (!scale.ok) {
+      return { status: "INVALID_SCALE" as const, error: scale.error };
+    }
+    const { scaleMin, scaleMax } = scale;
+
+    const shouldRewriteOptions =
+      Array.isArray(body.options) || nextQuestionType !== "SJT_SINGLE";
+    const normalizedOptions = Array.isArray(body.options)
+      ? normalizeQuestionOptions(body.options, nextQuestionType)
+      : [];
+    if (
+      nextQuestionType === "SJT_SINGLE" &&
+      Array.isArray(body.options) &&
+      normalizedOptions.length < 2
+    ) {
+      return { status: "INVALID_OPTIONS" as const };
+    }
+
+    const optionsChanged = Array.isArray(body.options)
+      ? JSON.stringify(normalizedOptions) !==
+        JSON.stringify(comparableOptions(existing.options))
+      : nextQuestionType !== "SJT_SINGLE" && existing.options.length > 0;
+    const substantiveChange =
+      (typeof body.code === "string" &&
+        normalizeOptionalText(body.code) !== existing.code) ||
+      (typeof body.prompt === "string" &&
+        body.prompt.trim() !== existing.prompt) ||
+      (questionImage.imageUrl !== undefined &&
+        questionImage.imageUrl !== existing.imageUrl) ||
+      (typeof body.questionType === "string" &&
+        nextQuestionType !== existing.questionType) ||
+      (typeof body.category === "string" &&
+        normalizeOptionalText(body.category) !== existing.category) ||
+      (typeof body.trait === "string" &&
+        (normalizeOptionalText(body.trait)?.toLowerCase() || null) !==
+          existing.trait) ||
+      (typeof body.reverse === "boolean" &&
+        body.reverse !== existing.reverse) ||
+      (typeof body.scaleMin === "number" &&
+        scaleMin !== existing.scaleMin) ||
+      (typeof body.scaleMax === "number" &&
+        scaleMax !== existing.scaleMax) ||
+      sectionId !== existing.sectionId ||
+      optionsChanged;
+
+    if (substantiveChange && (await assessmentHasAttemptHistory(tx, id))) {
+      return { status: "HAS_HISTORY" as const };
+    }
+
     await tx.question.update({
       where: { id: questionId },
       data: {
@@ -239,7 +309,7 @@ export async function PATCH(
       },
     });
 
-    if (shouldRewriteOptions) {
+    if (shouldRewriteOptions && optionsChanged) {
       await tx.questionOption.deleteMany({ where: { questionId } });
 
       if (nextQuestionType === "SJT_SINGLE") {
@@ -284,13 +354,50 @@ export async function PATCH(
       }
     }
 
-    return tx.question.findUnique({
+    const updated = await tx.question.findUnique({
       where: { id: questionId },
       include: questionDetailInclude,
     });
+    await recordAuditLog(
+      {
+        tenantId: admin.tenantId,
+        actorId: admin.id,
+        action: "ASSESSMENT_QUESTION_UPDATED",
+        metadata: {
+          assessmentId: id,
+          questionId,
+          substantiveChange,
+          optionsReplaced: shouldRewriteOptions && optionsChanged,
+        },
+      },
+      tx,
+    );
+    return { status: "UPDATED" as const, question: updated };
   });
 
-  return NextResponse.json({ question });
+  if (outcome.status === "NOT_FOUND") {
+    return NextResponse.json({ error: "Question not found." }, { status: 404 });
+  }
+  if (outcome.status === "SECTION_NOT_FOUND") {
+    return NextResponse.json({ error: "Section not found." }, { status: 404 });
+  }
+  if (outcome.status === "INVALID_SCALE") {
+    return NextResponse.json({ error: outcome.error }, { status: 422 });
+  }
+  if (outcome.status === "INVALID_OPTIONS") {
+    return NextResponse.json(
+      { error: "Scenario questions require at least two non-empty options." },
+      { status: 422 },
+    );
+  }
+  if (outcome.status === "HAS_HISTORY") {
+    return NextResponse.json(
+      { error: ASSESSMENT_CONTENT_HISTORY_ERROR },
+      { status: 409 },
+    );
+  }
+
+  return NextResponse.json({ question: outcome.question });
 }
 
 export async function DELETE(
@@ -301,22 +408,48 @@ export async function DELETE(
   if ("error" in check) return check.error;
 
   const { id, questionId } = await params;
+  const admin = await db.user.findUnique({
+    where: { id: check.session.user.id },
+    select: { id: true, tenantId: true },
+  });
+  if (!admin) return NextResponse.json({ error: "Admin not found." }, { status: 404 });
 
-  const question = await db.question.findFirst({
-    where: {
-      id: questionId,
-      assessmentId: id,
-    },
-    select: {
-      id: true,
-    },
+  const outcome = await db.$transaction(async (tx) => {
+    await lockAssessmentContent(tx, id);
+    const question = await tx.question.findFirst({
+      where: {
+        id: questionId,
+        assessmentId: id,
+      },
+      select: { id: true },
+    });
+    if (!question) return { status: "NOT_FOUND" as const };
+    if (await assessmentHasAttemptHistory(tx, id)) {
+      return { status: "HAS_HISTORY" as const };
+    }
+
+    await tx.question.delete({ where: { id: questionId } });
+    await recordAuditLog(
+      {
+        tenantId: admin.tenantId,
+        actorId: admin.id,
+        action: "ASSESSMENT_QUESTION_DELETED",
+        metadata: { assessmentId: id, questionId },
+      },
+      tx,
+    );
+    return { status: "DELETED" as const };
   });
 
-  if (!question) {
+  if (outcome.status === "NOT_FOUND") {
     return NextResponse.json({ error: "Question not found." }, { status: 404 });
   }
-
-  await db.question.delete({ where: { id: questionId } });
+  if (outcome.status === "HAS_HISTORY") {
+    return NextResponse.json(
+      { error: ASSESSMENT_CONTENT_HISTORY_ERROR },
+      { status: 409 },
+    );
+  }
 
   return NextResponse.json({ ok: true, deletedQuestionId: questionId });
 }

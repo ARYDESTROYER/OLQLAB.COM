@@ -1,71 +1,149 @@
 import Link from "next/link";
-import { MarketingChrome } from "@/components/marketing/MarketingChrome";
+import ScrollMotion from "@/components/effects/ScrollMotion";
+import { EditorialFooter } from "@/components/marketing/Editorial";
+import FrameworkExperience from "@/components/marketing/FrameworkExperience";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
+import PublicHeader from "@/components/navigation/PublicHeader";
+import { createPageMetadata } from "@/lib/site-metadata";
+import styles from "./FrameworkPage.module.css";
+
+export const metadata = createPageMetadata({
+  title: "CPR leadership framework",
+  description:
+    "Explore OLQ Lab's Cognitive, Personality, and Response framework for understanding leadership behavior and growth.",
+  path: "/framework",
+});
 
 const dimensions = [
-  {
-    title: "Cognitive (C)",
-    subtitle: "How You Think",
-    text: "How leaders process complexity, evaluate tradeoffs, and make strategic decisions under constraints.",
-  },
-  {
-    title: "Personality (P)",
-    subtitle: "How You Engage",
-    text: "How leaders influence, build trust, and shape culture through presence, communication, and empathy.",
-  },
-  {
-    title: "Response (R)",
-    subtitle: "How You Adapt",
-    text: "How leaders remain effective in stress, recover from setbacks, and adapt behavior in changing contexts.",
-  },
-];
-
-const archetypes = [
-  "C - Strategic Thinker",
-  "P - Relational Leader",
-  "R - Resilient Leader",
-  "CP - Visionary",
-  "PR - Empathetic Strategist",
-  "CR - Steady Navigator",
-  "CPR - Balanced Leader",
-];
+  { numeral: "I", code: "C", title: "Cognitive", prompt: "How you think" },
+  { numeral: "II", code: "P", title: "Personality", prompt: "How you engage" },
+  { numeral: "III", code: "R", title: "Response", prompt: "How you adapt" },
+] as const;
 
 export default function FrameworkPage() {
   return (
-    <MarketingChrome
-      title="Composite Pattern Recognition Framework"
-      description="A practical leadership model that combines thinking, engagement, and adaptation into one developmental lens."
-    >
-      <div className="space-y-6">
-        <article className="section-frame glass-panel rounded-[2rem] p-7 md:p-9">
-          <h2 className="font-display text-3xl leading-tight text-slate-900 md:text-4xl">Three Dimensions</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {dimensions.map((item) => (
-              <div key={item.title} className="feature-card rounded-2xl p-5">
-                <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
-                <p className="mt-1 text-xs uppercase tracking-[0.12em] text-cyan-800">{item.subtitle}</p>
-                <p className="mt-2 text-sm leading-relaxed text-slate-700">{item.text}</p>
-              </div>
-            ))}
-          </div>
-        </article>
+    <div className={styles.page}>
+      <MarketingEffects />
+      <a className="skip-link" href="#framework-content">
+        Skip to framework content
+      </a>
+      <PublicHeader />
 
-        <article className="section-frame glass-panel rounded-[2rem] p-7 md:p-9">
-          <h2 className="font-display text-3xl leading-tight text-slate-900 md:text-4xl">Leadership Archetypes</h2>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {archetypes.map((item) => (
-              <div key={item} className="rounded-xl border border-slate-200 bg-white/80 p-3 text-sm text-slate-700">
-                {item}
+      <main id="framework-content" tabIndex={-1}>
+        <ScrollMotion className={styles.heroMotion}>
+          <section className={styles.hero} aria-labelledby="framework-title">
+            <div className={styles.heroGrid}>
+              <div className={styles.heroLead}>
+                <div className={styles.heroSignalField} aria-hidden="true">
+                  <span data-scroll-layer="far" />
+                  <span data-scroll-layer="mid" />
+                  <span data-scroll-layer="near" />
+                </div>
+                <p className={styles.eyebrow}>
+                  <span aria-hidden /> Framework / CPR
+                </p>
+                <h1 id="framework-title" className={`font-display ${styles.heroTitle}`}>
+                  Composite
+                  <span>Pattern Recognition.</span>
+                </h1>
               </div>
-            ))}
+
+              <div className={styles.heroAside}>
+                <p className={styles.sectionIndex}>01 / Orientation</p>
+                <p className={`font-display ${styles.heroStatement}`}>
+                  Leadership becomes clearer when thinking, engagement, and adaptation are read
+                  as one pattern.
+                </p>
+                <p className={styles.heroDescription}>
+                  CPR is OLQ Lab&apos;s practical lens for seeing how a leader processes complexity,
+                  influences people, and responds when conditions change.
+                </p>
+                <div className={styles.heroLinks}>
+                  <Link className={styles.inkLink} href="/assessments">
+                    Explore assessments <span aria-hidden>↗</span>
+                  </Link>
+                  <Link className={styles.ruleLink} href="/oql">
+                    OLQ foundations <span aria-hidden>→</span>
+                  </Link>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.dimensionSignal} aria-label="The three CPR dimensions">
+              {dimensions.map((dimension, index) => (
+                <article className={styles.signalCell} key={dimension.code}>
+                  <span className={styles.signalNumeral}>{dimension.numeral}</span>
+                  <span className={`font-display ${styles.signalCode}`} aria-hidden>
+                    {dimension.code}
+                  </span>
+                  <div>
+                    <h2>{dimension.title}</h2>
+                    <p>{dimension.prompt}</p>
+                  </div>
+                  <span className={styles.signalPosition} aria-hidden>
+                    0{index + 1}
+                  </span>
+                </article>
+              ))}
+            </div>
+          </section>
+        </ScrollMotion>
+
+        <section className={styles.introduction} aria-labelledby="framework-introduction">
+          <p className={`${styles.sectionIndex} reveal-on-scroll`}>02 / The model</p>
+          <div className="reveal-on-scroll" data-stagger="1">
+            <h2 id="framework-introduction" className={`font-display ${styles.sectionTitle}`}>
+              Three signals.
+              <br />
+              One leadership pattern.
+            </h2>
           </div>
-          <Link
-            href="/assessments"
-            className="mt-6 inline-block rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5"
-          >
-            Explore Assessments
-          </Link>
-        </article>
-      </div>
-    </MarketingChrome>
+          <div className={`${styles.introductionCopy} reveal-on-scroll`} data-stagger="2">
+            <p>
+              Most leadership tools isolate traits. Composite Pattern Recognition reads the
+              relationship between dimensions: where a leader is naturally strong, where a
+              strength can become overused, and what the situation is asking them to practise
+              next.
+            </p>
+            <p>
+              The result is not a fixed label. It is a useful orientation for more deliberate
+              behaviour.
+            </p>
+          </div>
+        </section>
+
+        <FrameworkExperience />
+
+        <section className={styles.closing} aria-labelledby="framework-closing-title">
+          <div className={`${styles.closingMark} reveal-on-scroll`} aria-hidden>
+            <span data-stagger="1">C</span>
+            <span data-stagger="2">P</span>
+            <span data-stagger="3">R</span>
+          </div>
+          <div className={styles.closingCopy}>
+            <p className={`${styles.closingIndex} reveal-on-scroll`}>04 / Put the pattern to work</p>
+            <h2 id="framework-closing-title" className={`font-display ${styles.closingTitle} reveal-on-scroll`}>
+              See the pattern.
+              <br />
+              Choose the practice.
+            </h2>
+            <p className="reveal-on-scroll">
+              An OLQ Lab assessment turns CPR into a focused development conversation — with
+              strengths to use deliberately and growth edges to address in context.
+            </p>
+            <div className={styles.closingLinks}>
+              <Link className={styles.lightLink} href="/assessments">
+                Find an assessment <span aria-hidden>↗</span>
+              </Link>
+              <Link className={styles.lightRuleLink} href="/oql">
+                Read the OLQ foundations <span aria-hidden>→</span>
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <EditorialFooter />
+    </div>
   );
 }

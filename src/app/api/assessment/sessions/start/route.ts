@@ -4,16 +4,22 @@ import { requireSession } from "@/lib/api-auth";
 import { archiveCurrentAttempt } from "@/lib/report-archive";
 import { isMissingTableError } from "@/lib/prisma-errors";
 import { resolveAssessmentAccess } from "@/lib/assessment-access";
-import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
+import { recordAuditLog } from "@/lib/audit-log";
+import { revokeAttemptShareTokens } from "@/lib/report-attempt-access";
+import { lockAssessmentSession } from "@/lib/assessment-session-lock";
+import { lockAssessmentContent } from "@/lib/assessment-content-lock";
+import { ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT } from "@/lib/assessment-response-acknowledgement";
 
 export async function POST(req: NextRequest) {
   const check = await requireSession();
   if ("error" in check) return check.error;
 
   let assessmentId = "";
+  let acknowledged = false;
   try {
-    const body = (await req.json()) as { assessmentId?: string };
+    const body = (await req.json()) as { assessmentId?: string; acknowledged?: boolean };
     assessmentId = body.assessmentId?.trim() || "";
+    acknowledged = body.acknowledged === true;
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
@@ -21,13 +27,14 @@ export async function POST(req: NextRequest) {
   if (!assessmentId) {
     return NextResponse.json({ error: "assessmentId is required." }, { status: 400 });
   }
+  if (!acknowledged) {
+    return NextResponse.json(
+      { error: "Acknowledge response processing before starting." },
+      { status: 422 },
+    );
+  }
 
   const userId = check.session.user.id;
-
-  await runDueUnenrollJobs({
-    assessmentId,
-    userId,
-  });
 
   const access = await resolveAssessmentAccess(userId, assessmentId);
   if (!access.assessmentExists) {
@@ -62,31 +69,23 @@ export async function POST(req: NextRequest) {
       id: assessmentId,
       isPublished: true,
     },
-    include: {
-      sections: { orderBy: { sortOrder: "asc" } },
-      questions: {
-        orderBy: { sortOrder: "asc" },
-        include: {
-          section: true,
-          options: {
-            orderBy: { displayOrder: "asc" },
-            include: {
-              impacts: {
-                include: {
-                  competency: true,
-                  assessmentCompetency: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
+    select: { id: true },
   });
 
   if (!assessment) {
     return NextResponse.json({ error: "Assessment unavailable" }, { status: 404 });
   }
+
+  await recordAuditLog({
+    tenantId: user.tenantId,
+    actorId: user.id,
+    action: "ASSESSMENT_RESPONSE_PROCESSING_ACKNOWLEDGED",
+    metadata: {
+      assessmentId,
+      acknowledgementVersion: ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT.version,
+      acknowledgementText: ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT.text,
+    },
+  });
 
   // Keep seat assignment synchronized when seat record exists for this user's tenant.
   const seat = await db.seat.findUnique({
@@ -114,7 +113,6 @@ export async function POST(req: NextRequest) {
 
   const existingSession = await db.quizSession.findUnique({
     where: { assessmentId_userId: { assessmentId, userId } },
-    include: { answers: true },
   });
 
   let session = existingSession;
@@ -148,13 +146,30 @@ export async function POST(req: NextRequest) {
         alreadySubmitted: true,
         retestAvailable: false,
         retestEligibleAt: retest?.eligibleAt || null,
-        sections: assessment.sections,
-        questions: assessment.questions,
-        answers: existingSession.answers,
       });
     }
 
     session = await db.$transaction(async (tx) => {
+      await lockAssessmentSession(tx, existingSession.id);
+      const currentSession = await tx.quizSession.findUnique({
+        where: { id: existingSession.id },
+      });
+      if (!currentSession || currentSession.status !== "SUBMITTED") {
+        return currentSession;
+      }
+      const currentEligibility = await tx.retestEligibility.findUnique({
+        where: {
+          assessmentId_userId: {
+            assessmentId,
+            userId,
+          },
+        },
+        select: { eligibleAt: true },
+      });
+      if (!currentEligibility || now < currentEligibility.eligibleAt) {
+        return currentSession;
+      }
+
       await archiveCurrentAttempt(tx, {
         assessmentId,
         userId,
@@ -175,6 +190,11 @@ export async function POST(req: NextRequest) {
           userId,
         },
       });
+      await revokeAttemptShareTokens(tx, {
+        assessmentId,
+        userId,
+        revokedAt: now,
+      });
       await tx.retestEligibility.deleteMany({
         where: {
           assessmentId,
@@ -188,16 +208,24 @@ export async function POST(req: NextRequest) {
           status: "IN_PROGRESS",
           startedAt: now,
           submittedAt: null,
+          submissionClaimId: null,
+          submissionClaimedAt: null,
+          submissionAnswerSnapshotHash: null,
         },
-        include: { answers: true },
       });
     });
   }
 
   if (!session) {
-    session = await db.quizSession.create({
-      data: { assessmentId, userId },
-      include: { answers: true },
+    session = await db.$transaction(async (tx) => {
+      await lockAssessmentContent(tx, assessmentId);
+      const current = await tx.quizSession.findUnique({
+        where: { assessmentId_userId: { assessmentId, userId } },
+      });
+      if (current) return current;
+      return tx.quizSession.create({
+        data: { assessmentId, userId },
+      });
     });
   }
 
@@ -206,8 +234,5 @@ export async function POST(req: NextRequest) {
     alreadySubmitted: session.status === "SUBMITTED",
     retestAvailable: false,
     retestEligibleAt: null,
-    sections: assessment.sections,
-    questions: assessment.questions,
-    answers: session.answers,
   });
 }

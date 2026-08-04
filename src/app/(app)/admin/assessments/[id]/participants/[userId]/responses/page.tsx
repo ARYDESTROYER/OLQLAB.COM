@@ -81,6 +81,7 @@ export default function ParticipantResponsesPage() {
   const [data, setData] = useState<ApiPayload | null>(null);
 
   useEffect(() => {
+    const controller = new AbortController();
     if (!assessmentId || !userId) {
       setError("Invalid route parameters.");
       setLoading(false);
@@ -89,8 +90,14 @@ export default function ParticipantResponsesPage() {
 
     const run = async () => {
       try {
+        await Promise.resolve();
+        if (controller.signal.aborted) return;
+        setLoading(true);
+        setError("");
+        setData(null);
         const res = await fetch(
           `/api/admin/assessments/${assessmentId}/participants/${userId}/responses`,
+          { signal: controller.signal },
         );
         const payload = await res.json().catch(() => ({}));
         if (!res.ok) {
@@ -98,13 +105,15 @@ export default function ParticipantResponsesPage() {
         }
         setData(payload as ApiPayload);
       } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
         setError(err instanceof Error ? err.message : "Could not load responses.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
 
-    run();
+    void run();
+    return () => controller.abort();
   }, [assessmentId, userId]);
 
   const participantName = useMemo(() => {
@@ -114,17 +123,17 @@ export default function ParticipantResponsesPage() {
 
   if (loading) {
     return (
-      <main className="mx-auto max-w-5xl p-6 md:p-10">
+      <div className="mx-auto max-w-5xl p-6 md:p-10">
         <section className="rounded-2xl border border-slate-200 bg-white p-6">
           <h1 className="text-xl font-semibold text-slate-900">Loading participant responses...</h1>
         </section>
-      </main>
+      </div>
     );
   }
 
   if (error || !data) {
     return (
-      <main className="mx-auto max-w-5xl p-6 md:p-10">
+      <div className="mx-auto max-w-5xl p-6 md:p-10">
         <section className="rounded-2xl border border-rose-200 bg-rose-50 p-6">
           <h1 className="text-xl font-semibold text-rose-900">Could not load responses</h1>
           <p className="mt-2 text-sm text-rose-700">{error || "Unknown error"}</p>
@@ -135,12 +144,12 @@ export default function ParticipantResponsesPage() {
             Back to Assessment
           </Link>
         </section>
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl space-y-6 p-6 md:p-10">
+    <div className="mx-auto max-w-6xl space-y-6 p-6 md:p-10">
       <header className="rounded-2xl border border-slate-200 bg-white p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -200,6 +209,10 @@ export default function ParticipantResponsesPage() {
                 <img
                   src={response.imageUrl}
                   alt={response.imageAlt || "Question reference image"}
+                  loading="lazy"
+                  decoding="async"
+                  crossOrigin={response.imageUrl.startsWith("https://") ? "anonymous" : undefined}
+                  referrerPolicy="no-referrer"
                   className="max-h-[24rem] w-full object-contain bg-white"
                 />
                 {response.imageCaption ? (
@@ -240,6 +253,6 @@ export default function ParticipantResponsesPage() {
           </article>
         ))}
       </section>
-    </main>
+    </div>
   );
 }

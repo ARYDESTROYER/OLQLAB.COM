@@ -1,9 +1,14 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getAdminUserStats } from "@/lib/admin-user-stats";
+import { getLiveAdminSession } from "@/lib/api-auth";
 import { isMissingTableError } from "@/lib/prisma-errors";
 
 export default async function AdminOverviewPage() {
+  const check = await getLiveAdminSession();
+  if (!check) redirect("/dashboard");
+
   const [tenantCount, userStats, assessmentCount, sessionCount] = await Promise.all([
     db.tenant.count(),
     getAdminUserStats(),

@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
 import { db } from "@/lib/db";
 import { isMissingTableError, isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { listResolvedAssessmentUsers } from "@/lib/assessment-access";
+import { IdentityPolicyError } from "@/lib/identity-policy";
+import {
+  hasTenantSeatCapacity,
+  lockTenantSeatInventory,
+} from "@/lib/tenant-seat-lock";
+import { cancelOutstandingUnenrollJobs } from "@/lib/unenroll-jobs";
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -175,170 +183,236 @@ export async function POST(
     return NextResponse.json({ error: "Assessment not found." }, { status: 404 });
   }
 
-  let userId = body?.userId?.trim();
-
-  if (!userId) {
-    const email = body?.email ? normalizeEmail(body.email) : "";
-    if (!email || !email.includes("@")) {
-      return NextResponse.json(
-        { error: "Either userId or a valid participant email is required." },
-        { status: 400 },
-      );
-    }
-
-    const existingUser = await db.user.findUnique({
-      where: { email },
-      select: { id: true, tenantId: true, role: true },
-    });
-
-    if (existingUser?.role === "ADMIN") {
-      return NextResponse.json(
-        { error: "Admin users cannot be enrolled as participants." },
-        { status: 400 },
-      );
-    }
-
-    if (existingUser) {
-      userId = existingUser.id;
-    } else {
-      const tenantId = body?.tenantId?.trim() || assessment.ownerTenantId;
-      if (!tenantId) {
-        return NextResponse.json(
-          {
-            error:
-              "This assessment has no owner organisation. Create the user first from Users admin and enroll by userId.",
-          },
-          { status: 400 },
-        );
-      }
-
-      const tenant = await db.tenant.findUnique({
-        where: { id: tenantId },
-        select: {
-          id: true,
-          seatLimit: true,
-        },
-      });
-
-      if (!tenant) {
-        return NextResponse.json({ error: "Organisation not found." }, { status: 404 });
-      }
-
-      const seatCount = await db.seat.count({ where: { tenantId } });
-      if (seatCount >= tenant.seatLimit) {
-        return NextResponse.json(
-          {
-            error: `Seat limit reached (${tenant.seatLimit}). Increase seats before adding more users.`,
-          },
-          { status: 400 },
-        );
-      }
-
-      const manager = body?.managerEmail
-        ? await db.user.findFirst({
-            where: {
-              tenantId,
-              email: normalizeEmail(body.managerEmail),
-            },
-            select: {
-              id: true,
-            },
-          })
-        : null;
-
-      const role = body?.role === "LEADER" ? "LEADER" : "EMPLOYEE";
-      const createdUser = await db.user.create({
-        data: {
-          email,
-          firstName: body?.firstName?.trim() || "Participant",
-          lastName: body?.lastName?.trim() || "User",
-          role,
-          tenantId,
-          managerId: manager?.id,
-        },
-        select: {
-          id: true,
-        },
-      });
-
-      await db.seat.upsert({
-        where: {
-          tenantId_userEmail: {
-            tenantId,
-            userEmail: email,
-          },
-        },
-        create: {
-          tenantId,
-          userEmail: email,
-          assigned: false,
-        },
-        update: {
-          assigned: false,
-        },
-      });
-
-      userId = createdUser.id;
-    }
-  }
-
-  if (!userId) {
-    return NextResponse.json({ error: "Unable to resolve participant user." }, { status: 500 });
-  }
-
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      role: true,
-    },
-  });
-
-  if (!user || user.role === "ADMIN") {
+  const requestedUserId = body?.userId?.trim();
+  const email = body?.email ? normalizeEmail(body.email) : "";
+  if (!requestedUserId && (!email || !email.includes("@"))) {
     return NextResponse.json(
-      { error: "Target participant is invalid." },
+      { error: "Either userId or a valid participant email is required." },
       { status: 400 },
     );
   }
 
+  let userId: string;
   try {
-    await db.assessmentUserEnrollment.upsert({
-      where: {
-        assessmentId_userId: {
+    userId = await db.$transaction(
+      async (tx) => {
+        const liveAssessment = await tx.assessment.findUnique({
+          where: { id: assessmentId },
+          select: { id: true },
+        });
+        if (!liveAssessment) {
+          throw new IdentityPolicyError(
+            "ASSESSMENT_NOT_FOUND",
+            "Assessment not found.",
+            404,
+          );
+        }
+
+        let user = requestedUserId
+          ? await tx.user.findUnique({
+              where: { id: requestedUserId },
+              select: { id: true, role: true, tenantId: true },
+            })
+          : await tx.user.findUnique({
+              where: { email },
+              select: { id: true, role: true, tenantId: true },
+            });
+
+        let createdUser = false;
+        if (!user && !requestedUserId) {
+          const tenantId = body?.tenantId?.trim() || assessment.ownerTenantId;
+          if (!tenantId) {
+            throw new IdentityPolicyError(
+              "ORGANISATION_REQUIRED",
+              "This assessment has no owner organisation. Create the user first from Users admin and enroll by userId.",
+            );
+          }
+
+          await lockTenantSeatInventory(tx, tenantId);
+          // A concurrent request can create the email while this request waits
+          // for the tenant inventory lock. Re-read before reserving a seat.
+          user = await tx.user.findUnique({
+            where: { email },
+            select: { id: true, role: true, tenantId: true },
+          });
+
+          if (!user) {
+            const tenant = await tx.tenant.findUnique({
+              where: { id: tenantId },
+              select: {
+                id: true,
+                type: true,
+                isArchived: true,
+                seatLimit: true,
+              },
+            });
+            if (!tenant) {
+              throw new IdentityPolicyError(
+                "ORGANISATION_NOT_FOUND",
+                "Organisation not found.",
+                404,
+              );
+            }
+            if (tenant.type !== "ORGANIZATION" || tenant.isArchived) {
+              throw new IdentityPolicyError(
+                "ORGANISATION_UNAVAILABLE",
+                "Participants can only be created in an active Organisation.",
+                409,
+              );
+            }
+
+            const managerEmail = body?.managerEmail?.trim();
+            const manager = managerEmail
+              ? await tx.user.findFirst({
+                  where: {
+                    tenantId,
+                    email: normalizeEmail(managerEmail),
+                    role: "LEADER",
+                  },
+                  select: { id: true },
+                })
+              : null;
+            if (managerEmail && !manager) {
+              throw new IdentityPolicyError(
+                "MANAGER_NOT_FOUND",
+                "Manager must be an existing Leader in the same Organisation.",
+              );
+            }
+
+            const [seatCount, existingSeat] = await Promise.all([
+              tx.seat.count({ where: { tenantId } }),
+              tx.seat.findUnique({
+                where: {
+                  tenantId_userEmail: { tenantId, userEmail: email },
+                },
+                select: { id: true },
+              }),
+            ]);
+            if (
+              !hasTenantSeatCapacity({
+                seatLimit: tenant.seatLimit,
+                currentSeatCount: seatCount,
+                hasExistingSeat: Boolean(existingSeat),
+              })
+            ) {
+              throw new IdentityPolicyError(
+                "SEAT_LIMIT_REACHED",
+                `Seat limit reached (${tenant.seatLimit}). Increase seats before adding more users.`,
+                409,
+              );
+            }
+
+            await tx.seat.upsert({
+              where: {
+                tenantId_userEmail: { tenantId, userEmail: email },
+              },
+              create: { tenantId, userEmail: email, assigned: false },
+              update: { assigned: false },
+            });
+            user = await tx.user.create({
+              data: {
+                email,
+                firstName: body?.firstName?.trim() || "Participant",
+                lastName: body?.lastName?.trim() || "User",
+                role: body?.role === "LEADER" ? "LEADER" : "EMPLOYEE",
+                tenantId,
+                managerId: manager?.id,
+              },
+              select: { id: true, role: true, tenantId: true },
+            });
+            createdUser = true;
+          }
+        }
+
+        if (!user) {
+          throw new IdentityPolicyError(
+            "PARTICIPANT_NOT_FOUND",
+            "Target participant is invalid.",
+            404,
+          );
+        }
+        if (user.role === "ADMIN") {
+          throw new IdentityPolicyError(
+            "TARGET_NOT_PARTICIPANT",
+            "Admin users cannot be enrolled as participants.",
+          );
+        }
+
+        const enrollment = await tx.assessmentUserEnrollment.upsert({
+          where: {
+            assessmentId_userId: { assessmentId, userId: user.id },
+          },
+          create: {
+            assessmentId,
+            userId: user.id,
+            active: true,
+            createdByAdminId: check.liveUser.id,
+          },
+          update: { active: true, createdByAdminId: check.liveUser.id },
+        });
+        const cancellation = await cancelOutstandingUnenrollJobs(tx, {
           assessmentId,
-          userId,
-        },
+          targetScope: "USER",
+          targetId: user.id,
+        });
+        const clearedOverrides = await tx.assessmentReportAccessOverride.deleteMany({
+          where: { assessmentId, userId: user.id },
+        });
+        await recordAuditLog(
+          {
+            tenantId: user.tenantId,
+            actorId: check.liveUser.id,
+            action: "assessment.participant_enrolled",
+            metadata: {
+              assessmentId,
+              userId: user.id,
+              enrollmentId: enrollment.id,
+              createdUser,
+              clearedOverrides: clearedOverrides.count,
+              ...cancellation,
+            },
+          },
+          tx,
+        );
+        return user.id;
       },
-      create: {
-        assessmentId,
-        userId,
-        active: true,
-        createdByAdminId: check.session.user.id,
+      {
+        // The tenant advisory lock serializes capacity checks. READ COMMITTED
+        // ensures the post-lock re-read observes the transaction that released it.
+        isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+        maxWait: 5_000,
+        timeout: 15_000,
       },
-      update: {
-        active: true,
-        createdByAdminId: check.session.user.id,
-      },
-    });
+    );
   } catch (error) {
-    if (!isSchemaCompatibilityError(error)) throw error;
+    if (error instanceof IdentityPolicyError) {
+      return NextResponse.json(
+        { error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === "P2002" || error.code === "P2034")
+    ) {
+      return NextResponse.json(
+        {
+          error: "Participant state changed concurrently. Please retry.",
+          code: "PARTICIPANT_CONFLICT",
+        },
+        { status: 409 },
+      );
+    }
+    if (isSchemaCompatibilityError(error)) {
+      return NextResponse.json(
+        { error: "Database migration required for participant enrollment." },
+        { status: 409 },
+      );
+    }
+    throw error;
   }
 
-  const [participants] = await Promise.all([
-    listParticipants(assessmentId),
-    (async () => {
-      try {
-        await db.assessmentReportAccessOverride.deleteMany({
-          where: {
-            assessmentId,
-            userId,
-          },
-        });
-      } catch (error) {
-        if (!isSchemaCompatibilityError(error)) throw error;
-      }
-    })(),
-  ]);
+  const participants = await listParticipants(assessmentId);
 
   const participant = participants.find((item) => item.userId === userId) || null;
 

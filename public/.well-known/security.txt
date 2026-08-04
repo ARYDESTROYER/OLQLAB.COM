@@ -1,0 +1,4 @@
+Contact: https://www.olqlab.com/contact
+Expires: 2027-07-30T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://www.olqlab.com/.well-known/security.txt

@@ -1,10 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma, Role, TenantType } from "@prisma/client";
+import { z } from "zod";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import { buildCsv } from "@/lib/csv";
 import { getAdminUserStats } from "@/lib/admin-user-stats";
+import {
+  assertRoleAllowedInOrganisation,
+  IdentityPolicyError,
+  type AccountRole,
+} from "@/lib/identity-policy";
+import { recordAuditLog } from "@/lib/audit-log";
+import {
+  hasTenantSeatCapacity,
+  lockTenantSeatInventory,
+} from "@/lib/tenant-seat-lock";
+import {
+  buildAdminListWindowMeta,
+  getAdminCsvWindowError,
+} from "@/lib/admin-list-window";
+
+const MAX_EMAIL_LENGTH = 320;
+const MAX_NAME_LENGTH = 100;
+const MAX_ORGANISATION_NAME_LENGTH = 160;
+const MAX_CSV_BYTES = 4 * 1024 * 1024;
+const emailSchema = z.string().trim().email().max(MAX_EMAIL_LENGTH);
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
@@ -35,9 +56,10 @@ export async function GET(req: NextRequest) {
   const sortOrder = params.get("sortOrder")?.trim().toLowerCase() === "asc" ? "asc" : "desc";
   const format = params.get("format")?.trim().toLowerCase();
   const isCsv = format === "csv";
+  const includeContext = !isCsv && params.get("includeContext") !== "0";
   const take = parseLimit(
     params.get("limit"),
-    isCsv ? 2000 : 100,
+    isCsv ? 5000 : 100,
     isCsv ? 5000 : 500,
   );
   const scope: "ALL" | "PARTICIPANTS" = scopeParam === "PARTICIPANTS" ? "PARTICIPANTS" : "ALL";
@@ -123,9 +145,10 @@ export async function GET(req: NextRequest) {
     adminUsers: number;
   };
 
-  const [userStats, organizations] = await Promise.all([
-    getAdminUserStats(),
-    (async (): Promise<OrganizationSummary[]> => {
+  const contextPromise = includeContext
+    ? Promise.all([
+        getAdminUserStats(),
+        (async (): Promise<OrganizationSummary[]> => {
       try {
         const organizationTenants = await db.tenant.findMany({
           where: { type: "ORGANIZATION" },
@@ -231,8 +254,9 @@ export async function GET(req: NextRequest) {
           };
         });
       }
-    })(),
-  ]);
+        })(),
+      ])
+    : Promise.resolve([null, []] as [null, OrganizationSummary[]]);
 
   let users: UserListRow[] = [];
   let totalMatchingFilters = 0;
@@ -251,7 +275,7 @@ export async function GET(req: NextRequest) {
         orderBy,
         take,
       }),
-      db.user.count({ where }),
+      includeContext || isCsv ? db.user.count({ where }) : Promise.resolve(0),
     ]);
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;
@@ -273,7 +297,9 @@ export async function GET(req: NextRequest) {
         orderBy,
         take,
       }),
-      db.user.count({ where: legacyWhere }),
+      includeContext || isCsv
+        ? db.user.count({ where: legacyWhere })
+        : Promise.resolve(0),
     ]);
     totalMatchingFilters = legacyCount;
 
@@ -288,6 +314,18 @@ export async function GET(req: NextRequest) {
   }
 
   if (isCsv) {
+    const csvWindowError = getAdminCsvWindowError({
+      totalCandidates: totalMatchingFilters,
+      limit: take,
+      recordLabel: "users",
+    });
+    if (csvWindowError) {
+      return NextResponse.json(
+        { error: csvWindowError },
+        { status: 413, headers: { "Cache-Control": "no-store" } },
+      );
+    }
+
     const csv = buildCsv(
       [
         "id",
@@ -319,6 +357,13 @@ export async function GET(req: NextRequest) {
       ]),
     );
 
+    if (Buffer.byteLength(csv, "utf8") > MAX_CSV_BYTES) {
+      return NextResponse.json(
+        { error: "CSV export is too large. Narrow the filters and try again." },
+        { status: 413 },
+      );
+    }
+
     return new NextResponse(csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -330,16 +375,28 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const [userStats, organizations] = await contextPromise;
+
   return NextResponse.json({
     users,
-    organizations,
-    meta: {
-      scope,
-      totalMatchingFilters,
-      totalAllAccounts: userStats.usersTotal,
-      totalParticipants: userStats.usersParticipants,
-      totalAdmins: userStats.usersAdmins,
-    },
+    ...(userStats
+      ? {
+          organizations,
+          meta: {
+            scope,
+            ...buildAdminListWindowMeta({
+              returned: users.length,
+              limit: take,
+              totalCandidates: totalMatchingFilters,
+              processedCandidates: users.length,
+              matchingWithinWindow: users.length,
+            }),
+            totalAllAccounts: userStats.usersTotal,
+            totalParticipants: userStats.usersParticipants,
+            totalAdmins: userStats.usersAdmins,
+          },
+        }
+      : {}),
   });
 }
 
@@ -347,7 +404,7 @@ export async function POST(req: NextRequest) {
   const check = await requireAdmin();
   if ("error" in check) return check.error;
 
-  const body = (await req.json()) as {
+  const body = (await req.json().catch(() => null)) as {
     tenantId?: string;
     tenantName?: string;
     seatLimit?: number;
@@ -357,13 +414,53 @@ export async function POST(req: NextRequest) {
     role?: "ADMIN" | "EMPLOYEE" | "LEADER";
     managerEmail?: string;
     createSoloTenant?: boolean;
-  };
+  } | null;
 
-  if (!body.email) {
+  if (!body?.email) {
     return NextResponse.json({ error: "email is required" }, { status: 400 });
   }
 
   const normalizedEmail = normalizeEmail(body.email);
+  if (!emailSchema.safeParse(normalizedEmail).success) {
+    return NextResponse.json({ error: "A valid email is required." }, { status: 400 });
+  }
+  for (const [field, value] of [
+    ["firstName", body.firstName],
+    ["lastName", body.lastName],
+  ] as const) {
+    if (typeof value === "string" && value.trim().length > MAX_NAME_LENGTH) {
+      return NextResponse.json(
+        { error: `${field} must be ${MAX_NAME_LENGTH} characters or fewer.` },
+        { status: 400 },
+      );
+    }
+  }
+  if (
+    typeof body.tenantName === "string" &&
+    body.tenantName.trim().length > MAX_ORGANISATION_NAME_LENGTH
+  ) {
+    return NextResponse.json(
+      { error: `Organisation name must be ${MAX_ORGANISATION_NAME_LENGTH} characters or fewer.` },
+      { status: 400 },
+    );
+  }
+  const requestedRole: AccountRole | null =
+    body.role === undefined
+      ? "EMPLOYEE"
+      : body.role === "ADMIN" || body.role === "EMPLOYEE" || body.role === "LEADER"
+        ? body.role
+        : null;
+  if (!requestedRole) {
+    return NextResponse.json({ error: "Invalid account role." }, { status: 400 });
+  }
+
+  if (body.createSoloTenant && requestedRole === "ADMIN") {
+    return NextResponse.json(
+      { error: "Admin accounts must be added to an Organisation." },
+      { status: 400 },
+    );
+  }
+
   const existingUser = await db.user.findUnique({
     where: { email: normalizedEmail },
     select: {
@@ -377,52 +474,11 @@ export async function POST(req: NextRequest) {
       },
     },
   });
-
-  let tenantId = body.tenantId;
-  if (body.createSoloTenant) {
-    if (existingUser) {
-      return NextResponse.json(
-        {
-          error:
-            "This email already belongs to an existing organisation. Use Add Individual Participant under that organisation instead of creating a new solo organisation.",
-          existingTenantId: existingUser.tenant.id,
-          existingTenantName: existingUser.tenant.name,
-        },
-        { status: 409 },
-      );
-    }
-
-    const tenantName = body.tenantName?.trim() || `Solo - ${body.email}`;
-    let tenant;
-    try {
-      tenant = await db.tenant.create({
-        data: {
-          name: tenantName,
-          type: "SOLO",
-          seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : 1,
-        },
-      });
-    } catch (error) {
-      if (!isSchemaCompatibilityError(error)) throw error;
-      tenant = await db.tenant.create({
-        data: {
-          name: tenantName,
-          seatLimit: body.seatLimit && body.seatLimit > 0 ? body.seatLimit : 1,
-        },
-      });
-    }
-    tenantId = tenant.id;
-  }
-
-  if (!tenantId) {
-    return NextResponse.json({ error: "Organisation is required." }, { status: 400 });
-  }
-
-  if (existingUser && existingUser.tenantId !== tenantId) {
+  if (existingUser) {
     return NextResponse.json(
       {
         error:
-          "This email already belongs to a different organisation. Move/transfer is blocked to prevent accidental reassignment.",
+          "This email already belongs to an account. Use Edit or Move instead of Add User.",
         existingTenantId: existingUser.tenant.id,
         existingTenantName: existingUser.tenant.name,
       },
@@ -430,109 +486,180 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let tenant: {
-    id: string;
-    seatLimit: number;
-    isArchived: boolean;
-  } | null = null;
+  const selectedTenantId = body.tenantId?.trim();
+  if (!body.createSoloTenant && !selectedTenantId) {
+    return NextResponse.json({ error: "Organisation is required." }, { status: 400 });
+  }
+
   try {
-    tenant = await db.tenant.findUnique({ where: { id: tenantId } });
-  } catch (error) {
-    if (!isSchemaCompatibilityError(error)) throw error;
-    const legacyTenant = await db.tenant.findUnique({
-      where: { id: tenantId },
-      select: { id: true, seatLimit: true },
-    });
-    tenant = legacyTenant
-      ? {
-          ...legacyTenant,
-          isArchived: false,
+    const user = await db.$transaction(
+      async (tx) => {
+        if (!body.createSoloTenant && selectedTenantId) {
+          await lockTenantSeatInventory(tx, selectedTenantId);
         }
-      : null;
-  }
-  if (!tenant) {
-    return NextResponse.json({ error: "Organisation not found." }, { status: 404 });
-  }
-  if (tenant.isArchived) {
-    return NextResponse.json(
-      { error: "Organisation is archived. Restore it before adding users." },
-      { status: 400 },
-    );
-  }
+        const tenant = body.createSoloTenant
+          ? await tx.tenant.create({
+              data: {
+                name: body.tenantName?.trim() || `Solo - ${normalizedEmail}`,
+                type: "SOLO",
+                seatLimit: 1,
+              },
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                seatLimit: true,
+                isArchived: true,
+              },
+            })
+          : await tx.tenant.findUnique({
+              where: { id: selectedTenantId },
+              select: {
+                id: true,
+                name: true,
+                type: true,
+                seatLimit: true,
+                isArchived: true,
+              },
+            });
 
-  const manager = body.managerEmail
-    ? await db.user.findFirst({
-        where: {
-          tenantId,
-          email: normalizeEmail(body.managerEmail),
-        },
-      })
-    : null;
+        if (!tenant) {
+          throw new IdentityPolicyError(
+            "ORGANISATION_NOT_FOUND",
+            "Organisation not found.",
+            404,
+          );
+        }
+        assertRoleAllowedInOrganisation({
+          role: requestedRole,
+          organisationType: tenant.type,
+          isArchived: tenant.isArchived,
+        });
 
-  const seatCount = await db.seat.count({ where: { tenantId } });
-  const existingSeat = await db.seat.findUnique({
-    where: {
-      tenantId_userEmail: {
-        tenantId,
-        userEmail: normalizedEmail,
+        const managerEmail = body.managerEmail?.trim();
+        const manager = managerEmail
+          ? await tx.user.findFirst({
+              where: {
+                tenantId: tenant.id,
+                email: normalizeEmail(managerEmail),
+                role: "LEADER",
+              },
+              select: { id: true },
+            })
+          : null;
+        if (managerEmail && !manager) {
+          throw new IdentityPolicyError(
+            "MANAGER_NOT_FOUND",
+            "Manager must be an existing Leader in the same Organisation.",
+          );
+        }
+        if (requestedRole === "ADMIN" && manager) {
+          throw new IdentityPolicyError(
+            "ADMIN_MANAGER_NOT_ALLOWED",
+            "Admin accounts cannot be assigned a participant manager.",
+          );
+        }
+
+        const [seatCount, existingSeat] = await Promise.all([
+          tx.seat.count({ where: { tenantId: tenant.id } }),
+          tx.seat.findUnique({
+            where: {
+              tenantId_userEmail: {
+                tenantId: tenant.id,
+                userEmail: normalizedEmail,
+              },
+            },
+            select: { id: true, assigned: true },
+          }),
+        ]);
+        if (
+          !hasTenantSeatCapacity({
+            seatLimit: tenant.seatLimit,
+            currentSeatCount: seatCount,
+            hasExistingSeat: Boolean(existingSeat),
+          })
+        ) {
+          throw new IdentityPolicyError(
+            "SEAT_LIMIT_REACHED",
+            `Seat limit reached (${tenant.seatLimit}). Increase seats before adding more users.`,
+          );
+        }
+
+        await tx.seat.upsert({
+          where: {
+            tenantId_userEmail: {
+              tenantId: tenant.id,
+              userEmail: normalizedEmail,
+            },
+          },
+          create: {
+            tenantId: tenant.id,
+            userEmail: normalizedEmail,
+            assigned: false,
+          },
+          update: {
+            assigned: existingSeat?.assigned ?? false,
+          },
+        });
+
+        const createdUser = await tx.user.create({
+          data: {
+            email: normalizedEmail,
+            firstName: body.firstName?.trim() || "",
+            lastName: body.lastName?.trim() || "",
+            role: requestedRole,
+            tenantId: tenant.id,
+            managerId: manager?.id,
+          },
+          include: {
+            tenant: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        });
+
+        await recordAuditLog(
+          {
+            tenantId: tenant.id,
+            actorId: check.session.user.id,
+            action: "admin.user.created",
+            metadata: {
+              userId: createdUser.id,
+              email: normalizedEmail,
+              role: requestedRole,
+              managerId: manager?.id || null,
+              solo: tenant.type === "SOLO",
+            },
+          },
+          tx,
+        );
+
+        return createdUser;
       },
-    },
-  });
-
-  if (!existingSeat && seatCount >= tenant.seatLimit) {
-    return NextResponse.json(
       {
-        error: `Seat limit reached (${tenant.seatLimit}). Increase seats before adding more users.`,
+        isolationLevel: body.createSoloTenant
+          ? Prisma.TransactionIsolationLevel.Serializable
+          : Prisma.TransactionIsolationLevel.ReadCommitted,
       },
-      { status: 400 },
     );
+
+    return NextResponse.json({ user });
+  } catch (error) {
+    if (error instanceof IdentityPolicyError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return NextResponse.json({ error: "This email already belongs to an account." }, { status: 409 });
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2034") {
+      return NextResponse.json(
+        { error: "The account list changed concurrently. Please try again." },
+        { status: 409 },
+      );
+    }
+    throw error;
   }
-
-  await db.seat.upsert({
-    where: {
-      tenantId_userEmail: {
-        tenantId,
-        userEmail: normalizedEmail,
-      },
-    },
-    create: {
-      tenantId,
-      userEmail: normalizedEmail,
-      assigned: false,
-    },
-    update: {
-      assigned: existingSeat?.assigned ?? false,
-    },
-  });
-
-  const user = await db.user.upsert({
-    where: { email: normalizedEmail },
-    create: {
-      email: normalizedEmail,
-      firstName: body.firstName?.trim() || "",
-      lastName: body.lastName?.trim() || "",
-      role: body.role || "EMPLOYEE",
-      tenantId,
-      managerId: manager?.id,
-    },
-    update: {
-      firstName:
-        typeof body.firstName === "string" ? body.firstName.trim() : undefined,
-      lastName:
-        typeof body.lastName === "string" ? body.lastName.trim() : undefined,
-      role: body.role || undefined,
-      tenantId,
-      managerId: manager?.id,
-    },
-    include: {
-      tenant: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-  });
-
-  return NextResponse.json({ user });
 }

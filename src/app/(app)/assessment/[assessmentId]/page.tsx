@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { getLiveSession } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import {
   DEFAULT_ASSESSMENT_INTRO_BULLETS,
   DEFAULT_ASSESSMENT_INTRO_DESCRIPTION,
 } from "@/lib/assessment-intro";
 import { resolveAssessmentAccess } from "@/lib/assessment-access";
-import { runDueUnenrollJobs } from "@/lib/unenroll-jobs";
 import StartAssessmentButton from "./StartAssessmentButton";
 
 export default async function AssessmentStartPage({
@@ -15,33 +14,29 @@ export default async function AssessmentStartPage({
 }: {
   params: Promise<{ assessmentId: string }>;
 }) {
-  const session = await getServerAuthSession();
-  if (!session?.user?.id) redirect("/signin");
+  const check = await getLiveSession();
+  if (!check) redirect("/signin");
 
   const { assessmentId } = await params;
 
-  await runDueUnenrollJobs({ userId: session.user.id });
-
-  const access = await resolveAssessmentAccess(session.user.id, assessmentId);
-  if (!access.canStartAssessment) {
-    redirect("/assessment/current");
-  }
-
-  const assessment = await db.assessment.findUnique({
-    where: { id: assessmentId },
-    select: {
-      id: true,
-      title: true,
-      policy: {
-        select: {
-          introDescription: true,
-          introBullets: true,
+  const [access, assessment] = await Promise.all([
+    resolveAssessmentAccess(check.liveUser.id, assessmentId),
+    db.assessment.findUnique({
+      where: { id: assessmentId },
+      select: {
+        id: true,
+        title: true,
+        policy: {
+          select: {
+            introDescription: true,
+            introBullets: true,
+          },
         },
       },
-    },
-  });
+    }),
+  ]);
 
-  if (!assessment) {
+  if (!access.canStartAssessment || !assessment) {
     redirect("/assessment/current");
   }
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
 import { isSchemaCompatibilityError } from "@/lib/prisma-errors";
 import {
   parseAssessmentQuestionCsv,
@@ -186,6 +187,19 @@ export async function POST(req: NextRequest) {
         assessment.id,
         parsed.rows,
         "REPLACE_ALL",
+      );
+      await recordAuditLog(
+        {
+          tenantId: check.liveUser.tenantId,
+          actorId: check.liveUser.id,
+          action: "ASSESSMENT_IMPORTED",
+          metadata: {
+            assessmentId: assessment.id,
+            questionRowCount: parsed.rows.length,
+            importResult,
+          },
+        },
+        tx,
       );
 
       return {

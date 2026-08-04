@@ -19,7 +19,9 @@ The platform now follows a global-assessment model:
 5. Unenroll uses a configurable workflow: timing + report mode + optional email.
 6. Temporary report links are signed, no-login, expiring URLs.
 7. Notification channel is email.
-8. Unenroll execution uses lazy enforcement plus internal cron endpoint fallback.
+8. Due unenroll policy is enforced synchronously by read-only access resolution;
+   persistence, notifications, and share links run through the scheduled/internal
+   worker.
 9. Admin IA is sectioned: `/admin/users`, `/admin/tenants`, `/admin/assessments`.
 
 ## What is implemented
@@ -37,13 +39,28 @@ The platform now follows a global-assessment model:
   - `AssessmentUnenrollJob`
   - `AssessmentReportAccessOverride`
   - `AssessmentReportShareToken`
+- Production-safety state:
+  - `AssessmentPreviewSession` isolates admin test answers from participant data.
+  - `AuthRateLimitBucket` makes magic-link throttling durable across instances.
+  - share links are bound to one report attempt, re-check release/access policy,
+    and require an explicit scanner-safe browser activation before content is shown.
+  - reports default to `DRAFT`; automatic or admin publication requires a validated
+    submitted attempt.
+  - AI report submission uses a durable answer-snapshot lease, preventing parallel
+    submit requests from multiplying model calls.
 - Access resolver (`resolveAssessmentAccess`) used by participant runtime and report gates.
 - Share-link endpoints:
   - `GET /api/reports/shared/:token`
+  - `POST /api/reports/shared/:token/activate`
   - `GET /api/reports/shared/:token/pdf`
 - Internal unenroll job execution endpoints:
+  - `GET /api/internal/jobs/unenrollments/run` (Vercel Cron)
   - `POST /api/internal/jobs/unenrollments/run`
   - `POST /api/internal/jobs/unenrollments/:id/run`
+- Vercel cron invokes the due-job endpoint once daily on the Hobby-compatible
+  repository schedule, with checkpointed recipient work and a hard function
+  deadline. Due access changes are still enforced immediately by the synchronous
+  resolver overlay; Pro deployments may opt into a more frequent sweep.
 - Assessment competencies moved to assessment scope (`AssessmentCompetency`) and scoring supports new mapping.
 - Backfill and rollback scripts for migration support.
 
@@ -56,6 +73,7 @@ The platform now follows a global-assessment model:
 - NextAuth/Auth.js (magic link)
 - Resend email
 - Tailwind CSS
+- Node.js 22 (see `.nvmrc`)
 
 ## Environment variables
 
@@ -72,18 +90,33 @@ EMAIL_FROM="noreply@yourdomain.com"
 OPENAI_API_KEY=""
 REPORT_LLM_MODEL="gpt-4o-mini"
 INTERNAL_JOB_SECRET="replace-with-random-secret"
+CRON_SECRET="replace-with-a-different-random-secret"
 REPORT_SHARE_BASE_URL="http://localhost:3000"
 ```
 
 ## Local setup
 
 ```bash
-npm install
+npm ci
 npx prisma generate
 npx prisma migrate dev
 npm run prisma:seed
 npm run dev
 ```
+
+Validation commands:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+Use `npm run env:check` to validate a complete production environment. A controlled
+deployment that is intended to apply migrations can use `npm run deploy:build`;
+normal preview builds should continue to use `npm run build` when Preview and
+Production share a database.
 
 ## Migration and backfill
 
@@ -95,9 +128,13 @@ Neon + Prisma note:
 Question image upload note:
 - Use `BLOB_READ_WRITE_TOKEN` for Vercel Blob uploads.
 - Question images are stored in Blob and their public URL is saved into `Question.imageUrl`.
+- Question image files are limited to 4 MiB so the multipart request remains below Vercel's function-body limit.
+- Manual/CSV/JSON image URLs accept only `/question-images/*` or the project's
+  managed Vercel Blob hostname; arbitrary third-party URLs are rejected.
 
-Schema migration added:
-- `prisma/migrations/20260224100000_global_assessment_enrollments`
+Apply the complete tracked migration chain with `npm run prisma:migrate:deploy`.
+CI reconstructs and seeds PostgreSQL 16, then compares the migrated database with
+`prisma/schema.prisma` to prevent migration drift.
 
 Backfill scripts:
 
@@ -123,6 +160,8 @@ Backfill effects:
 
 Precedence rule:
 - Active enrollment always wins over restrictive overrides.
+- The latest due unenroll instruction wins deterministically. Authorization reflects
+  it at `effectiveAt` even before the worker persists side effects.
 
 ## Unenroll report modes
 
@@ -184,9 +223,12 @@ Precedence rule:
 - `GET /api/reports/me/:assessmentId`
 - `GET /api/reports/me/:assessmentId/pdf`
 - `GET /api/reports/leader/:userId/:assessmentId`
+- `GET /api/reports/leader/:userId/:assessmentId/pdf`
+- `GET /api/reports/leader` (cursor-paginated team reports)
 
 ### Shared report links
 - `GET /api/reports/shared/:token`
+- `POST /api/reports/shared/:token/activate`
 - `GET /api/reports/shared/:token/pdf`
 
 ## Admin payload contracts
@@ -218,12 +260,20 @@ Unenroll payload:
 
 ```bash
 npm run lint
+npm run typecheck
+npm test
+npm audit --omit=dev --audit-level=low
 npm run build
 ```
 
-Current branch status after this re-architecture pass:
-- `npm run lint` passes.
-- `npm run build` passes.
+CI also reconstructs and seeds PostgreSQL 16 from migrations, checks schema drift,
+validates deployment environment variables, and smoke-tests `/api/health` plus
+`/api/health/ready`. Use Node 22 from `.nvmrc`.
+
+Before a production promotion, verify the real staging environment: Vercel plan and
+cron schedule, Neon direct/pooled URLs, Resend delivery, Blob upload/settings, OpenAI
+report generation, environment-specific magic links, and the static/dynamic route
+manifest.
 
 ## Engineering journal
 

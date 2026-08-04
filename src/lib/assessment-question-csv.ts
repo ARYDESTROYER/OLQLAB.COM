@@ -1,4 +1,5 @@
 import { parse } from "csv-parse/sync";
+import { normalizeQuestionImageUrl } from "@/lib/question-image-policy";
 
 export const ASSESSMENT_CSV_HEADERS = [
   "section_title",
@@ -315,7 +316,8 @@ export function parseAssessmentQuestionCsv(
     const sectionKindRaw = (record.section_kind || "PERSONALITY").trim().toUpperCase();
     const questionCode = (record.question_code || "").trim();
     const prompt = (record.prompt || "").trim();
-    const imageUrl = (record.image_url || "").trim();
+    const imageUrlInput = (record.image_url || "").trim();
+    const imageUrl = normalizeQuestionImageUrl(imageUrlInput);
     const imageAlt = (record.image_alt || "").trim();
     const imageCaption = (record.image_caption || "").trim();
     const questionTypeRaw = (record.question_type || "LIKERT_TRAIT").trim().toUpperCase();
@@ -380,6 +382,16 @@ export function parseAssessmentQuestionCsv(
         column: imageAlt ? "image_alt" : "image_caption",
         code: "INVALID_VALUE",
         message: "image_alt and image_caption require image_url.",
+      });
+    }
+
+    if (imageUrlInput && !imageUrl) {
+      issues.push({
+        row: rowNumber,
+        column: "image_url",
+        code: "INVALID_VALUE",
+        message:
+          "image_url must use /question-images/ or an OLQ Lab managed Vercel Blob URL.",
       });
     }
 
@@ -494,7 +506,7 @@ export function parseAssessmentQuestionCsv(
       sectionKind,
       questionCode,
       prompt,
-      imageUrl: imageUrl || null,
+      imageUrl,
       imageAlt: imageAlt || null,
       imageCaption: imageCaption || null,
       questionType,

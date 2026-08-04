@@ -1,0 +1,450 @@
+.signalLegend {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+}
+
+.signalLegend > div {
+  position: relative;
+  min-height: 8.5rem;
+  padding: 1.35rem;
+  border-bottom: 1px solid var(--rule-strong);
+  transition:
+    color var(--motion-medium, 500ms) var(--ease-editorial, ease),
+    background-color var(--motion-medium, 500ms) var(--ease-editorial, ease),
+    transform var(--motion-medium, 500ms) var(--ease-editorial, ease);
+}
+
+.signalLegend > div:last-child {
+  border-bottom: 0;
+}
+
+.signalLegend > div::after {
+  content: "";
+  position: absolute;
+  right: 1.35rem;
+  bottom: 1.35rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.75;
+  transition: transform var(--motion-medium, 500ms) var(--ease-spring, ease);
+}
+
+.signalLegend > div:hover {
+  transform: translateY(-0.3rem);
+}
+
+.signalLegend > div:hover::after {
+  transform: scale(2.25);
+}
+
+.signalLegend strong {
+  display: block;
+  font-family: var(--font-instrument-serif), serif;
+  font-size: clamp(2.1rem, 5vw, 3.75rem);
+  font-weight: 400;
+  line-height: 0.9;
+}
+
+.signalLegend span {
+  display: block;
+  margin-top: 1.65rem;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cognitive {
+  color: var(--signal-cognitive, #173e45);
+  background: var(--signal-cognitive-soft, #b9ccc5);
+}
+
+.personality {
+  color: var(--ink);
+  background: var(--signal-personality-soft, #efd49c);
+}
+
+.response {
+  color: var(--paper);
+  background: var(--signal-response, #743b2d);
+}
+
+.diagramStage {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  background:
+    radial-gradient(circle at 13% 18%, color-mix(in srgb, var(--signal-cognitive-soft, #b9ccc5) 72%, transparent) 0 12%, transparent 12.3%),
+    radial-gradient(circle at 87% 76%, color-mix(in srgb, var(--signal-response-soft, #d7aa8f) 68%, transparent) 0 15%, transparent 15.3%),
+    var(--paper);
+  padding: clamp(1rem, 3vw, 2.5rem);
+}
+
+.diagramOrb {
+  position: absolute;
+  z-index: -1;
+  width: clamp(7rem, 18vw, 14rem);
+  aspect-ratio: 1;
+  border: 1px solid color-mix(in srgb, var(--ink) 18%, transparent);
+  transform: rotate(12deg);
+  pointer-events: none;
+}
+
+.diagramOrb:first-child {
+  top: -4rem;
+  right: 8%;
+  background: color-mix(in srgb, var(--signal-personality-soft, #efd49c) 68%, transparent);
+}
+
+.diagramOrb:nth-child(2) {
+  bottom: -5rem;
+  left: 5%;
+  border-radius: 50%;
+}
+
+.diagramMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0 1.25rem;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.coachingStage {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  background: var(--paper);
+  padding: clamp(1.25rem, 4vw, 3.5rem);
+}
+
+.coachingStage::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 0.5rem;
+  background: linear-gradient(
+    90deg,
+    var(--signal-cognitive, #173e45) 0 25%,
+    var(--signal-cognitive-soft, #b9ccc5) 25% 50%,
+    var(--signal-personality, #d19a51) 50% 75%,
+    var(--signal-response, #743b2d) 75% 100%
+  );
+  transform-origin: left;
+}
+
+.coachingStage :global(.stepper-flow) {
+  position: relative;
+  z-index: 1;
+}
+
+.coachingStage :global(.stepper-track-fill) {
+  background: var(--stepper-accent, var(--signal-cognitive));
+  transition: width 720ms var(--ease-editorial, ease), background-color 500ms ease;
+}
+
+.coachingStage :global(.stepper-circle) {
+  transition:
+    transform 560ms var(--ease-spring, ease),
+    background-color 420ms ease,
+    border-color 420ms ease,
+    box-shadow 420ms ease;
+}
+
+.coachingStage :global(.stepper-step[data-active="true"] .stepper-circle) {
+  background: var(--stepper-accent, var(--signal-cognitive));
+  border-color: var(--stepper-accent, var(--signal-cognitive));
+  box-shadow: 0 0 0 0.55rem color-mix(in srgb, var(--stepper-soft, #b9ccc5) 55%, transparent);
+  transform: scale(1.14);
+}
+
+.coachingStage :global(.stepper-vrow[data-active="true"]) {
+  background: color-mix(in srgb, var(--stepper-soft, #b9ccc5) 45%, transparent);
+}
+
+.stageLedger {
+  display: grid;
+  margin-top: 2.75rem;
+  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule);
+}
+
+.stageLedger > div {
+  min-height: 7rem;
+  padding: 1.25rem;
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+}
+
+.stageLedger > div:nth-child(1) {
+  background: color-mix(in srgb, var(--signal-cognitive-soft, #b9ccc5) 26%, var(--paper));
+}
+
+.stageLedger > div:nth-child(2) {
+  background: color-mix(in srgb, var(--signal-cognitive-soft, #b9ccc5) 14%, var(--paper));
+}
+
+.stageLedger > div:nth-child(3) {
+  background: color-mix(in srgb, var(--signal-personality-soft, #efd49c) 24%, var(--paper));
+}
+
+.stageLedger > div:nth-child(4) {
+  background: color-mix(in srgb, var(--signal-response-soft, #d7aa8f) 24%, var(--paper));
+}
+
+.stageLedger span {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: currentColor;
+  opacity: 0.62;
+}
+
+.stageLedger strong {
+  display: block;
+  margin-top: 1.5rem;
+  font-family: var(--font-instrument-serif), serif;
+  font-size: clamp(1.4rem, 3vw, 2rem);
+  font-weight: 400;
+  line-height: 1;
+}
+
+.oqlSignal {
+  position: relative;
+  display: grid;
+  min-height: clamp(18rem, 40vw, 32rem);
+  overflow: hidden;
+  border: 1px solid var(--rule-strong);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.oqlSignal::after {
+  content: "12";
+  position: absolute;
+  right: -0.04em;
+  bottom: -0.23em;
+  font-family: var(--font-instrument-serif), serif;
+  font-size: clamp(13rem, 35vw, 32rem);
+  line-height: 0.8;
+  color: color-mix(in srgb, var(--paper) 8%, transparent);
+  pointer-events: none;
+}
+
+.oqlTile {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 10rem;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  border-bottom: 1px solid color-mix(in srgb, var(--paper) 20%, transparent);
+}
+
+.oqlTile:last-child {
+  border-bottom: 0;
+}
+
+.oqlTile:nth-child(1) {
+  color: var(--ink);
+  background: var(--paper-warm, #f5efe3);
+}
+
+.oqlTile:nth-child(2) {
+  color: var(--ink);
+  background: var(--signal-personality-soft, #efd49c);
+}
+
+.oqlTile:nth-child(3) {
+  background: var(--ink);
+}
+
+.oqlTile i {
+  position: absolute;
+  top: 18%;
+  right: 12%;
+  width: clamp(2.5rem, 7vw, 5.5rem);
+  aspect-ratio: 1;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  opacity: 0.22;
+  pointer-events: none;
+}
+
+.oqlTile:nth-child(2) i {
+  top: 42%;
+  border-radius: 0;
+  transform: rotate(12deg);
+
+}
+
+.oqlTile:nth-child(3) i {
+  top: 26%;
+  border-radius: 0;
+  transform: rotate(-9deg);
+}
+
+.oqlTile strong {
+  font-family: var(--font-instrument-serif), serif;
+  font-size: clamp(4rem, 11vw, 8rem);
+  font-weight: 400;
+  line-height: 0.8;
+}
+
+.oqlTile span {
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.qualityGrid {
+  display: grid;
+  border-top: 1px solid var(--rule-strong);
+  border-left: 1px solid var(--rule-strong);
+}
+
+.qualityCard {
+  position: relative;
+  display: grid;
+  min-height: 9.5rem;
+  grid-template-columns: auto 1fr;
+  align-items: end;
+  gap: 1.25rem;
+  overflow: hidden;
+  padding: 1.35rem;
+  border-right: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--paper);
+  transition:
+    opacity 620ms var(--ease-editorial, ease),
+    color 520ms var(--ease-editorial, ease),
+    background-color 520ms var(--ease-editorial, ease),
+    transform 520ms var(--ease-editorial, ease);
+}
+
+.qualityCard::before {
+  content: "";
+  position: absolute;
+  inset: auto -2rem -3rem auto;
+  width: 7rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--card-accent);
+  opacity: 0.18;
+  transform: scale(0.75);
+  transition: transform 620ms var(--ease-spring, ease), opacity 420ms ease;
+}
+
+.qualityCard:hover {
+  z-index: 1;
+  color: var(--card-ink, var(--ink));
+  background: var(--card-surface);
+  transform: translateY(-0.35rem);
+}
+
+.qualityCard:hover::before {
+  opacity: 0.6;
+  transform: scale(1.35);
+}
+
+.qualityCard[data-accent="paper"] {
+  --card-accent: var(--brass-text, #735027);
+  --card-surface: var(--paper-warm, #f5efe3);
+}
+
+.qualityCard[data-accent="brass"] {
+  --card-accent: var(--brass, #b5803c);
+  --card-surface: var(--signal-personality-soft, #efd49c);
+}
+
+.qualityCard[data-accent="ink"] {
+  --card-accent: var(--ink);
+  --card-surface: var(--cream-deep, #e5d8c2);
+}
+
+.qualityIndex {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-plex-mono), monospace;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  opacity: 0.68;
+}
+
+.qualityCard h3 {
+  position: relative;
+  z-index: 1;
+  max-width: 16ch;
+  font-family: var(--font-instrument-serif), serif;
+  font-size: clamp(1.4rem, 2.7vw, 2rem);
+  font-weight: 400;
+  line-height: 1.02;
+}
+
+@media (min-width: 640px) {
+  .signalLegend,
+  .oqlSignal {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .signalLegend > div,
+  .oqlTile {
+    border-right: 1px solid var(--rule-strong);
+    border-bottom: 0;
+  }
+
+  .signalLegend > div:last-child,
+  .oqlTile:last-child {
+    border-right: 0;
+  }
+
+  .stageLedger,
+  .qualityGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .stageLedger {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .qualityGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signalLegend > div,
+  .signalLegend > div::after,
+  .stageLedger > div,
+  .qualityCard,
+  .qualityCard::before,
+  .coachingStage :global(.stepper-circle),
+  .coachingStage :global(.stepper-track-fill) {
+    transition-duration: 0.01ms !important;
+    transform: none !important;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .signalLegend > div:hover,
+  .stageLedger > div:hover,
+  .qualityCard:hover {
+    transform: none;
+  }
+}

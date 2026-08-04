@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "@/components/admin/Toast";
 import EmptyState from "@/components/admin/EmptyState";
 import InspectPanel from "@/components/admin/InspectPanel";
 import ActionMenu, { type ActionItem } from "@/components/admin/ActionMenu";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 
 type Tenant = {
   id: string;
@@ -21,9 +22,30 @@ type Tenant = {
   seatState?: "HAS_ROOM" | "AT_CAPACITY" | "OVER_CAPACITY";
 };
 
+type TenantListMeta = {
+  returned: number;
+  limit: number;
+  totalMatchingFilters: number | null;
+  totalCandidates: number;
+  hasMore: boolean;
+  truncated: boolean;
+};
+
 export default function TenantsClient() {
   const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q")?.trim() || "";
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const tenantRequestRef = useRef<AbortController | null>(null);
+  const [listMeta, setListMeta] = useState<TenantListMeta>({
+    returned: 0,
+    limit: 100,
+    totalMatchingFilters: 0,
+    totalCandidates: 0,
+    hasMore: false,
+    truncated: false,
+  });
+  const [listLimit, setListLimit] = useState(100);
   const [query, setQuery] = useState("");
   const [includeArchived, setIncludeArchived] = useState(false);
   const [typeFilter, setTypeFilter] = useState<"" | "ORGANIZATION" | "SOLO">("ORGANIZATION");
@@ -37,6 +59,11 @@ export default function TenantsClient() {
   const [busyTenantId, setBusyTenantId] = useState("");
   const [bulkBusy, setBulkBusy] = useState(false);
   const [selectedTenantIds, setSelectedTenantIds] = useState<string[]>([]);
+  const [archiveConfirm, setArchiveConfirm] = useState({
+    open: false,
+    targetArchived: false,
+    busy: false,
+  });
 
   const [createForm, setCreateForm] = useState({
     name: "",
@@ -56,6 +83,10 @@ export default function TenantsClient() {
   }>({ open: false, title: "", data: null, loading: false });
 
   const loadTenants = useCallback(async () => {
+    tenantRequestRef.current?.abort();
+    const controller = new AbortController();
+    tenantRequestRef.current = controller;
+    setListLoading(true);
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (includeArchived) params.set("includeArchived", "1");
@@ -63,42 +94,68 @@ export default function TenantsClient() {
     if (seatStateFilter) params.set("seatState", seatStateFilter);
     params.set("sortBy", sortBy);
     params.set("sortOrder", sortOrder);
+    params.set("limit", String(listLimit));
 
-    const res = await fetch(`/api/admin/tenants?${params.toString()}`);
-    const data = await res.json();
-    const rows = data.tenants || [];
-    setTenants(rows);
-    setSelectedTenantIds((prev) => prev.filter((id) => rows.some((row: Tenant) => row.id === id)));
-
-    setEditByTenant((prev) => {
-      const next = { ...prev };
-      for (const tenant of rows) {
-        if (!next[tenant.id]) {
-          next[tenant.id] = {
-            name: tenant.name,
-            seatLimit: tenant.seatLimit,
-            isArchived: tenant.isArchived,
-          };
-        }
+    try {
+      const res = await fetch(`/api/admin/tenants?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to load organisations.");
       }
-      return next;
-    });
-  }, [includeArchived, query, seatStateFilter, sortBy, sortOrder, typeFilter]);
+      if (tenantRequestRef.current !== controller) return;
+      const rows = (data as { tenants?: Tenant[] }).tenants || [];
+      setTenants(rows);
+      setListMeta(
+        (data as { meta?: TenantListMeta }).meta || {
+          returned: rows.length,
+          limit: 100,
+          totalMatchingFilters: rows.length,
+          totalCandidates: rows.length,
+          hasMore: false,
+          truncated: false,
+        },
+      );
+      setSelectedTenantIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
 
-  useEffect(() => {
-    loadTenants();
-  }, [loadTenants]);
-
-  useEffect(() => {
-    const q = searchParams.get("q")?.trim() || "";
-    if (q && q !== query) {
-      setQuery(q);
+      setEditByTenant((prev) => {
+        const next = { ...prev };
+        for (const tenant of rows) {
+          if (!next[tenant.id]) {
+            next[tenant.id] = {
+              name: tenant.name,
+              seatLimit: tenant.seatLimit,
+              isArchived: tenant.isArchived,
+            };
+          }
+        }
+        return next;
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast(error instanceof Error ? error.message : "Failed to load organisations.", "error");
+    } finally {
+      if (tenantRequestRef.current === controller && !controller.signal.aborted) {
+        setListLoading(false);
+      }
     }
-  }, [query, searchParams]);
+  }, [includeArchived, listLimit, query, seatStateFilter, sortBy, sortOrder, typeFilter]);
 
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") loadTenants();
-  }
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => void loadTenants(),
+      query.trim() ? 250 : 0,
+    );
+    return () => {
+      window.clearTimeout(timeout);
+      tenantRequestRef.current?.abort();
+    };
+  }, [loadTenants, query]);
+
+  useEffect(() => {
+    setQuery(urlQuery);
+  }, [urlQuery]);
 
   function resetFilters() {
     setQuery("");
@@ -238,17 +295,16 @@ export default function TenantsClient() {
     });
   }
 
-  async function runBulkArchive(targetArchived: boolean) {
+  function runBulkArchive(targetArchived: boolean) {
     if (selectedTenantIds.length === 0) {
       toast("Select at least one organisation.", "error");
       return;
     }
 
-    const confirmed = window.confirm(
-      `${targetArchived ? "Archive" : "Unarchive"} ${selectedTenantIds.length} selected organisations?`,
-    );
-    if (!confirmed) return;
+    setArchiveConfirm({ open: true, targetArchived, busy: false });
+  }
 
+  async function executeBulkArchive(targetArchived: boolean) {
     setBulkBusy(true);
     let successCount = 0;
     let failCount = 0;
@@ -344,7 +400,6 @@ export default function TenantsClient() {
             className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
             placeholder="Search organisations…"
           />
           <select
@@ -429,6 +484,26 @@ export default function TenantsClient() {
             Export CSV
           </button>
         </div>
+        <p className="mt-3 text-xs text-slate-500">
+          {listMeta.totalMatchingFilters === null
+            ? `Showing ${tenants.length} organisation(s) from a bounded window of ${listMeta.totalCandidates} candidates.`
+            : `Showing ${tenants.length} of ${listMeta.totalMatchingFilters} matching organisation(s).`}
+        </p>
+        {listMeta.hasMore ? (
+          <div className="mt-2 flex flex-wrap items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+            <p>This list does not cover every matching record. CSV export will refuse an incomplete file.</p>
+            {listMeta.limit < 500 ? (
+              <button
+                className="rounded-lg border border-amber-300 bg-white px-2.5 py-1 font-semibold hover:bg-amber-100"
+                onClick={() => setListLimit((current) => Math.min(500, current + 100))}
+              >
+                Load 100 more
+              </button>
+            ) : (
+              <span className="font-medium">Narrow the filters to inspect the remaining records.</span>
+            )}
+          </div>
+        ) : null}
 
         <div className="mt-4 overflow-auto rounded-xl border border-slate-200">
           {selectedTenantIds.length > 0 && (
@@ -461,7 +536,7 @@ export default function TenantsClient() {
               </div>
             </div>
           )}
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm" aria-busy={listLoading}>
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">
@@ -481,7 +556,13 @@ export default function TenantsClient() {
               </tr>
             </thead>
             <tbody>
-              {tenants.length === 0 ? (
+              {listLoading && tenants.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={7}>
+                    Loading organisations…
+                  </td>
+                </tr>
+              ) : tenants.length === 0 ? (
                 <EmptyState
                   icon="🏢"
                   title="No organisations found"
@@ -605,6 +686,25 @@ export default function TenantsClient() {
           )
         ) : null}
       </InspectPanel>
+
+      <ConfirmDialog
+        open={archiveConfirm.open}
+        title={`${archiveConfirm.targetArchived ? "Archive" : "Unarchive"} Organisations`}
+        message={`${archiveConfirm.targetArchived ? "Archive" : "Unarchive"} ${selectedTenantIds.length} selected organisations?`}
+        confirmLabel={archiveConfirm.targetArchived ? "Archive" : "Unarchive"}
+        variant={archiveConfirm.targetArchived ? "danger" : "default"}
+        busy={archiveConfirm.busy}
+        onConfirm={() => {
+          const targetArchived = archiveConfirm.targetArchived;
+          setArchiveConfirm((prev) => ({ ...prev, busy: true }));
+          void executeBulkArchive(targetArchived).finally(() => {
+            setArchiveConfirm({ open: false, targetArchived: false, busy: false });
+          });
+        }}
+        onCancel={() =>
+          setArchiveConfirm({ open: false, targetArchived: false, busy: false })
+        }
+      />
     </div>
   );
 }

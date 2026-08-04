@@ -78,6 +78,12 @@ enum UnenrollJobStatus {
   CANCELLED
 }
 
+enum InviteDeliveryState {
+  IN_FLIGHT
+  UNKNOWN
+  SENT
+}
+
 model Tenant {
   id         String     @id @default(cuid())
   name       String
@@ -113,6 +119,7 @@ model User {
   manager                 User?                            @relation("UserManager", fields: [managerId], references: [id])
   reports                 User[]                           @relation("UserManager")
   assessmentSessions      QuizSession[]
+  assessmentPreviews      AssessmentPreviewSession[]
   userEnrollments         AssessmentUserEnrollment[]
   reportAccessOverrides   AssessmentReportAccessOverride[]
   reportShareTokens       AssessmentReportShareToken[]
@@ -186,6 +193,7 @@ model Assessment {
   sections               AssessmentSection[]
   questions              Question[]
   sessions               QuizSession[]
+  previewSessions        AssessmentPreviewSession[]
   scores                 Score[]
   reports                Report[]
   retestEligibilities    RetestEligibility[]
@@ -377,38 +385,72 @@ model AssessmentReportAccessOverride {
 }
 
 model AssessmentReportShareToken {
-  id            String    @id @default(cuid())
-  tokenHash     String    @unique
-  assessmentId  String
-  userId        String
-  expiresAt     DateTime
-  maxDownloads  Int       @default(5)
-  downloadsUsed Int       @default(0)
-  revokedAt     DateTime?
-  sourceJobId   String?
-  createdAt     DateTime  @default(now())
+  id                    String    @id @default(cuid())
+  tokenHash             String    @unique
+  assessmentId          String
+  userId                String
+  reportId              String
+  publicationVersionKey String
+  expiresAt             DateTime
+  maxDownloads          Int       @default(5)
+  downloadsUsed         Int       @default(0)
+  revokedAt             DateTime?
+  sourceJobId           String?
+  createdAt             DateTime  @default(now())
 
   assessment Assessment             @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  report     Report                 @relation(fields: [reportId], references: [id], onDelete: Cascade)
   sourceJob  AssessmentUnenrollJob? @relation(fields: [sourceJobId], references: [id], onDelete: SetNull)
 
   @@index([assessmentId, userId])
+  @@index([reportId])
   @@index([expiresAt])
 }
 
 model QuizSession {
-  id           String        @id @default(cuid())
-  assessmentId String
-  userId       String
-  status       SessionStatus @default(IN_PROGRESS)
-  startedAt    DateTime      @default(now())
-  submittedAt  DateTime?
+  id                           String        @id @default(cuid())
+  assessmentId                 String
+  userId                       String
+  status                       SessionStatus @default(IN_PROGRESS)
+  startedAt                    DateTime      @default(now())
+  submittedAt                  DateTime?
+  submissionClaimId            String?
+  submissionClaimedAt         DateTime?
+  submissionAnswerSnapshotHash String?
 
   assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   answers    Answer[]
 
   @@unique([assessmentId, userId])
+}
+
+model AssessmentPreviewSession {
+  id           String        @id
+  assessmentId String
+  adminId      String
+  answersJson  Json
+  status       SessionStatus @default(IN_PROGRESS)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  expiresAt    DateTime
+
+  assessment Assessment @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
+  admin      User       @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@unique([assessmentId, adminId])
+  @@index([adminId, expiresAt])
+  @@index([expiresAt])
+}
+
+model AuthRateLimitBucket {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
 }
 
 model RetestEligibility {
@@ -464,18 +506,20 @@ model Score {
 }
 
 model Report {
-  id             String                @id @default(cuid())
-  assessmentId   String
-  userId         String
-  narrativeJson  String
-  status         ReportStatus          @default(PUBLISHED)
-  availableAt    DateTime?
-  deliveryMethod ReportDeliveryMethod?
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @default(now()) @updatedAt
+  id                    String                @id @default(cuid())
+  assessmentId          String
+  userId                String
+  narrativeJson         String
+  status                ReportStatus          @default(DRAFT)
+  publicationGeneration Int                   @default(0)
+  availableAt           DateTime?
+  deliveryMethod        ReportDeliveryMethod?
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @default(now()) @updatedAt
 
   assessment Assessment      @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   pdfAsset   ReportPdfAsset?
+  shareTokens AssessmentReportShareToken[]
 
   @@unique([assessmentId, userId])
 }
@@ -519,17 +563,23 @@ model ReportArchive {
 }
 
 model Invite {
-  id         String    @id @default(cuid())
-  tenantId   String
-  email      String
-  token      String    @unique
-  expiresAt  DateTime
-  acceptedAt DateTime?
-  createdAt  DateTime  @default(now())
+  id                   String              @id @default(cuid())
+  tenantId             String
+  email                String
+  token                String              @unique
+  expiresAt            DateTime
+  acceptedAt           DateTime?
+  deliveryState        InviteDeliveryState @default(SENT)
+  deliveryClaimId      String?
+  deliveryClaimedAt    DateTime?
+  deliveryAttemptCount Int                 @default(0)
+  providerDeliveryId   String?
+  createdAt            DateTime            @default(now())
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+  @@index([tenantId, deliveryState, expiresAt])
 }
 
 model AuditLog {

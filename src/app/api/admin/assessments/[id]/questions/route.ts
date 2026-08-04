@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/api-auth";
+import { recordAuditLog } from "@/lib/audit-log";
 import { db } from "@/lib/db";
+import { normalizeQuestionImageUrl } from "@/lib/question-image-policy";
+import { resolveQuestionScale } from "@/lib/assessment-definition";
+import {
+  ASSESSMENT_CONTENT_HISTORY_ERROR,
+  assessmentHasAttemptHistory,
+  lockAssessmentContent,
+} from "@/lib/assessment-content-lock";
 
 type OptionImpactInput = {
   competencyCode?: string;
@@ -73,11 +81,6 @@ function normalizeOptionalText(input?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function parseScaleValue(input: unknown, fallback: number) {
-  if (typeof input !== "number" || !Number.isFinite(input)) return fallback;
-  return Math.round(input);
-}
-
 function normalizeQuestionOptions(options: OptionInput[] | undefined, questionType: string) {
   if (questionType !== "SJT_SINGLE") return [];
 
@@ -112,12 +115,14 @@ function normalizeQuestionImage(input: {
   imageAlt?: string;
   imageCaption?: string;
 }) {
-  const imageUrl = input.imageUrl?.trim() || null;
-  if (!imageUrl) {
+  const imageUrlInput = typeof input.imageUrl === "string" ? input.imageUrl.trim() : "";
+  const imageUrl = normalizeQuestionImageUrl(imageUrlInput);
+  if (!imageUrlInput) {
     return {
       imageUrl: null,
       imageAlt: null,
       imageCaption: null,
+      invalidImageUrl: false,
     };
   }
 
@@ -125,6 +130,7 @@ function normalizeQuestionImage(input: {
     imageUrl,
     imageAlt: input.imageAlt?.trim() || null,
     imageCaption: input.imageCaption?.trim() || null,
+    invalidImageUrl: !imageUrl,
   };
 }
 
@@ -193,14 +199,18 @@ export async function POST(
   const payload = body ?? {};
 
   const questionType = pickQuestionType(payload.questionType);
-  const scaleMin = parseScaleValue(payload.scaleMin, 1);
-  const scaleMax = parseScaleValue(payload.scaleMax, questionType === "FREE_TEXT" ? 1 : 5);
-  if (scaleMax < scaleMin) {
+  const scale = resolveQuestionScale({
+    questionType,
+    scaleMin: payload.scaleMin,
+    scaleMax: payload.scaleMax,
+  });
+  if (!scale.ok) {
     return NextResponse.json(
-      { error: "Scale max must be greater than or equal to scale min." },
-      { status: 400 },
+      { error: scale.error },
+      { status: 422 },
     );
   }
+  const { scaleMin, scaleMax } = scale;
 
   const section = payload.sectionId
     ? await db.assessmentSection.findFirst({
@@ -224,14 +234,33 @@ export async function POST(
   }
 
   const questionImage = normalizeQuestionImage(payload);
+  if (questionImage.invalidImageUrl) {
+    return NextResponse.json(
+      {
+        error:
+          "Image URL must use /question-images/ or an OLQ Lab managed Vercel Blob URL.",
+      },
+      { status: 422 },
+    );
+  }
   const normalizedOptions = normalizeQuestionOptions(payload.options, questionType);
+  if (questionType === "SJT_SINGLE" && normalizedOptions.length < 2) {
+    return NextResponse.json(
+      { error: "Single-choice scenario questions require at least two options." },
+      { status: 400 },
+    );
+  }
 
-  const maxSort = await db.question.aggregate({
-    where: { assessmentId: id },
-    _max: { sortOrder: true },
-  });
+  const outcome = await db.$transaction(async (tx) => {
+    await lockAssessmentContent(tx, id);
+    if (await assessmentHasAttemptHistory(tx, id)) {
+      return { conflict: true as const };
+    }
 
-  const question = await db.$transaction(async (tx) => {
+    const maxSort = await tx.question.aggregate({
+      where: { assessmentId: id },
+      _max: { sortOrder: true },
+    });
     const createdQuestion = await tx.question.create({
       data: {
         assessmentId: id,
@@ -291,11 +320,33 @@ export async function POST(
       }
     }
 
-    return tx.question.findUnique({
+    const savedQuestion = await tx.question.findUnique({
       where: { id: createdQuestion.id },
       include: questionDetailInclude,
     });
+    await recordAuditLog(
+      {
+        tenantId: check.liveUser.tenantId,
+        actorId: check.liveUser.id,
+        action: "ASSESSMENT_QUESTION_CREATED",
+        metadata: {
+          assessmentId: id,
+          questionId: createdQuestion.id,
+          questionType,
+          optionCount: normalizedOptions.length,
+        },
+      },
+      tx,
+    );
+    return { conflict: false as const, question: savedQuestion };
   });
 
-  return NextResponse.json({ question }, { status: 201 });
+  if (outcome.conflict) {
+    return NextResponse.json(
+      { error: ASSESSMENT_CONTENT_HISTORY_ERROR },
+      { status: 409 },
+    );
+  }
+
+  return NextResponse.json({ question: outcome.question }, { status: 201 });
 }

@@ -2,22 +2,28 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT } from "@/lib/assessment-response-acknowledgement";
 
 function formatDateTime(input: string | null | undefined) {
   if (!input) return null;
   const parsed = new Date(input);
   if (Number.isNaN(parsed.getTime())) return null;
-  return parsed.toLocaleString();
+  return parsed.toLocaleString(undefined, { timeZoneName: "short" });
 }
 
 export default function StartAssessmentButton({ assessmentId }: { assessmentId: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [acknowledged, setAcknowledged] = useState(false);
 
   async function startSession() {
     if (!assessmentId) {
       setError("Missing assessment ID. Please return to Assessment Center and try again.");
+      return;
+    }
+    if (!acknowledged) {
+      setError("Please acknowledge response processing before starting.");
       return;
     }
 
@@ -29,7 +35,7 @@ export default function StartAssessmentButton({ assessmentId }: { assessmentId: 
       const res = await fetch("/api/assessment/sessions/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assessmentId }),
+        body: JSON.stringify({ assessmentId, acknowledged: true }),
         signal: controller.signal,
       }).finally(() => clearTimeout(timeout));
       const data = await res.json().catch(() => ({}));
@@ -66,15 +72,26 @@ export default function StartAssessmentButton({ assessmentId }: { assessmentId: 
   }
 
   return (
-    <>
+    <div className="mt-6 space-y-4">
+      <label className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+        <input
+          type="checkbox"
+          className="mt-1 h-4 w-4 rounded border-slate-300 accent-slate-900"
+          checked={acknowledged}
+          onChange={(event) => setAcknowledged(event.target.checked)}
+        />
+        <span>{ASSESSMENT_RESPONSE_ACKNOWLEDGEMENT.text}</span>
+      </label>
+      <p className="text-xs text-slate-500">You can leave this page without starting the assessment.</p>
       <button
-        className="mt-6 rounded-xl bg-slate-900 px-5 py-3 font-medium text-white disabled:opacity-50"
+        type="button"
+        className="rounded-xl bg-slate-900 px-5 py-3 font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
         onClick={startSession}
-        disabled={loading}
+        disabled={loading || !acknowledged}
       >
         {loading ? "Starting..." : "Begin Assessment"}
       </button>
-      {error ? <p className="mt-3 text-sm font-medium text-rose-700">{error}</p> : null}
-    </>
+      {error ? <p className="text-sm font-medium text-rose-700" role="alert">{error}</p> : null}
+    </div>
   );
 }

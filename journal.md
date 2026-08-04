@@ -1189,3 +1189,722 @@ This file is the append-only engineering diary for implementation work in this r
   - Existing links generated before rollout retain old direct-callback behavior.
 - Next step:
   - Run browser smoke tests with one fresh sign-in link from a scanner-heavy mailbox to confirm the new confirm-step behavior reduces invalid-link incidents.
+
+## Entry 2026-04-29-01
+- Timestamp (UTC): 2026-04-29T06:29:46Z
+- Timestamp (Local): 2026-04-29 11:59 IST (+0530)
+- Task: Add an aesthetic full-screen "securely signing you in" overlay between the `Continue to sign-in` click and the dashboard landing, so users have a clear, on-brand signal during the 5-10 second NextAuth verification + dashboard render window.
+- Why: After fixing the staging `NEXTAUTH_URL` misconfiguration, sign-in works end-to-end but the post-Continue verification feels broken because the browser sits on a blank/loading state while the magic-link callback verifies the token, runs the `signIn` callback (User + Seat lookup), creates the session row, and the dashboard server-renders three more queries. User reported it looked stuck.
+- What changed:
+  - Added client component `src/app/(auth)/signin/confirm/ContinueButton.tsx`.
+    - Replaces the inline server-rendered form on `/signin/confirm` with a state-machine-driven submit handler.
+    - On submit: prevents default, sets `signing` state, POSTs the same `/api/auth/continue` request via `fetch` with `credentials: "include"` and `redirect: "follow"` so the browser still picks up the NextAuth `Set-Cookie` from the redirect chain.
+    - Enforces a `MIN_HOLD_MS = 1200` minimum visible duration so the badge gets a beat to spin even on warm-path responses.
+    - On success: switches to `completing` state for 700 ms, then `window.location.assign(response.url || "/dashboard")`.
+    - On network error: switches to `error` state for 1.4 s, then routes to `/signin?error=invalid_link`.
+    - Renders an inline `SignInOverlay` subcomponent (same file, private) that takes the current state and shows the rotating brass `LEADERSHIP · BEGINS · WITHIN` badge, an editorial headline (`Securely signing you in.` / `Welcome back.` / `Something went wrong.`), supporting copy, and an indeterminate brass progress bar that becomes determinate at 100% in the `completing` state.
+  - Updated `src/app/(auth)/signin/confirm/page.tsx`:
+    - Imported `ContinueButton` from `./ContinueButton`.
+    - Replaced the inline `<form action="/api/auth/continue" ...>` block with `<ContinueButton tokenUrl={validated.absoluteUrl} />`.
+    - Server-rendered greeting, validation logic, error branch, and overall layout are unchanged.
+  - Appended a Sign-in overlay block to `src/app/globals.css`:
+    - `.signin-overlay`, `.signin-overlay-inner`, `.signin-badge-wrap`, `.signin-copy`, `.signin-eyebrow`, `.signin-headline`, `.signin-subtitle`, `.signin-progress`, `.signin-progress-fill`.
+    - Reuses existing `--cream`, `--ink`, `--brass`, `--ink-soft` tokens and the existing `reveal-fade` / `reveal-fade-up` keyframes.
+    - Adds `signin-overlay-in` and `signin-progress-slide` keyframes.
+    - State-conditional styling on `[data-state="completing"]` (progress fills 100%) and `[data-state="error"]` (muted ink-toned bar).
+    - `prefers-reduced-motion: reduce` block disables the rotating badge, fade-in animations, and progress slide so accessibility settings are honored.
+- How:
+  - Kept the §13.18 contract intact: the form still POSTs to `/api/auth/continue` and the NextAuth callback chain (`/api/auth/callback/email`) still consumes the token. Only the *client* presentation around the existing endpoint changed; the route, validation logic, and redirect target are untouched.
+  - Reused `src/components/marketing/RotatingBadge.tsx` as-is (it is already a server-renderable SVG with the brass circular text). No new image assets, no new fonts.
+  - Used `fetch` with `redirect: "follow"` so the browser still receives `Set-Cookie` headers from the verification endpoint mid-redirect-chain. Then a final `window.location.assign(response.url)` triggers a real navigation, where the now-set session cookie is sent to `/dashboard`.
+  - Single atomic commit so rollback is `git revert <sha>` with no env vars, schema changes, or migrations.
+- Validation/output:
+  - `npm run lint` -> passed with 0 errors. Same 3 pre-existing warnings in `ReportEditorClient.tsx` and `report-format.ts` remain. No new warnings introduced.
+  - `npm run build` -> "Compiled successfully in 4.1s". `/signin/confirm` route present in build manifest as `ƒ` (server-rendered on demand).
+  - Local `next dev` render of `/signin/confirm` returns 500 because `DATABASE_URL` is not set on this dev machine. The error stack confirms the failure is in pre-existing code (`db.user.findUnique` at `page.tsx:64:30`), well before `<ContinueButton>` mounts. This is a baseline limitation of the local environment, not a regression.
+  - Static visual preview of the overlay in the three states (signing / completing / error) was rendered from `tmp/overlay-preview.html` (untracked) using inlined CSS copies from the new globals.css block to confirm sizing, copy, motion, and brass progress timing before pushing.
+- Risks/unknowns:
+  - The overlay covers the page during the entire fetch wait. If the fetch hangs (e.g. NextAuth backend stuck), the user sees the indeterminate progress bar indefinitely. Network failures throw and route to `/signin?error=invalid_link`, but a slow-but-not-failed call has no timeout. Acceptable for now since the same wait existed before — just invisible. A client-side timeout (e.g. 30 s) could be added later.
+  - `fetch` with `credentials: "include"` and `redirect: "follow"` is well-supported in modern browsers but does not surface intermediate redirects; if NextAuth ever stops issuing cookies on the verification endpoint and instead requires JavaScript to complete the flow, the silent-fetch model would break. Current NextAuth v4 EmailProvider behavior is fine.
+  - The minimum-hold of 1.2 s deliberately slows fast paths so the animation doesn't flash. If users with very fast warm responses report it feels artificial, the minimum can be lowered or removed.
+- Next step:
+  - Push and let Vercel auto-deploy the `staging` branch.
+  - Manually request a fresh sign-in link on `staging.olqlab.com`, click `Continue to sign-in`, and verify: overlay enters smoothly, badge rotates, progress slides, copy swaps to `Welcome back.` for ~700 ms, then dashboard loads. Confirm `prefers-reduced-motion` users see a static overlay with no animation.
+  - If the visual is approved, fold the same change into `main` via PR. If not approved, revert with a single `git revert <sha>`.
+
+## Entry 2026-05-17-01
+- Timestamp (UTC): 2026-05-17T20:14:37Z
+- Timestamp (Local): 2026-05-18 01:44 IST (+0530)
+- Task: Decouple `PublicHeader` auth check from SSR so all marketing pages can be statically generated and CDN-cached, eliminating the dominant cause of browsing slowness on `olqlab.com`.
+- Why: Investigation confirmed every marketing route (`/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, `/oql`) was rendering as `ƒ Dynamic` solely because `src/components/navigation/PublicHeader.tsx` called `getServerAuthSession()` at the server-component layer. That call read the next-auth cookie (forcing dynamic rendering) and triggered a Postgres roundtrip on every page hit. Vercel sent `Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate` for every HTML response — no CDN reuse, no browser reuse, no prefetch reuse, cold lambdas on every quiet-period visit.
+- What changed:
+  - Added `src/components/navigation/HeaderAuthSlot.tsx`.
+    - `"use client"` island that fetches `/api/auth/session` once on mount.
+    - Renders the anonymous `<Link href="/signin">Sign in</Link>` by default (matches what static HTML serializes).
+    - When the session JSON resolves with a `user.role`, swaps to `<Link href="/dashboard">Dashboard</Link>` + `<ProfileMenu role={...} email={...} />`.
+    - Module-level promise cache (`let cached`) dedupes the session fetch across client-side route hops — one `/api/auth/session` request per SPA session, not per page mount.
+    - `.catch(() => undefined)` falls back to anonymous render if the endpoint errors, so the header never blocks.
+  - Edited `src/components/navigation/PublicHeader.tsx`.
+    - Removed `async` keyword.
+    - Removed `import { getServerAuthSession } from "@/lib/auth";` and `import ProfileMenu from "@/components/navigation/ProfileMenu";`.
+    - Removed the `const session = await getServerAuthSession(); const role = ...; const email = ...;` block.
+    - Removed the 18-line `{!session?.user ? <Link href="/signin">…</Link> : <div>…Dashboard + ProfileMenu…</div>}` ternary.
+    - Added `import HeaderAuthSlot from "@/components/navigation/HeaderAuthSlot";` and rendered `<HeaderAuthSlot />` in the same DOM position the ternary occupied (after the logo + `<NavLinks />`).
+    - Component remains a server component with `Link`, `Image`, `NavLinks` rendered server-side.
+- How:
+  - Single atomic refactor — kept the existing `ProfileMenu` and `signOut` flow untouched; only the parent that decides "show ProfileMenu vs sign-in link" moved client-side.
+  - Used bare `fetch` to `/api/auth/session` rather than wrapping the app in `<SessionProvider>` (the next-auth/react route). Avoids a global client provider and saves bundle weight.
+  - Default render is anonymous because (a) it's the most common state for marketing-page visitors and (b) it matches what Next.js serializes into the static HTML, so anonymous users see no flash. Logged-in visitors briefly see "Sign in" before the swap; explicitly accepted with the user before implementation.
+  - Relied on Next.js App Router's static-by-default behavior — after PublicHeader stops reading cookies, no marketing route reads any dynamic API. No `export const dynamic = 'force-static'` directives added; if a future change introduces dynamic deps it will surface in the build manifest as `ƒ` rather than be silently swallowed.
+- Validation/output:
+  - `npm run lint` -> 0 errors. 6 warnings reported, all duplicates of the 3 pre-existing warnings in `ReportEditorClient.tsx` / `report-format.ts` (ESLint scans both `src/` and a worktree mirror). No new warnings introduced by either changed file.
+  - `npm run build` -> "Compiled successfully in 3.9s". Route manifest now shows:
+    - `○ /`, `○ /about`, `○ /assessments`, `○ /blindspot`, `○ /coaching`, `○ /contact`, `○ /framework`, `○ /oql`, `○ /_not-found`, `○ /singin` — Static (Prerendered).
+    - `ƒ /signin`, `ƒ /signin/confirm` — Dynamic (they call `getServerAuthSession()` themselves for the already-signed-in redirect, expected and acceptable per plan).
+    - `ƒ /dashboard`, `ƒ /admin/*`, `ƒ /reports/*`, `ƒ /assessment/*`, `ƒ /api/*` — Dynamic, correctly behind auth.
+  - Before this change, all marketing pages were `ƒ Dynamic`. Eight pages converted from Dynamic to Static.
+- Risks/unknowns:
+  - Logged-in users browsing marketing pages will see a brief (~100–300 ms warm) flash of "Sign in" before the slot upgrades to "Dashboard + Profile". Explicitly accepted by user; mitigation (CSS `visibility: hidden` until resolved) deferred unless reported.
+  - If `/api/auth/session` is ever modified to require POST or to return non-JSON, the slot will silently fall back to anonymous render — the `.catch` is intentionally broad. Acceptable degradation; the alternative (showing an error) would be worse for UX.
+  - Module-level `cached` promise persists for the lifetime of the JS module instance. A user who signs out via `ProfileMenu` triggers `signOut({ callbackUrl: "/" })` which navigates to `/` with a full page load — the new page load starts a fresh module instance, so the cached session is invalidated correctly. No memory leak.
+  - CDN cache headers depend on Vercel's auto-applied behavior for static routes. Live verification post-deploy will confirm `Cache-Control: public, max-age=…, s-maxage=…` and `X-Vercel-Cache: HIT`.
+  - Local dev render of `/dashboard` will still 500 without `DATABASE_URL`; pre-existing limitation, not affected by this change.
+- Next step:
+  - Push to `staging` and wait for Vercel auto-deploy to READY.
+  - Verify CDN cache headers and `X-Vercel-Cache: HIT` on warm second requests via curl.
+  - Measure warm TTFB on marketing pages — expect drop from 70–200 ms to 20–60 ms range.
+  - Manual browser test: anonymous visit (no flash), signed-in visit (brief flash on marketing pages but ProfileMenu still works), already-signed-in `/signin` redirect to `/dashboard` still functions.
+  - If visual approved on staging, fold into the open PR #1 (`staging` → `main`) so production deploys with the static-marketing change.
+
+## Entry 2026-05-17-02
+- Timestamp (UTC): 2026-05-17T21:18:47Z
+- Timestamp (Local): 2026-05-18 02:48 IST (+0530)
+- Task: Cut per-page-load database overhead on every authenticated route by switching NextAuth from `database` to `jwt` session strategy and request-deduping `getServerAuthSession` with React `cache()`. Also add a repo-level `CLAUDE.md` so future contributors (human and agent) know to maintain `guide.md` and `journal.md`.
+- Why: User reports landing on `/dashboard` from a marketing page takes 3-5 seconds; navigation within the (app) section (clicks on `My Reports`, `Assessment Center`, `Admin Console`) takes 2-3 seconds per click. Investigation traced this to (a) the `session` callback in `src/lib/auth.ts` running a fresh `db.user.findUnique` on every page render to enrich session.user with `role`/`tenantId`/`firstName`/`lastName`, and (b) `getServerAuthSession()` being called twice on every (app) page - once in `(app)/layout.tsx` and again in the page component itself - with no request-scoped cache, causing two identical DB roundtrips per click. With Mumbai-region Postgres latency at ~30-50 ms per query, that is 60-100 ms of pure overhead every authenticated render even before any business queries run.
+- What changed:
+  - `src/lib/auth.ts`:
+    - Added `import { cache } from "react";` at the top of the imports.
+    - Flipped `session: { strategy: "database" }` to `session: { strategy: "jwt" }`.
+    - Added a new `jwt` callback BEFORE the existing `session` callback. On the first invocation after `signIn` (when `user` is defined), it fetches `role`/`tenantId`/`firstName`/`lastName` from the database once and bakes them into the signed JWT cookie as `token.sub`/`token.role`/`token.tenantId`/`token.firstName`/`token.lastName`. On subsequent invocations (where `user` is undefined), it returns the token unchanged.
+    - Rewrote the `session` callback signature from `({ session, user })` to `({ session, token })`. It now reads the JWT claims off `token` and populates `session.user` - pure in-memory work, no database call. Includes safe `||` fallbacks for missing claims.
+    - Replaced the trailing `export function getServerAuthSession() { return getServerSession(authOptions); }` with `export const getServerAuthSession = cache(() => getServerSession(authOptions));`. React `cache()` dedupes identical calls within a single render so that the layout-then-page double-call pattern only triggers one underlying invocation.
+  - `src/types/next-auth.d.ts`:
+    - Added a `declare module "next-auth/jwt"` block augmenting the `JWT` interface with optional `sub`/`role`/`tenantId`/`firstName`/`lastName` claims so TypeScript understands the new token shape.
+  - New file `CLAUDE.md` at the repo root:
+    - Project orientation (Next.js 16 / Tailwind v4 / Prisma 6 / NextAuth 4 / Resend / Vercel) and folder layout.
+    - Pointers to `guide.md` (architectural truth) and `journal.md` (this log) with explicit instructions to append a journal entry in every meaningful commit, per `guide.md` section 15.
+    - References specific guide sections that future contributors must read before touching auth (13.18), Prisma migrations (6.1), line endings (16), and the access model (4).
+    - Lists "things that have bitten us before": NEXTAUTH_URL per-environment, position:fixed inside transformed ancestors (the sign-in overlay portal pattern), `react-hooks/set-state-in-effect` and the module-cache pattern in `HeaderAuthSlot.tsx`, and the constraint that marketing pages must stay static.
+    - Quick reference of paths + commands at the end.
+- How:
+  - JWT strategy is the NextAuth v4 standard alternative to database sessions. The signed cookie carries the claims; the server validates the signature using `NEXTAUTH_SECRET` (already set). No schema migration needed - the existing `Session` Prisma table simply stops being written to. The `PrismaAdapter` remains in use for `VerificationToken` (magic-link tokens) and `User`/`Account` reads during sign-in.
+  - The `jwt` callback runs once per sign-in to do the role/tenant lookup. Subsequent reads (every page render) decode the cookie locally and skip the DB entirely.
+  - React `cache()` works on Promise-returning functions; it memoizes by argument list within a single render tree. Calling `getServerAuthSession()` from both `(app)/layout.tsx` and the child page component now resolves the same Promise.
+  - Trade-off the user explicitly accepted: existing database-strategy session cookies are invalidated by the strategy flip, so all currently-logged-in users get redirected to `/signin` on their next visit and must request a fresh magic link (single one-time event). And database role changes (admin promotes user) only take effect after the user signs out and back in, since the role is now baked into the JWT. Documented in CLAUDE.md and the in-file comment.
+- Validation/output:
+  - `npm run lint` -> 0 errors. 6 warnings, all duplicates of the 3 pre-existing warnings in `ReportEditorClient.tsx` / `report-format.ts` (ESLint scans `src/` and a worktree mirror under `.claude/worktrees/`). No new warnings introduced by either edited file.
+  - `npm run build` -> "Compiled successfully in 4.5s". Route manifest unchanged from previous build: marketing pages still `circle` (Static), authenticated routes still `f` (Dynamic), `/signin` and `/signin/confirm` still `f` (Dynamic).
+  - TypeScript accepts the new `token.role`, `token.tenantId`, etc. references thanks to the `next-auth/jwt` augmentation in `src/types/next-auth.d.ts`.
+- Risks/unknowns:
+  - All currently-logged-in users will be signed out on next visit. Accepted by the user. The new sign-in UX (two-step confirm + animated overlay) makes the re-sign-in fast and on-brand.
+  - Role changes do not auto-propagate. If an admin promotes a user to `ADMIN` while that user has an active session, the user keeps their old `EMPLOYEE` role until they next sign in. For an urgent promotion, the admin can ask the user to sign out and back in. Documented limitation; mitigation if it becomes a real problem is a token-invalidation denylist, but not worth building pre-emptively.
+  - The `Session` Prisma table goes unused but rows persist. Harmless. Cleanup is a manual SQL delete whenever desired - no schema migration required.
+  - `runDueUnenrollJobs` is still being invoked synchronously on every `/reports/current` and `/assessment/current` render. This was flagged in the investigation as Fix #4 but explicitly out of scope per the user. `guide.md` section 14 already calls this out as future hardening (move to Vercel cron).
+  - The N+1 query pattern in `/reports/current` via `resolveAssessmentAccess` (5 queries per completed report) is also still present - Fix #3 in the investigation, also out of scope per the user. The `cache()` wrap helps slightly because the `db.user.findUnique` inside resolveAssessmentAccess hits the same row repeatedly, but Prisma client does not dedupe across calls within a single Promise.all - the dedupe is only at the `getServerAuthSession` level. So `/reports/current` may still feel slow for users with many completed assessments. Worth measuring on staging post-deploy.
+- Next step:
+  - Push to `staging` and wait for Vercel auto-deploy to READY.
+  - Sign in with the test account (old cookie will be invalid - expect to see the `/signin` form first, then the magic-link flow; this is the one-time re-sign-in event).
+  - From `/dashboard`, time the navigation to `/reports/current`, `/assessment/current`, and `/admin` (if ADMIN). Expect the warm-path latency to drop by 50-150 ms per click. Cold lambda penalty still exists but the per-page DB hit is gone.
+  - Inspect Vercel runtime logs (`get_runtime_logs` MCP tool) to compare lambda execution time on `/dashboard` before and after - particularly the duration field. Confirm no error spikes.
+  - If satisfied, fold into PR #1 (`staging` to `main`) and merge to ship the same change to production. Users on `www.olqlab.com` will also need to sign in once on first visit after the prod merge.
+
+## Entry 2026-05-20-01
+- Timestamp (UTC): 2026-05-20T19:23:09Z
+- Timestamp (Local): 2026-05-21 00:53 IST (+0530)
+- Task: Revert the entire workspace re-skin (Phases 0 through 5, commits `e49f376`, `182a09c`, `36c0eb8`, `a9b6db3`) so the authenticated app surfaces return to the prior slate/cyan utility look. Marketing pages, sign-in flow, auth/perf work all kept.
+- Why: User reviewed the editorial workspace and decided it was beautiful but not user-friendly enough for the actual work pages. The editorial vocabulary (display headlines, brass hairlines, sparse rows) reads well for marketing but slows down a participant scanning their report list or an admin operating on a wide table. Decision: keep the public-site identity, walk back the workspace to the prior dense functional design, and iterate from there.
+- What changed:
+  - Single combined revert covering all four workspace re-skin commits, in reverse order: `a9b6db3` (quiz + reports palette), `36c0eb8` (admin), `182a09c` (participant pages), `e49f376` (chrome + dashboard). Affects 31 files net.
+  - All workspace pages restored to their pre-reskin state: `src/app/(app)/dashboard/page.tsx`, `src/app/(app)/reports/current/page.tsx`, `src/app/(app)/assessment/current/page.tsx`, `src/app/(app)/assessment/[assessmentId]/page.tsx`, `src/app/(app)/assessment/[assessmentId]/StartAssessmentButton.tsx`, `src/app/(app)/assessment/session/[sessionId]/page.tsx`, `src/app/(app)/reports/me/[assessmentId]/page.tsx`, `src/app/(app)/reports/leader/[userId]/[assessmentId]/page.tsx`, `src/app/reports/shared/[token]/page.tsx`, `src/app/(app)/admin/layout.tsx`, `src/app/(app)/admin/page.tsx`, `src/app/(app)/admin/users/UsersClient.tsx`, `src/app/(app)/admin/tenants/TenantsClient.tsx`, `src/app/(app)/admin/assessments/AssessmentsClient.tsx`, `src/app/(app)/admin/assessments/[id]/AssessmentDetailClient.tsx`, `src/app/(app)/admin/assessments/[id]/participants/[userId]/responses/page.tsx`, `src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx`, `src/app/(app)/admin/settings/SettingsClient.tsx`.
+  - All shared workspace components restored: `src/components/navigation/AppShell.tsx`, `src/components/navigation/ProfileMenu.tsx`, `src/components/admin/Toast.tsx`, `src/components/admin/ConfirmDialog.tsx`, `src/components/admin/EmptyState.tsx`, `src/components/admin/ActionMenu.tsx`, `src/components/admin/InspectPanel.tsx`.
+  - `src/components/effects/CustomCursor.tsx` and `src/components/effects/ScrollReveal.tsx` lose their pathname-aware bail — they now run across the whole site again, including the workspace. (User did say earlier to remove them from the internals; if they still want this kept, we can re-introduce just that piece as a small follow-up commit rather than reverting all design work.)
+  - `src/components/navigation/DensityToggle.tsx` deleted along with the density CSS vars and `.workspace-*` utilities at the end of `src/app/globals.css`.
+  - New file `src/components/admin/AdminSubNav.tsx` deleted (was only used by the editorial admin layout).
+  - Journal Entry `2026-05-19-01` (which logged the re-skin) is gone with the revert. This entry replaces it.
+- How:
+  - `git revert --no-commit a9b6db3 36c0eb8 182a09c e49f376` staged all four reverts as a single tree change.
+  - Verified the slate/cyan class names returned to AppShell (14 occurrences), dashboard (24 occurrences), and the directory clients — proving the prior visual state is back.
+  - `npm run lint` -> 0 errors, 6 pre-existing warnings (no change).
+  - `npm run build` -> "Compiled successfully in 4.7s". Route manifest unchanged from earlier: marketing still `circle` Static, authenticated still `f` Dynamic, `/signin` and `/signin/confirm` still `f` Dynamic.
+- Validation/output:
+  - Lint + build pass.
+  - Auth gates verified intact by inspection: `(app)/layout.tsx` still calls `getServerAuthSession()`, the JWT session strategy from `98c85ba` is still in effect, `PublicHeader` is still static (commit `50509b6` preserved), the sign-in overlay still works (`adc6e67`, `f74f700` preserved).
+  - PR #1 (`staging` -> `main`) still has the four re-skin commits in its diff range. The revert will appear as the next commit on top, so the merged diff into `main` will be net-zero for those four — effectively shipping only the marketing+auth+perf work to production, not the workspace re-skin. (Confirm this is the intent before merging the PR.)
+- Risks/unknowns:
+  - The two effect components (CustomCursor, ScrollReveal) are now running on workspace pages again. If the user specifically wants those disabled in the workspace but does NOT want the editorial re-skin, the pathname-bail can be re-added as a tiny isolated commit (~10 lines per file).
+  - Behaviour of CLAUDE.md was unaffected by this revert (it landed in `98c85ba` which is preserved).
+  - The deleted journal entry `2026-05-19-01` is gone from `journal.md` but recoverable from git history (`git show e49f376:journal.md` etc.) if we ever want to re-attempt the re-skin.
+- Next step:
+  - Push to `staging` and confirm Vercel rebuilds cleanly.
+  - User to specify the next direction. Options the user can pick from:
+    1. Keep the slate/cyan look entirely; only reverse course on a few specific irritations they call out.
+    2. Re-introduce the CustomCursor / ScrollReveal pathname-bail (small isolated commit) if the marketing-page effects feel out of place on the workspace.
+    3. Pick a hybrid: bring back specific editorial elements that worked (e.g. the AppShell header) but keep the dense table-style functional pages.
+    4. Pursue the unfinished performance work (Fix #3 batch `resolveAssessmentAccess` to kill the `/reports/current` N+1, Fix #4 move `runDueUnenrollJobs` to a Vercel cron, Fix #6 add missing indexes).
+
+## Entry 2026-07-29-01
+- Timestamp (UTC): 2026-07-29T14:03:16Z
+- Timestamp (Local): 2026-07-29 19:33 IST (+0530)
+- Task: Reduce `CLAUDE.md` to the requested `@agents.md` pointer and perform a full pre-production application audit.
+- Why: The repository had duplicated contributor instructions in `CLAUDE.md`; the requested pointer makes `AGENTS.md` the single working agreement. The staging branch also needed broad release-readiness evidence before promotion to production.
+- What changed:
+  - `CLAUDE.md`: replaced the duplicated 160-line working agreement with exactly one LF-terminated line, `@agents.md`.
+  - `journal.md`: added this audit/change record. No application behavior, API contract, schema, migration, or deployment configuration was changed.
+- How:
+  - Read `AGENTS.md`, the relevant architecture and validation contracts in `guide.md`, and neighboring implementation patterns before auditing.
+  - Reviewed public marketing, sign-in, authenticated participant, assessment, report, leader, admin, enrollment, email, shared-link, upload, migration, dependency, deployment, and operational paths.
+  - Used live staging for non-mutating public/guard checks and a disposable local Postgres database plus local production server for authenticated desktop/mobile browser coverage. The disposable database alone was brought to the current Prisma schema with `prisma db push` after the tracked migration chain failed reconstruction; no shared or production database was modified.
+- Validation/output:
+  - `CLAUDE.md`: `wc -l` returned `1`; byte inspection confirmed exactly `@agents.md\n`.
+  - `npm ci`: completed from the lockfile.
+  - `npm run lint`: passed with 0 errors and the 3 pre-existing warnings in `ReportEditorClient.tsx` / `report-format.ts`.
+  - `npx tsc --noEmit`: passed.
+  - `npm run build`: passed. Required marketing routes remained `○` Static; authenticated/admin/API routes and `/signin` plus `/signin/confirm` remained `ƒ` Dynamic.
+  - `git diff --check`: passed.
+  - Fresh Postgres 16 reconstruction: all 8 tracked migrations applied, but `npm run prisma:seed` then failed because current-schema report/enrollment columns and enums are absent from migration history. Schema diff confirmed the missing migration surface.
+  - Browser QA: exercised staging marketing/sign-in/route guards at desktop and mobile widths, then exercised local authenticated dashboard, assessment start/resume/submit, generated report, admin navigation, assessment policy/preview, and report editor flows. No console errors appeared in the covered flows; multiple release blockers and responsive defects were reproduced and left unfixed for an explicit remediation pass.
+  - `npm audit --omit=dev`: reported 14 runtime dependency vulnerabilities (2 critical, 7 high, 4 moderate, 1 low).
+- Risks/unknowns:
+  - The audit is not a production-data test. Vercel environment values, current production migration rows, Resend delivery, Blob access, OpenAI behavior, scheduled-job execution, and real role-specific accounts still require controlled environment verification.
+  - `AGENTS.md` is currently untracked in this checkout. The requested lowercase `@agents.md` reference may also depend on case-insensitive filename resolution; both details must be handled intentionally when committing from a case-sensitive environment.
+  - Confirmed production blockers remain, including publicly tracked assessment answer/scoring artifacts, migration drift, destructive admin preview behavior, report-release/share-link flaws, email-delivery error handling, stale JWT privileges, exposed scoring metadata, unsanitized report HTML, vulnerable dependencies, and missing automated release gates.
+- Next step:
+  - Do not promote `staging` to production yet. Triage and fix the release blockers in small, reviewed changes, add focused regression tests, reconstruct a fresh database from migrations, rerun the browser matrix, and verify the deployed staging environment before merging the standing production PR.
+
+## Entry 2026-07-30-01
+- Timestamp (UTC): 2026-07-29T21:03:38Z
+- Timestamp (Local): 2026-07-30 02:33 IST (+0530)
+- Task: Paginate long generated-report paragraphs without clipping PDF content.
+- Why: The canonical PDF renderer reserved space once for an entire paragraph but added at most one page. Any paragraph taller than a page then continued drawing below the printable boundary, silently omitting report text from participant, leader, and shared-link downloads.
+- What changed:
+  - `src/lib/report-pdf.ts`: moved the page-space check into the body-line loop so each wrapped line advances to a fresh page before it could cross the bottom margin.
+  - `tests/report-boundaries.test.ts`: added a long single-paragraph regression case that loads the generated document and proves it spans at least three PDF pages; the prior implementation produced only two pages and clipped the remaining lines.
+  - `journal.md`: recorded the production-readiness correction and its verification.
+- How: Kept the existing wrapping, fonts, margins, headers, and footers intact; only the pagination decision changed from one check per paragraph to one check per rendered line.
+- Validation/output:
+  - `npm test -- --run tests/report-boundaries.test.ts`: passed, 16/16 tests.
+  - `npm run typecheck`: passed.
+  - `npm run lint`: passed with 0 errors.
+- Risks/unknowns: Very long reports now correctly create more pages, so generated PDF byte size and render time grow with the full report instead of accidentally clipping it. No production data or external service was exercised in this focused test.
+- Next step: Include this correction in the full release-gate run and verify a representative long report PDF visually before promoting staging to production.
+
+## Entry 2026-07-30-02
+- Timestamp (UTC): 2026-07-29T23:03:01Z
+- Timestamp (Local): 2026-07-30 04:33:01 IST (+0530)
+- Task: Remediate the accepted pre-production findings and prove the application release path end to end.
+- Why: The 2026-07-29 audit reproduced release-blocking gaps in migration history, authorization freshness, assessment integrity, report publication and sharing, invite delivery, upload boundaries, dependency hygiene, operations, accessibility, and responsive behavior. The user explicitly accepted the tracked assessment answer/scoring artifacts and asked for every other finding to be fixed and tested before production.
+- What changed:
+  - Release and operations:
+    - `CLAUDE.md` remains exactly the requested one-line `@agents.md` pointer.
+    - `package.json`, `package-lock.json`, `.nvmrc`, `.env.example`, `scripts/validate-env.ts`, `next.config.ts`, `vercel.json`, `.github/workflows/ci.yml`, `.github/dependabot.yml`, `README.md`, and `SECURITY.md` now pin and validate the supported runtime, run deterministic CI gates, schedule the unenrollment worker, document disclosure and deployment requirements, and add production security headers.
+    - `src/app/manifest.ts`, `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/opengraph-image.tsx`, `src/app/privacy/page.tsx`, `src/app/terms/page.tsx`, `src/lib/site-metadata.ts`, and the refreshed public assets add canonical metadata, crawler rules, legal routes, social imagery, and cleaned brand media.
+  - Schema and reconstruction:
+    - `prisma/schema.prisma` and migrations `20260729201000_reconcile_schema_and_runtime_safety`, `20260730160000_bind_report_publications`, and `20260730170000_invite_delivery_claims` reconcile historical drift; add durable audit, rate-limit, submission, manual-report, publication, share-token, and invite-delivery state; and safely bind links to an exact report publication.
+  - Authorization and sign-in:
+    - `src/lib/auth.ts`, `src/lib/api-auth.ts`, `src/lib/auth-security.ts`, `src/lib/magic-link-continue.ts`, `src/app/api/auth/continue/route.ts`, and the sign-in pages refresh role/seat state from the database, use persistent rate limiting and generic user-facing responses, enforce same-origin explicit continuation, and preserve the scanner-resistant five-hop magic-link contract.
+    - `src/proxy.ts` restores the Next.js 16 proxy entry point so protected-route redirects actually run; the obsolete root placement was removed.
+    - `src/lib/internal-job-auth.ts` and the internal-job routes use timing-safe, independently configured authorization.
+  - Assessment integrity:
+    - The assessment/session routes plus `src/lib/assessment-content-lock.ts`, `src/lib/assessment-definition.ts`, `src/lib/assessment-session-lock.ts`, `src/lib/assessment-submission-claim.ts`, `src/lib/question-image-lock.ts`, and related CSV/image helpers serialize the first attempt against content changes, preserve historical question/image evidence, validate canonical scales, isolate admin preview sessions, prevent duplicate submission/report work, and keep pending or failed free-text saves visibly unsaved with navigation protection.
+  - Report privacy and lifecycle:
+    - The report admin, participant, leader, and shared routes plus `src/lib/report-release.ts`, `src/lib/report-content.ts`, `src/lib/report-attempt-access.ts`, `src/lib/report-publication-preflight.ts`, `src/lib/report-share-grant.ts`, `src/lib/report-pdf.ts`, and related archive/delivery helpers default reports to draft, revoke prior access on edits, serialize regeneration/manual delivery, bind and quota scanner-safe links, sanitize rendered HTML, enforce audience/access policy at delivery time, and preflight the exact generated or uploaded PDF before publication.
+    - PDF inputs are bounded to 256 KiB of narrative JSON, 100,000 extracted characters, 50 pages, and the platform-compatible request size. Long paragraphs paginate without clipping.
+  - Admin and delivery correctness:
+    - Tenant/user/enrollment/import routes and `src/lib/tenant-seat-lock.ts`, `src/lib/identity-policy.ts`, `src/lib/invite-delivery.ts`, and `src/lib/admin-list-window.ts` make seat-changing operations atomic, prevent identity collisions, clear leader-only access on demotion, use claimed/idempotent invite delivery state, and bound admin list/export work.
+    - `src/app/(app)/dashboard/page.tsx` exposes the leader Team Reports workspace, and `src/app/(app)/admin/reports/[reportId]/ReportEditorClient.tsx` no longer marks initialization or preview toggles as content edits while still warning on real unsaved changes.
+  - UX and accessibility:
+    - Navigation, admin panels, assessment controls, marketing chrome/effects, date formatting, and `.report-document` styles were corrected for keyboard use, focus, reduced motion, mobile overflow, clear status labels, correct organisation vocabulary, report hierarchy, and role-appropriate navigation.
+  - Tests:
+    - Added `vitest.config.mts` and 52 focused test files covering 162 authorization, race, boundary, migration-adjacent, delivery, report, PDF, and UI-state cases.
+- How:
+  - Reused the repository's canonical access and guard helpers, added database transactions and advisory locks only around state transitions that must serialize, and treated report publication/link delivery as versioned state rather than a mutable boolean.
+  - Ran a production build against a disposable Postgres 16 environment, exercised anonymous, participant, leader, admin, shared-link, PDF, desktop, and mobile paths in the in-app browser, and fixed issues found only through that pass: the misplaced proxy, Prisma's inability to deserialize PostgreSQL advisory-lock `void`, an invalid `Intl` option combination, missing report typography, leader report discoverability, and a false-positive report-editor dirty state.
+  - Kept the explicitly accepted tracked assessment answer/scoring artifacts unchanged.
+- Validation/output:
+  - Node `22.13.1`; `npm ci` completed from the lockfile.
+  - Production-like `npm run env:check` passed.
+  - `npm run lint`, `npm run typecheck`, and `git diff --check` passed with zero errors.
+  - `npm test` passed: 52 files, 162 tests.
+  - `npm run build` passed. Marketing, legal, metadata, and `/singin` routes remained `○` Static; authenticated, admin, report, assessment, sign-in, and API routes remained `ƒ` Dynamic; the manifest includes `ƒ Proxy (Middleware)`.
+  - `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities. The full development graph reports 15 high and 0 critical advisories in the ESLint/minimatch toolchain.
+  - A brand-new disposable Postgres database applied all 11 migrations, seeded 1 admin, 1 assessment, and 40 questions, reported `Database schema is up to date!`, and returned `No difference detected` from `prisma migrate diff`.
+  - Browser QA completed the two-step admin/participant/leader magic-link flow; participant start, autosave, reload, submit, and report generation; admin assessment preview and report editing; leader RBAC and Team Reports; scanner-safe shared-link activation and 2-of-2 download quota enforcement; invalid-link privacy; role-aware desktop/mobile navigation; and a 390 px report with `scrollWidth === innerWidth`.
+  - The canonical participant PDF returned HTTP 200 as `application/pdf`, was 15,782 bytes, rendered to four A4 pages, contained no JavaScript or encryption, extracted 7,549 characters, and was visually inspected page by page without clipping.
+  - Public/legal/metadata/health routes returned HTTP 200; `/api/health/ready` returned 200; static HTML returned year-long CDN `s-maxage`; security headers were present; internal-job authorization returned 403 for absent/wrong credentials and 200 for the valid isolated secret.
+  - `CLAUDE.md` is 1 line and 11 bytes: exactly `@agents.md\n`.
+- Risks/unknowns:
+  - No production or shared database was modified. The disposable database, local production server, generated browser/PDF evidence, and container were removed after validation.
+  - Real Resend delivery, Vercel Blob, OpenAI generation, Vercel environment values, cron execution/plan support, preview-to-production branch behavior, and production observability still require controlled staging verification with real provider credentials.
+  - The remaining 15 high advisories are development-only transitive ESLint/minimatch findings. The available forced overrides are API-incompatible with the installed lint stack, so the runtime graph is clean but the toolchain advisory needs an upstream-compatible upgrade rather than a risky override.
+  - Privacy and Terms copy is technically present but still needs owner/legal review before production.
+  - `AGENTS.md` is untracked in this checkout. It must be intentionally included with `CLAUDE.md`; the lowercase pointer relies on the repository's case-insensitive filename resolution convention.
+  - The optional native Codex Security workbench was not initialized because its repository setup remained unsubmitted; the code still received a multi-pass manual security review plus security-focused tests.
+- Next step:
+  - Review the large remediation diff, stage intended files by name (including `AGENTS.md`), commit coherently, and push to `staging`.
+  - Wait for the Vercel deployment to become `READY`, repeat health/header/provider/magic-link/share/PDF/cron smoke tests against `staging.olqlab.com`, obtain legal approval, and only then update the standing `staging` to `main` production PR.
+
+## Entry 2026-07-31-01
+- Timestamp (UTC): 2026-07-30T20:48:37Z
+- Timestamp (Local): 2026-07-31 02:18:37 IST (+0530)
+- Task: Unblock the Hobby Vercel deployment and redesign the public landing page as a clean editorial leadership diagnostic.
+- Why: The staging commit was rejected before the application build because `vercel.json` requested a 15-minute cron cadence that the Vercel Hobby plan does not accept. The landing page also repeated several long list sections and competing motion effects, weakening the first impression and decision path.
+- What changed:
+  - `vercel.json`: changed the unenrollment sweep from `*/15 * * * *` to the Hobby-compatible daily schedule `0 0 * * *`.
+  - `guide.md` and `README.md`: documented that the synchronous access overlay still makes due authorization changes effective immediately, while the daily worker persists state and completes queued delivery; documented Pro or authenticated external scheduling as the faster-cadence options.
+  - `src/app/page.tsx`: replaced the former hero, marquee, manifesto, service, benefit, and journey sequence with six focused bands: a modular hero and CPR signal map, practice proposition, CPR framework, founder proof, growth path, and closing assessment action. All established public routes and static-rendering boundaries remain intact.
+  - `src/app/globals.css`: added the landing grid, high-contrast actions, responsive signal map, restrained reveal and signal motion, visible focus treatment, skip-link behavior, no-script content fallback, and reduced-motion final states. The 1024 px browser pass exposed a 15 px CTA overflow; the hero action grid now stacks inside the narrow 900-1279 px side column and remains two-column where space permits.
+  - `src/components/marketing/Editorial.tsx`: raised dark eyebrow text opacity from 55% to 65%, moving the small-label contrast from approximately 3.95:1 to 5.45:1 on the cream background.
+  - `journal.md`: recorded the failure diagnosis, implementation, and release evidence.
+- How:
+  - Followed the failed GitHub commit status to Vercel's cron usage/plan documentation and correlated it with the newly introduced schedule; GitHub Actions had already passed, so Prisma, environment validation, and the application build were not the failed stage.
+  - Used Mistral's disciplined modular grid, Anthropic's editorial restraint, and Linear's evidence-first hierarchy only as structural references. The visual artifact and copy remain specific to OLQ Lab's cream, ink, brass, serif, and CPR system; no third-party assets or interaction code were copied.
+  - Kept the homepage as a deterministic server page and left session resolution in the existing client header island, preserving CDN prerendering.
+- Validation/output:
+  - Node `22.13.1`; `npm run lint` and `npm run typecheck` passed with zero errors.
+  - `npm test` passed: 52 files and 162 tests.
+  - `npm run build` passed. `/` and all required marketing pages remained `○` Static; `/signin`, `/signin/confirm`, dashboard, assessment, report, admin, and API routes remained `ƒ` Dynamic; `ƒ Proxy (Middleware)` remained present.
+  - Production-like `npm run env:check` passed; `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities; `git diff --check` passed.
+  - Local production route smoke test returned HTTP 200 for `/`, all marketing/legal routes, `/signin`, and `/signin/confirm`; `/dashboard` returned the expected HTTP 307 anonymous redirect.
+  - In-app browser QA covered 320, 390, 768, 899, 900, 1024, 1279, 1280, and 1440 px widths. Every sampled width finished with `scrollWidth === innerWidth`; the founder image loaded at its intrinsic responsive size; the mobile menu opened with all four routes; the primary assessment CTA navigated correctly; shipped CSS contained the no-script and reduced-motion fallbacks; and the browser console remained empty.
+  - `CLAUDE.md` remains exactly one LF-terminated line: `@agents.md`.
+- Risks/unknowns:
+  - Daily scheduling can delay database persistence and queued email work until the next sweep, although due access remains immediately enforced by the synchronous resolver overlay. If near-real-time persistence/delivery is required, use a Pro-supported cadence or an external scheduler authenticated with `CRON_SECRET`.
+  - This checkout has not been committed, pushed, or redeployed, so the Vercel status cannot become `READY` until the reviewed files land on `staging`. Real provider credentials and the hosted cron invocation remain staging verification items.
+  - Final marketing copy and the revised visual direction still benefit from owner review; the implementation preserves route, auth, and accessibility contracts if wording is adjusted later.
+- Next step:
+  - Review and commit the intended files, push to `staging`, wait for Vercel to reach `READY`, and repeat the public-route, environment, auth, and cron smoke checks against `staging.olqlab.com` before merging to production.
+
+## Entry 2026-07-31-02
+- Timestamp (UTC): 2026-07-30T21:43:24Z
+- Timestamp (Local): 2026-07-31 03:13:24 IST (+0530)
+- Task: Remove the custom cursor and temporary legal pages, then rebuild the landing, About, Framework, and Contact experiences as accessible modular narratives.
+- Why: The custom ring cursor obscured the native pointer, the landing CPR signal read as cut off, and muted Personality copy was difficult to read on the ink surface. About, Framework, and Contact also relied on one generic page shell and diagram interactions that hid substantive copy, duplicated keyboard stops, and did not match the editorial quality expected for a production marketing site.
+- What changed:
+  - `src/app/layout.tsx`, `src/components/effects/CustomCursor.tsx`, and `src/app/globals.css`: removed the global custom cursor and every cursor-hiding artifact; retained the native pointer, improved small-label contrast, declared a light-only color scheme, made scroll reveals one-shot, broadened no-script/reduced-motion final states, tightened the 320 px headline, and rebuilt the landing CPR signal as complete 3x4, 4x3, and 6x2 compositions.
+  - `src/app/page.tsx`: made header, main, and footer landmarks explicit; moved the CPR signal and proof into clean full-width bands; and raised Personality/body copy to readable 16 px, 88%-cream text.
+  - `src/app/about/page.tsx`, `src/app/about/about.module.css`, and `src/components/marketing/AboutDisciplineAtlas.tsx`: replaced the generic shell/hexagon with a founder-led split hero, portrait, centered conviction, experience modules, an accessible six-discipline atlas with all descriptions in the DOM, a sticky practice sequence, and an ink closing action.
+  - `src/app/framework/page.tsx`, `src/app/framework/FrameworkPage.module.css`, and `src/components/marketing/FrameworkExperience.tsx`: created a ruled CPR hero, keyboard-operable dimension tabs, a responsive geometric explorer, a seven-pattern atlas with every description visible, a sticky focus panel, and complete no-script/reduced-motion renderings.
+  - `src/app/contact/page.tsx`, `src/app/contact/contact.module.css`, and `src/app/contact/ContactBriefBuilder.tsx`: built a modular conversation hero, restrained signal graphic, four-part consultation brief, no-storage prefilled-email composer, direct-email no-script fallback, and distinct enterprise/client paths without adding a backend or inventing a response-time promise.
+  - `src/components/marketing/Editorial.tsx`: improved CTA contrast and focus treatment, raised footer-label contrast, and removed Privacy/Terms links.
+  - `src/app/privacy/page.tsx`, `src/app/terms/page.tsx`, and `src/app/sitemap.ts`: removed the two temporary routes and their sitemap entries as requested.
+  - `src/app/(app)/assessment/[assessmentId]/StartAssessmentButton.tsx`, `src/app/api/assessment/sessions/start/route.ts`, and `src/lib/assessment-response-acknowledgement.ts`: replaced broken legal-page links with one shared response-processing acknowledgement, aligned UI/API errors, and persist the exact acknowledgement text/version in the audit event.
+  - `tests/assessment-start-acknowledgement.test.ts` and `guide.md`: added missing/false/true acknowledgement and sitemap regressions, and documented the versioned audit contract plus updated static-route gates.
+  - `journal.md`: recorded this redesign, removal decision, evidence, and remaining production gates.
+- How:
+  - Studied Mistral's live homepage, About, and Contact experiences across desktop and mobile, focusing on its 70/30 heroes, ruled module grids, sticky narrative transitions, restrained state changes, dark contrast bands, and aggressive mobile linearisation. Reinterpreted those patterns through OLQ Lab's existing cream, ink, brass, serif, CPR, founder, discipline, and assessment content; no third-party assets or interaction code were copied.
+  - Kept public pages deterministic and statically rendered. Interactivity lives only in small client islands using semantic HTML buttons, tabs, radios, fieldsets, ARIA state, live regions, visible focus, and keyboard navigation. All substantive practice and pattern descriptions remain server-rendered.
+  - Used two independent read-only review passes after implementation. Their findings drove the no-script Framework fallback, tablet proof-grid correction, semantic landmark repair, contact-orbit containing block, reduced-motion completion, small-text contrast increases, and 320 px headline adjustment.
+- Validation/output:
+  - Node `22.13.1`; `npm run lint`, `npm run typecheck`, and `git diff --check` passed with zero errors.
+  - `npm test` passed: 53 files and 166 tests, including four new acknowledgement/sitemap regressions.
+  - `npm run build` passed. `/`, `/about`, `/framework`, `/contact`, and the remaining marketing pages are `○` Static; authenticated/admin/assessment/report/API routes and sign-in remain `ƒ` Dynamic; Privacy and Terms are absent from the manifest.
+  - Production-like `npm run env:check` passed; `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities.
+  - Local production smoke tests returned 200 for `/`, `/about`, `/framework`, `/contact`, `/assessments`, and `/sitemap.xml`; `/privacy` and `/terms` returned 404. Sitemap output contains neither removed route. Static pages returned `s-maxage=31536000` and the expected security/content headers.
+  - Built HTML has one header, main, footer, and h1 per redesigned page; no undefined CSS-module classes, custom-cursor artifacts, or legal-route links. Server output contains six About discipline controls/descriptions, three Framework tabs/panels, seven pattern controls/descriptions, and four Contact fieldsets with 19 radio options and prefilled mail links.
+  - Compiled CSS contains the 6-column landing signal, light-only color scheme, no-script and reduced-motion fallbacks, and no cursor ring/dot/active selectors. `CLAUDE.md` remains exactly one LF-terminated `@agents.md` line (11 bytes).
+  - In-app browser work covered the full live Mistral desktop/mobile reference study and local page inspection before the final production build. The browser's URL security policy then blocked reloading the restarted local production URL; no alternate browser surface or policy bypass was used.
+- Risks/unknowns:
+  - Per the explicit product request, removing Privacy and Terms also removes the site's only public disclosures about provider/AI processing, retention, report sharing, and non-clinical/decision-use limits. The narrower response-processing acknowledgement is accurately versioned but is not a replacement for owner/legal approval before production.
+  - Because the in-app browser blocked the final local production reload, the exact final bundle still needs one hosted staging browser pass for hydrated atlas/tab/radio interactions, focus order, motion, 320/390/768/900/1024/1280/1440 layout, and console output. Static production output, responsive source rules, build artifacts, and pre-build browser inspections were verified, but this hosted gate should not be skipped.
+  - No production database, Resend, Blob, OpenAI, Vercel environment, or real participant account was exercised in this visual/removal pass.
+  - Changes are not committed, pushed, or deployed from this checkout.
+- Next step:
+  - Review and stage only the intended files, push to `staging`, wait for Vercel `READY`, run the hosted browser matrix and acknowledgement/provider smoke tests, obtain explicit owner/legal acceptance of the temporary legal-page removal, and only then promote the standing staging-to-main PR.
+
+## Entry 2026-07-31-03
+- Timestamp (UTC): 2026-07-30T23:01:13Z
+- Timestamp (Local): 2026-07-31 04:31:13 IST (+0530)
+- Task: Restore the original CPR signal and relationship map inside the new scroll-responsive marketing system.
+- Why: The original six-by-two leadership signal and seven-node CPR relationship map were useful, recognisable pieces of the OLQ Lab visual language. They needed to be retained—not replaced—while gaining the cleaner hierarchy, richer colour, and restrained scroll-linked movement requested for the Mistral-inspired redesign.
+- What changed:
+  - `src/components/marketing/LeadershipSignal.tsx`, `src/components/marketing/LeadershipSignal.module.css`, and `src/app/page.tsx`: restored the complete twelve-cell signal in its original desktop composition, with Cognitive at the upper left, Personality at the upper right, and Response at the lower right; introduced a restrained cream, teal, amber, and terracotta system; and linearised it into three semantic rows on smaller screens without cropping or horizontal overflow.
+  - `src/components/effects/ScrollMotion.tsx`, `src/components/effects/ScrollMotion.module.css`, `src/lib/scroll-motion.ts`, and `tests/scroll-motion.test.ts`: added an intersection-scoped, requestAnimationFrame-coalesced scroll-progress system whose CSS variables stay bounded, move only compositor-friendly assets, respond to resized geometry, and stop moving when reduced motion is requested.
+  - `src/components/marketing/CprTriangle.tsx`, `src/components/marketing/CprTriangle.module.css`, and `src/app/assessments/page.tsx`: restored all seven original Cognitive, Personality, Response, CP, PR, CR, and CPR nodes on one square coordinate plane; added roving arrow/Home/End keyboard navigation and stable detail relationships; and supplied static no-script output without duplicating interactive controls for assistive technology.
+  - `src/components/marketing/FrameworkExperience.tsx`, `src/app/framework/FrameworkPage.module.css`, and `src/app/framework/page.tsx`: integrated the restored map into a seven-pattern scroll narrative, carried the semantic dimension colours through the hero and explorer, kept every pattern description available, and added spacious static alternatives for tablets, phones, short viewports, reduced motion, and no-script use.
+  - `guide.md` and `journal.md`: documented the responsive, accessibility, scroll-motion, and validation contracts so subsequent marketing work preserves the restored visual language.
+- How:
+  - Rebuilt both pieces from the supplied earlier screenshots while fitting them to the existing cream, ink, brass, serif, and ruled-grid system. Motion is tied to the reader's scroll position through passive listeners, a single animation-frame update, intersection scoping, and small bounded transforms rather than an autonomous loop.
+  - Kept SVG lines and HTML nodes on the same square percentage coordinate system so the relationship map remains aligned at every size. The wide Framework page uses a sticky visual with focus cards; smaller or short layouts use a full static map and normal document flow so content is never clipped or trapped.
+  - Preserved server-rendered marketing routes and supplied real static catalogues for no-script use. Interactive controls retain visible two-tone focus, keyboard operation, minimum pointer targets, stable ARIA relationships, and dynamically respected reduced-motion preferences.
+- Validation/output:
+  - Full `npm run ci` passed: lint, typecheck, 54 test files, 171 tests, and the production build. The focused scroll-motion suite passed all 5 cases after the final layout work; final `npm run lint`, `npm run typecheck`, `npm run build`, and `git diff --check` also passed.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, and `/oql` as `○` Static while authenticated, admin, assessment, report, sign-in, and API routes remain `ƒ` Dynamic. Privacy and Terms remain absent as explicitly requested.
+  - Production-like `npm run env:check` passed. `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities.
+  - Local production smoke tests returned HTTP 200 for `/`, `/about`, `/framework`, `/assessments`, `/contact`, `/sitemap.xml`, and `/api/auth/session`; `/privacy` and `/terms` returned 404; the landing HTML retained `s-maxage=31536000`.
+  - In-app browser QA covered 320, 390, 768, 900, 1024, 1280, and 1440 px widths plus a 1440 by 560 short viewport. Sampled pages had zero horizontal overflow; the desktop signal retained the exact 1/6/11 anchor-cell composition; the triangle's SVG and node centres aligned; all seven controls shared one stable detail target; arrow navigation moved focus and selection correctly; the Personality panel was readable on ink; and the browser console remained free of warnings and errors during the interaction pass.
+  - Scroll progress changed only with real page scrolling and produced bounded single-digit-pixel asset transforms. Reduced-motion, no-script, tablet/mobile, and short-height layouts rendered stable final states. Composited small-text contrast measured from 5.25:1 to 8.78:1 across the sampled amber and cream surfaces.
+  - `CLAUDE.md` remains exactly one LF-terminated line and 11 bytes: `@agents.md\n`.
+- Risks/unknowns:
+  - Removing Privacy and Terms remains an explicit product decision but leaves a public-disclosure gap around provider and AI processing, retention, sharing, and decision-use limits. The response-processing acknowledgement is not a substitute for owner/legal acceptance before production.
+  - This pass did not exercise real production or shared database state, Resend, Blob, OpenAI, Vercel environment values, hosted magic links, or cron execution. No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review and stage the intended files by name, push to `staging`, wait for Vercel to become `READY`, then repeat the hosted browser matrix and real provider/auth/cron smoke tests. Obtain explicit owner/legal acceptance of the temporary legal-page removal before promoting the standing staging-to-main PR.
+
+## Entry 2026-07-31-04
+- Timestamp (UTC): 2026-07-31T04:17:01Z
+- Timestamp (Local): 2026-07-31 09:47:01 IST (+0530)
+- Task: Complete the CPR connections, polish the consultation brief, and rebuild Blindspot Work as an accessible progressive-reveal experience.
+- Why: The Framework relationship map lost portions of several connectors at rendered sizes, the Contact hero and brief still showed distracting grid/layout glitches, and Blindspot Work needed a distinct interaction model that made limited perception tangible without hiding content or excluding keyboard, touch, reduced-motion, or no-script visitors.
+- What changed:
+  - `src/components/marketing/CprTriangle.tsx` and `src/components/marketing/CprTriangle.module.css`: replaced the single dash-animated triangle and medians with twelve explicit node-to-node segments—six outer relationships and six inner relationships—so every connector is complete at every rendered size; changed the entrance to an opacity reveal and kept node discs opaque while scaling so lines never flash through them.
+  - `src/app/contact/ContactBriefBuilder.tsx` and `src/app/contact/contact.module.css`: removed the ruled grid from the conversation title plane, retained only a restrained tonal glow, added a sticky semantic progress rail, linked every fieldset to its prompt, strengthened focus/selected states, preserved 52 px option targets, and made the option grid wrap predictably without horizontal clipping.
+  - `src/app/blindspot/page.tsx`, `src/app/blindspot/BlindspotField.tsx`, and `src/app/blindspot/blindspot.module.css`: rebuilt the route around a dark perception field in which a pointer, pen, tap, keyboard selection, or continued scrolling reveals latent organisational signals. The aperture widens with progress into the complete pattern, followed by outcome, intent-versus-impact, Notice/Name/Practise, and consultation sections.
+  - The Blindspot effect is progressive enhancement: all four signals remain semantic labelled buttons; content stays in the document; no-script, reduced-motion, forced-colours, and coarse-pointer modes resolve to readable stable states; intersection observation plus animation-frame-coalesced scroll and pointer updates contain the work; and the page has exactly one header, main, and footer landmark.
+  - `tests/marketing-interaction-contracts.test.ts`: added server-rendered regression checks for twelve CPR lines and seven controls, nineteen Contact options plus semantic progress and mailto-only submission, and four Blindspot reveal controls plus its static fallback.
+  - `guide.md`: documented the connector, Contact, and progressive-reveal contracts so later visual work preserves the repaired behavior.
+- How:
+  - Diagnosed the missing connectors as a fixed SVG dash length being shorter than the path after responsive scaling, then modelled each visible edge as its own complete segment beneath opaque nodes.
+  - Kept the Contact state local and the final action as a prefilled email draft; no database, storage, or new network endpoint was introduced.
+  - Treated blindness as incomplete context rather than a literal inaccessible page: the first view is intentionally narrow, but every input method can reveal the same information and scrolling gradually exposes the whole system.
+- Validation/output:
+  - Full `npm run ci` passed: lint, typecheck, 55 test files, 174 tests, and the production build.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, and `/oql` as `○` Static while authenticated, admin, assessment, report, sign-in, and API routes remain `ƒ` Dynamic.
+  - `npm audit --omit=dev --audit-level=low` reported 0 runtime vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated line and 11 bytes: `@agents.md\n`.
+  - Local production smoke tests returned HTTP 200, `x-nextjs-cache: HIT`, `x-nextjs-prerender: 1`, and `Cache-Control: s-maxage=31536000` for `/`, `/framework`, `/contact`, and `/blindspot`.
+  - In-app browser QA covered 320, 390, 768, 900, 1024, 1280, and 1440 px. Every sampled page had zero horizontal overflow; Framework rendered twelve complete connectors and seven controls; Contact rendered nineteen unclipped 52 px options and a working semantic progress update; Blindspot rendered four unclipped 44 px controls, responded to pointer/scroll/keyboard selection, and retained one header/main/footer.
+  - A second pass against the exact production server confirmed the complete CPR map, the grid-free Contact hero, a `1 / 4` progress update after selecting a cohort, the Blindspot keyboard reveal and visible focus state, the 320 px layout, and an empty browser warning/error console. The final runtime repeat supplied a local-only smoke-test NextAuth secret so the public header session island could run without pretending that real provider configuration was present; both browser and server logs were empty.
+  - `npm run env:check` correctly reported that this local shell does not contain the production database, NextAuth, Resend, Blob, OpenAI, and cron/job secrets; provider-backed validation therefore remains a hosted staging gate rather than a local pass.
+- Risks/unknowns:
+  - The mask/spotlight is a visual enhancement with static fallbacks, but its exact compositing can still vary across browser engines; the hosted staging pass should include Safari and Chromium with reduced motion and forced colours where practical.
+  - Real database state, Resend, Blob, OpenAI, Vercel environment values, hosted magic links, and cron execution were not exercised in this visual pass because the required secrets are intentionally absent locally.
+  - Privacy and Terms remain removed by explicit product decision, leaving the previously recorded public-disclosure gap until owner/legal acceptance or replacement disclosures are supplied.
+  - No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review and stage only the intended files by name, push to `staging`, wait for the Vercel deployment to reach `READY`, then repeat the provider/auth/cron and cross-browser smoke tests on `staging.olqlab.com`. Obtain explicit owner/legal acceptance of the temporary legal-page removal before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-01-01
+- Timestamp (UTC): 2026-07-31T22:41:17Z
+- Timestamp (Local): 2026-08-01 04:11:17 IST (+0530)
+- Task: Establish the Warm Signal colour system and extend Mistral-inspired motion across every public marketing route.
+- Why: The public pages had individually strong editorial pieces, but their colour, motion, scroll choreography, and interaction fallbacks needed one coherent system. The landing signal, About disciplines, Framework map, assessment catalogue, coaching journey, Blindspot field, Contact brief, and OLQ foundations also needed to feel related without turning every surface into the same template or moving keyboard focus targets.
+- What changed:
+  - `src/app/globals.css`, `src/app/layout.tsx`, `src/components/effects/ScrollReveal.tsx`, `src/components/effects/ScrollMotion.tsx`, `src/components/effects/ScrollMotion.module.css`, `src/components/effects/ScrollProgress.tsx`, and `src/components/effects/Magnetic.tsx`: introduced the shared Warm Signal tokens, surface-specific focus colours, declarative rise/fade/scale/wipe/line reveals, bounded requestAnimationFrame-coalesced decorative parallax, marketing-only scroll progress, intersection/resize fallbacks, offscreen ambient pausing, and complete reduced-motion/no-script final states.
+  - `src/components/marketing/MarketingChrome.tsx`, `src/components/marketing/Editorial.tsx`, and `src/components/navigation/PublicHeader.tsx`: repaired public landmark ownership and skip-link focus, added restrained spectrum/stagger treatment, aligned shared focus/contrast, and kept session resolution inside the existing client island so public routes remain static.
+  - `src/app/page.tsx`, `src/components/marketing/LeadershipSignal.tsx`, and `src/components/marketing/LeadershipSignal.module.css`: preserved the restored signal mosaic while adding a clearer CPR colour rail, layered hero spectrum, scroll-responsive signal assets, richer practice/outcome/journey sections, and compositor-friendly ambient pulses.
+  - `src/app/about/page.tsx`, `src/app/about/about.module.css`, and `src/components/marketing/AboutDisciplineAtlas.tsx`: added clipped headline entrances, a CPR conviction stage, an experience progress rail, tone-reactive discipline states, method cues, and readable dark-surface Personality copy without placing interactive controls inside moving reveal wrappers.
+  - `src/app/framework/page.tsx`, `src/app/framework/FrameworkPage.module.css`, `src/components/marketing/FrameworkExperience.tsx`, `src/components/marketing/CprTriangle.tsx`, and `src/components/marketing/CprTriangle.module.css`: added bounded geometric hero motion, semantic dimension spokes and pattern crossfades, kept all twelve CPR connections and seven controls visible, and separated decorative reveals from the stable keyboard-operable map.
+  - `src/app/assessments/page.tsx`, `src/app/coaching/page.tsx`, `src/components/marketing/StepperFlow.tsx`, `src/app/oql/page.tsx`, and `src/app/marketingSignalPages.module.css`: carried the Warm Signal language into the catalogue, coaching, and foundation pages; added a signal legend and decorative-only map movement; built an accessible responsive coaching stage journey with live/expanded state plus a complete semantic no-script catalogue; and kept the OLQ quality set neutral rather than inventing unsupported CPR classifications.
+  - `src/app/blindspot/page.tsx`, `src/app/blindspot/BlindspotField.tsx`, and `src/app/blindspot/blindspot.module.css`: deepened the aperture, scan, spectrum, and signal choreography while preserving visible touch/coarse-pointer details and complete static, reduced-motion, forced-colour, and missing-observer fallbacks.
+  - `src/app/contact/page.tsx`, `src/app/contact/contact.module.css`, and `src/app/contact/ContactBriefBuilder.tsx`: added a clipped, grid-free conversation title; one-shot signal assembly; state-aware question/pathway colours; and contrast-safe selected/focus states while retaining exactly nineteen radios, semantic progress, zero forms, no persistence, and mailto-only output.
+  - `tests/marketing-motion-system.test.ts`, `tests/marketing-interaction-contracts.test.ts`, and `guide.md`: added regression coverage for the motion/fallback/control contracts and documented the palette, focus, reveal, ambient, and decorative-only scroll-layer rules.
+- How:
+  - Studied Mistral's live homepage, About, Studio, Models, Solutions, Brand, Contact, and Careers pages on desktop and mobile. Adapted its bounded colour stages, clipped editorial entrances, sticky rails, modular mosaics, and scroll-linked decorative layers to OLQ Lab's existing cream, ink, brass, CPR, founder, assessment, and coaching content; no third-party code or assets were copied.
+  - Used four independent implementation/review tracks for the shared system, About/Contact, Framework/Blindspot, and whole-tree motion/accessibility integration. Review findings drove focus-target stability, contrast corrections, no-script coaching semantics, complete reduced-motion selectors, missing-API fail-open behavior, and replacement of repaint-heavy box-shadow loops.
+  - Kept meaningful content server-rendered and motion progressively enhanced. IntersectionObserver, ResizeObserver, requestAnimationFrame, pointer capability, no-script, reduced-motion, and forced-colour branches all resolve to usable static content rather than blank or partially revealed pages.
+- Validation/output:
+  - Full `npm run ci` passed: lint, strict typecheck, 56 test files, 178 tests, and the production build.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, and `/oql` as `○` Static; authenticated, admin, assessment, report, sign-in, and API routes remain `ƒ` Dynamic; `ƒ Proxy (Middleware)` remains present.
+  - Local production route smoke returned HTTP 200 for all eight public routes and HTTP 404 for the intentionally removed `/privacy` and `/terms`; the landing response included `x-nextjs-cache: HIT`, `x-nextjs-prerender: 1`, `Cache-Control: s-maxage=31536000`, CSP, strict referrer policy, and `X-Content-Type-Options: nosniff`.
+  - In-app production browser QA covered every public route at 320, 390, 768, 900, 1024, 1280, and 1440 px: 56/56 route-width combinations had one header/main/footer/H1, no application error, and `scrollWidth === innerWidth`. Complete mobile and desktop scroll passes left no visible reveal target hidden.
+  - Browser interaction checks opened the mobile navigation; selected Contact options and confirmed `1 / 4`; changed coaching stages with correct expanded/control state; moved Framework tabs by keyboard; selected CPR patterns; confirmed twelve map lines; exercised the pointer/scroll Blindspot field; and verified the rebuilt coaching output includes all four no-script stages. The custom cursor remains absent.
+  - `git diff --check` passed during independent review; `CLAUDE.md` remains exactly one LF-terminated line and 11 bytes: `@agents.md\n`.
+- Risks/unknowns:
+  - This local pass does not replace a hosted Safari/Chromium check for mask compositing, reduced motion, forced colours, fonts, and real CDN timing. The palette and motion are intentionally progressive, but staging remains the correct final browser gate.
+  - Real database state, Resend, Blob, OpenAI, Vercel environment values, hosted magic links, and cron execution were not exercised because their credentials are intentionally absent locally.
+  - Privacy and Terms remain removed by explicit product direction, leaving the previously recorded disclosure gap until the owner supplies approved replacement pages or accepts that risk.
+  - No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review the complete visual diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then repeat the public-route browser matrix and real provider/auth/cron smoke tests before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-01-02
+- Timestamp (UTC): 2026-07-31T23:58:22Z
+- Timestamp (Local): 2026-08-01 05:28:22 IST (+0530)
+- Task: Refine the public-site choreography around Mistral-inspired sticky scenes, asset assembly, and scroll-led disclosure.
+- Why: The shared Warm Signal pass established a coherent visual language, but its strongest moments still needed clearer authored sequences: the landing should assemble rather than merely decorate, assessment and coaching content should hand off through distinct stages, the OLQ foundations should read as an intentional mosaic, and Blindspot should make incomplete perception tangible from the first frame. The motion runtime also needed a final efficiency and input-capability audit before production consideration.
+- What changed:
+  - `src/app/page.tsx` and `src/app/LandingOverture.module.css`: rebuilt the opening as a desktop pinned CPR overture whose words, nodes, rule, and proof layer assemble with scroll while primary actions remain stationary; preserved the complete signal continuation and linearised the scene for touch, compact, reduced-motion, and no-script environments.
+  - `src/components/effects/ScrollMotion.tsx`, `src/components/effects/ScrollMotion.module.css`, `src/components/effects/ScrollReveal.tsx`, `src/components/effects/ScrollProgress.tsx`, and `src/app/globals.css`: consolidated scroll scenes under one passive requestAnimationFrame scheduler, limited ownership to the nearest scene, paused ambient work outside the viewport, batched reveal discovery, removed unnecessary compositor promotion, added grouped assembly variants, and made coarse-pointer and reduced-motion modes unsubscribe and resolve directly to their complete static state.
+  - `src/components/effects/SectionSignalRail.tsx` and `src/components/effects/SectionSignalRail.module.css`: added a decorative intersection-aware chapter rail that only exposes an active state after observation is ready.
+  - `src/app/assessments/page.tsx`, `src/components/marketing/AssessmentSignalExplorer.tsx`, and `src/components/marketing/AssessmentSignalExplorer.module.css`: turned the catalogue into a desktop sticky relationship field with all twelve CPR connections and seven stable controls, progressive detail hand-offs, clear partial-next-stage composition, and a complete static/mobile catalogue.
+  - `src/app/coaching/page.tsx`, `src/components/marketing/CoachingJourney.tsx`, and `src/components/marketing/CoachingJourney.module.css`: added a scroll-responsive journey rail and grouped stage outputs, then replaced repeated stepper language with distinct deliverables for what each stage leaves behind.
+  - `src/app/oql/page.tsx`, `src/components/marketing/OqlQualityField.tsx`, and `src/components/marketing/OqlQualityField.module.css`: assembled the twelve leadership qualities into a restrained O/Q/L mosaic and corrected decorative artifacts so they express the OLQ framework rather than reusing CPR labels.
+  - `src/app/blindspot/BlindspotField.tsx` and `src/app/blindspot/blindspot.module.css`: strengthened the fine-pointer desktop reveal into a pinned sequence that opens with a small aperture around one latent signal, follows pointer or pen input, and widens quadratically with scroll until the full field is visible; coarse-pointer, reduced-motion, missing-observer, and no-script states remain fully readable.
+  - `src/app/contact/page.tsx`, `src/app/contact/ContactBriefBuilder.tsx`, and `src/app/contact/contact.module.css`: retained the grid-free conversation hero, replaced prompt-like orientation copy with explanations of why each answer matters, and preserved nineteen semantic radio choices, live progress, and mailto-only output.
+  - `tests/marketing-motion-system.test.ts`, `tests/marketing-interaction-contracts.test.ts`, and `guide.md`: expanded motion, efficiency, interaction, fallback, and three-stage sticky-scene regression contracts.
+- How:
+  - Revisited Mistral's live homepage, About, Brand, Careers, Studio, and Models experiences and extracted the reusable interaction grammar: a few bounded sticky set-pieces surrounded by calm reading sections, clipped title-word entrances, grouped fall-and-settle assembly, active chapter rails, expanding media fields, partially revealed next items, and paired-arrow CTA exchanges. The implementation adapts that grammar to OLQ Lab's existing CPR content, Warm Signal palette, typography, and accessibility requirements without copying source or assets.
+  - Kept all meaningful content server-rendered and all keyboard focus targets stationary. The largest effects use transforms, opacity, clipping, or masks with strict bounds; one shared scheduler and viewport gating prevent each component from owning a permanent scroll loop.
+  - Used independent product-motion, accessibility/performance, and regression-contract reviews. Their findings led to final-state coarse-pointer behavior, a single global scheduler, direct-child reveal staggering, offscreen ambient suspension, removal of misleading hover lift on non-interactive cards, readable mobile map labels, and distinct coaching outputs.
+- Validation/output:
+  - Full `npm run ci` passed after the final source changes: lint, strict typecheck, 56 test files, 191 tests, and the production build. Focused marketing motion and interaction suites passed all 25 tests.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, and `/oql` as `○` Static while authenticated, admin, assessment, report, sign-in, and API routes remain `ƒ` Dynamic.
+  - In-app production browser QA covered all eight public routes at 320, 390, 768, 900, 1024, 1280, and 1440 px: all 56/56 route-width combinations reached the document end, kept the H1 within the viewport, showed one main/footer/H1 and a valid public header, had no application error or visible unrevealed target, and satisfied `scrollWidth === innerWidth`.
+  - Interaction QA verified the landing assembly and stationary CTAs, mobile navigation, assessment click and keyboard selection with twelve complete lines, O/Q/L mosaic, coaching desktop rail and mobile accordion, Blindspot's initial pointer aperture plus widening scroll reveal, and Contact selection/progress/mailto behavior. The browser console remained empty.
+  - Local production HTTP smoke returned 200 for all eight public routes and 404 for the intentionally removed `/privacy` and `/terms`. The landing response retained CSP, `Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`, `x-nextjs-cache: HIT`, `x-nextjs-prerender: 1`, and `Cache-Control: s-maxage=31536000`.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; the exact `CLAUDE.md` pointer remained `@agents.md\n`. Reduced-motion, coarse-pointer, missing-observer, and no-script completion paths are covered by source inspection and regression tests; live preference emulation remains part of the hosted cross-browser gate.
+- Risks/unknowns:
+  - `npm run env:check` correctly reports that this shell lacks the production database, NextAuth, Resend, Blob, OpenAI, and cron/job secrets. Real provider, authentication, report-generation, scheduled-job, and shared-database behavior therefore remains a staging gate rather than a local pass.
+  - Mask compositing, installed-font timing, reduced motion, and forced colours still warrant hosted Safari and Chromium checks. Privacy and Terms remain removed by explicit product direction, with the previously recorded disclosure gap pending owner/legal acceptance.
+  - No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review the visual diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then run the provider/auth/cron smoke tests and the hosted Safari/Chromium accessibility matrix before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-01-03
+- Timestamp (UTC): 2026-08-01T13:44:23Z
+- Timestamp (Local): 2026-08-01 19:14:23 IST (+0530)
+- Task: Diagnose staging magic-link suppression and harden sign-in delivery feedback and readiness.
+- Why: `staging.olqlab.com/signin` displayed “A sign-in link is on its way” while Resend recorded no new email. The generic verification response intentionally hides account eligibility and throttling state, but the client copy falsely promised delivery and the readiness endpoint could report healthy while the persistent authentication throttle schema was absent.
+- What changed:
+  - `src/app/(auth)/signin/SignInForm.tsx` and `src/lib/magic-link-request.ts`: replaced the false delivery promise with a privacy-safe generic accepted state, retained one outward result for completed NextAuth email requests, caught transport failures, added an accessible sending announcement and `aria-busy`, and restored focus to the email field after “Use a different email.”
+  - `src/lib/magic-link-delivery.ts` and `src/lib/auth.ts`: masked eligible-recipient provider failures behind the same generic response used for suppressed recipients so a Resend outage cannot become an account-enumeration side channel; logged only error class/provider code/status and eligibility/rate-limit booleans, never an email address, token, URL, or provider message.
+  - `src/app/api/health/ready/route.ts`: expanded readiness from a bare `SELECT 1` to runtime environment validation, database connectivity, and a zero-row structural read of the exact `AuthRateLimitBucket` columns. Missing migrations, wrong search paths, missing columns, or missing read permission now return a coarse 503 check result without disclosing secret values.
+  - `.github/workflows/ci.yml`: changed the health smoke from an order-sensitive old JSON equality check to semantic assertions for runtime configuration, database, and authentication schema readiness.
+  - `tests/magic-link-request.test.ts`, `tests/magic-link-delivery.test.ts`, and `tests/health-ready-route.test.ts`: added result-state, transport-failure, provider-masking, non-PII logging, configuration, database, schema, and no-store regression coverage.
+  - `guide.md`: documented the generic magic-link response contract, strengthened readiness requirements, and added the staging troubleshooting sequence for fail-closed throttling, eligibility, and provider checks.
+- How:
+  - Reproduced the live staging page in browser mode without submitting another email. Safe GET probes verified the active NextAuth provider URLs, CSRF endpoint, liveness endpoint, database connectivity, canonical staging origin, and full runtime environment parser path.
+  - Correlated public GitHub/Vercel deployment metadata and response ETags: `staging.olqlab.com` serves successful Preview SHA `5930188de6ee0c51ffb4020deb2a22390a7b787a`. The current animation commit did not change authentication; the fail-closed rate limiter and eligibility behavior entered in earlier auth hardening.
+  - Traced the complete request path. Unknown, unseated, archived-Organisation, solo-admin, throttled, and limiter-schema-failure cases intentionally return the same generic verification URL before Resend runs. Provider failures are now also masked at the server boundary and retained only in non-PII operational logs.
+- Validation/output:
+  - Full `npm run ci` passed: lint, strict typecheck, 59 test files, 202 tests, Prisma generation, and the production build.
+  - Focused auth/readiness validation passed 6 files and 19 tests; focused ESLint, standalone typecheck, and `git diff --check` passed.
+  - The build manifest keeps all eight public marketing routes `○` Static and keeps `/signin`, `/signin/confirm`, `/api/auth/*`, `/api/health/ready`, and authenticated routes `ƒ` Dynamic.
+  - Local production browser smoke confirmed one H1, enabled initial email and submit controls, `aria-busy="false"`, no horizontal overflow at 1280 px, and an empty warning/error console. No sign-in POST was made locally or against staging, so no email, token, or rate-limit mutation was created during diagnosis.
+  - Live staging GETs returned 200 for `/api/auth/providers`, `/api/auth/csrf`, `/api/health`, and `/api/health/ready`; current readiness reports database `ok`. The deployed endpoint predates this patch and therefore does not yet prove the `AuthRateLimitBucket` schema.
+- Risks/unknowns:
+  - The exact live rejection reason is still unavailable without Vercel runtime logs or read-only database access. The leading account-specific clue is that the screenshot's last delivered Resend email and the address entered on staging are different; the entered address may not have an exact User plus matching Seat in an active Organisation. The other high-risk possibility is that `20260729201000_reconcile_schema_and_runtime_safety` was not applied, causing every rate-limit check to fail closed.
+  - Runtime environment values are present and format-valid, but that does not prove the Resend key is accepted, the sender/domain is verified, quota remains, or the provider is available. The new server boundary logs provider code/status after deployment without exposing recipient data.
+  - No files were staged, committed, pushed, deployed, and no database migration was run from this checkout.
+- Next step:
+  - Deploy this patch to `staging` with `npm run deploy:build`, require the expanded `/api/health/ready` response to show all three checks as `ok`, then issue one approved request for an exact invited User/Seat after the fifteen-minute throttle window. If readiness fails, apply the tracked migration through `prisma migrate deploy`; if readiness passes but no Resend event appears, inspect the new non-PII suppression/provider log and the user's Organisation/Seat state before rotating credentials.
+
+## Entry 2026-08-01-04
+- Timestamp (UTC): 2026-08-01T14:59:08Z
+- Timestamp (Local): 2026-08-01 20:29:08 IST (+0530)
+- Task: Restore magic-link and live-session authentication for persisted Solo administrators.
+- Why: Production's older authentication accepted the existing owner account, while staging's July security hardening rejected `ADMIN` + `SOLO` identities before provider delivery and again during live-session refresh. That read-time policy locked out a valid legacy administrator even though the account still had an exact matching Seat in an active tenant.
+- What changed:
+  - `src/lib/identity-policy.ts`: introduced one shared runtime authentication predicate that treats every persisted identity in a non-archived tenant as active, including legacy Solo administrators; `isLiveIdentityActive` now delegates to it.
+  - `src/lib/auth-security.ts`: changed magic-link recipient eligibility to use the shared runtime predicate after retaining the existing User and matching-Seat requirements.
+  - `tests/auth-security.test.ts` and `tests/identity-policy.test.ts`: replaced the erroneous Solo-admin rejection expectation with complete active role/Organisation coverage, retained unknown, missing-Seat, and archived rejection, and proved the write-time Solo-admin creation invariant still throws.
+  - `tests/api-auth.test.ts`: added a direct regression proving an active persisted Solo administrator passes the live database refresh and `requireAdmin()` authorization after JWT authentication.
+  - `guide.md`: documented the read-time compatibility/write-time policy split, updated the manual validation contract, and corrected staging troubleshooting guidance.
+- How: Kept `assertRoleAllowedInOrganisation()` and the admin user POST/PATCH guards unchanged, so Add, Edit, Move, promotion, and conversion cannot create another `ADMIN` + `SOLO` assignment. Only authentication and live-session reads were made backward-compatible. Token suppression, generic outward responses, rate limiting, provider masking, archived-tenant rejection, and matching-Seat checks are unchanged.
+- Validation/output:
+  - Focused auth validation passed: 3 files and 9 tests, followed by focused ESLint and standalone TypeScript typecheck.
+  - Full `npm run ci` passed: lint, strict typecheck, 60 test files, 204 tests, Prisma generation, and the production build.
+  - The build manifest keeps all eight public marketing routes `○` Static and keeps `/signin`, `/signin/confirm`, `/api/auth/*`, authenticated routes, and admin routes `ƒ` Dynamic; `ƒ Proxy (Middleware)` remains present.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated `@agents.md` line.
+- Risks/unknowns:
+  - This local pass does not send a real email or prove the staging Resend credential. The account may still be temporarily suppressed until the five-per-email/fifteen-minute throttle window from earlier retries expires.
+  - Runtime live-session refresh still follows the existing contract and does not re-query Seat existence after a JWT has been issued; changing that revocation/performance behavior is separate from restoring Solo-admin authentication.
+  - Existing Solo administrators remain grandfathered only for authentication. A normal profile edit still revalidates the write-time `ADMIN` + `SOLO` prohibition, and the current admin UI does not offer Move for admins; normalization into an Organisation is a separate workflow decision.
+- Next step:
+  - Review and push this focused patch to `staging`, wait for Vercel `READY`, confirm `/api/health/ready` reports all three checks `ok`, allow the prior throttle window to expire, then request one magic link for the Solo administrator and verify the confirm callback reaches `/admin`.
+
+## Entry 2026-08-01-05
+- Timestamp (UTC): 2026-08-01T15:48:26Z
+- Timestamp (Local): 2026-08-01 21:18:26 IST (+0530)
+- Task: Normalize the affected owner administrator into the active administrator Organisation and verify staging magic-link delivery.
+- Why: Live staging continued suppressing the owner account before provider delivery after the compatibility patch deployed. Read-only database inspection established that the account was not a Solo administrator: it belonged to the archived `Demo Corp` Organisation with an otherwise canonical assigned Seat. Production still accepted that legacy state because its older authentication path did not reject archived Organisations, while staging correctly failed closed.
+- What changed:
+  - Shared live database: moved only the affected `ADMIN` User from archived `Demo Corp` to the active `ADMINS` Organisation, retained the same User ID and null manager, replaced only that User's exact source Seat with one assigned target Seat, and wrote one `admin.user.identity_updated` maintenance AuditLog with `actorId: null`.
+  - `journal.md`: recorded the owner-authorized operational repair, safeguards, evidence, and remaining inbox hand-off. No application source, schema, migration, deployment, other User, or other Seat was changed.
+- How:
+  - Used one `SERIALIZABLE` Prisma transaction with sorted advisory locks over both seat inventories, row locks over both Organisations and the exact User, canonical-email and single-row assertions, active-target and archived-source checks, target-capacity enforcement, manager/direct-report guards, a compare-and-set User update, exact Seat create/delete counts, and a unique repair identifier in the AuditLog metadata.
+  - Required the transaction's own postconditions to prove the target identity and Seat, expected source/target count deltas, unchanged history counts, and one matching audit record; then repeated those checks in a separate read-only process.
+- Validation/output:
+  - Transaction committed once. Source changed from 2 Users/2 Seats to 1/1; target changed from 1/1 to 2/2 against a Seat limit of 50. The owner now resolves as `ADMIN` in active `ADMINS` with exactly one assigned Seat and no source Seat.
+  - Independent verification passed: manager remained null, direct reports remained zero, 2 assessment sessions and 11 authentication sessions remained attached to the same User ID, all previously-zero related history counts stayed zero, and exactly one matching maintenance AuditLog exists.
+  - `GET https://staging.olqlab.com/api/health/ready` returned HTTP 200 with `runtimeConfiguration`, `database`, and `authRateLimitSchema` all `ok`.
+  - One browser-mode request was submitted at 2026-08-01T15:45:50Z. The page reached its privacy-safe `Request received` state; Vercel recorded one HTTP 200 `POST /api/auth/signin/email` without a suppression or provider-failure message; Resend recorded exactly one matching message at 2026-08-01T15:45:56Z with event `delivered`; and the database contains one active unexpired verification token for the eligible identity.
+- Risks/unknowns:
+  - Preview and production use the same database, so the intentional identity/Seat normalization is visible to both environments. The archived source Organisation and its remaining legacy administrator were deliberately left untouched.
+  - The AuditLog actor is null because this was an owner-authorized maintenance transaction performed while the affected administrator could not authenticate; the repair identifier preserves traceability.
+  - Provider delivery is verified, but the one-time link has not been opened from the owner's private inbox in this session. Final callback, JWT-cookie creation, and `/admin` arrival remain an inbox-side check.
+- Next step:
+  - Open the newest staging sign-in email once, continue through `/signin/confirm`, and verify the callback lands on the dashboard or admin area. Do not request another link unless this delivered token expires or is consumed.
+
+## Entry 2026-08-03-01
+- Timestamp (UTC): 2026-08-03T05:25:57Z
+- Timestamp (Local): 2026-08-03 10:55:57 IST (+0530)
+- Task: Make Blindspot Work a full-screen scroll chapter and extend a vivid, coherent next-step system across the public site.
+- Why: The perception field still read as a bordered inset panel rather than an inherent full-viewport chapter, Blindspot Work was absent from the primary navigation, and the public experience needed stronger colour and motion continuity without adding distracting loops or moving interactive targets.
+- What changed:
+  - `src/app/blindspot/BlindspotField.tsx`, `src/app/blindspot/blindspot.module.css`, `src/components/effects/ScrollMotion.tsx`, `src/components/effects/ScrollMotion.module.css`, and `src/lib/scroll-motion.ts`: moved the perception field onto the shared scroll scheduler, added a bounded sticky-progress mode and eased progress value, removed its duplicate scroll/resize/observer loop, made the field edge-to-edge and one viewport high below the public header, overlaid its orientation copy, widened the aperture across a 1.65-viewport desktop scene, and made compact/short/coarse/reduced/no-script/forced-colour paths complete and unpinned.
+  - `src/components/navigation/NavLinks.tsx`: added `Blindspot Work` immediately before Contact in the shared desktop and mobile navigation, moved the five-link desktop treatment to the `lg` breakpoint, and tightened the narrow desktop gap so the header remains collision-free.
+  - `src/app/globals.css`, `src/components/effects/SectionSignalRail.tsx`, `src/components/effects/SectionSignalRail.module.css`, `src/components/marketing/AssessmentSignalExplorer.module.css`, and `src/app/about/about.module.css`: introduced vivid cognitive/personality/response companions for decorative fills and rails while retaining deep text aliases, applied the vivid triad to spectra, progress, landing rails, and active section signals, centralized the assessment Personality text colour, and strengthened low-contrast supporting labels.
+  - `src/components/marketing/Editorial.tsx`: added one shared stationary “Choose your next move” footer pathway linking Assessments, Framework, Blindspot Work, and Contact. Only the colour fields assemble on entry; every link remains fixed, semantic, keyboard-focusable, and complete without motion or JavaScript.
+  - `src/components/marketing/MarketingChrome.tsx`: placed the decorative three-bar spectrum on the existing shared motion scheduler across Assessments, Coaching, and OQL while leaving headings, descriptions, and links stationary.
+  - `src/app/page.tsx`: corrected the landing journey's undocumented `data-reveal-group="line"` fallback to the supported `rail` group.
+  - `tests/scroll-motion.test.ts`, `tests/marketing-motion-system.test.ts`, and `tests/marketing-interaction-contracts.test.ts`: added sticky-progress math, full-screen/fallback, navigation-order, footer-pathway, and Blindspot page-layer regression coverage.
+  - `guide.md`: documented vivid-versus-text colour roles, shared sticky progress, the stationary footer pathway, and the full-bleed Blindspot fallback contract.
+- How:
+  - Kept cream and ink as the dominant 70/20 base and used the brighter CPR colours only as controlled signal accents or ink-labelled fields. The selected vivid fills retain WCAG-readable ink contrast; small light-surface text continues to use the deeper semantic aliases.
+  - Preserved the semantic `#perception-field` section, four stationary 44 px signal controls, pointer requestAnimationFrame, and complete server-rendered content. The desktop scene is enabled only for wide, tall, fine-pointer, no-reduced-motion viewports; all other capabilities see the full connected pattern without pinning or masking.
+  - Used in-app browser inspection throughout. Browser evidence caught and repaired an intermediate containment bug where the outer scene was 1.65 viewports but the semantic field parent was only one viewport, which prevented a computed-sticky stage from actually pinning.
+- Validation/output:
+  - Full Node 22 `npm run ci` passed: lint, strict typecheck, 60 test files, 209 tests, Prisma generation, and the optimized production build.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/contact`, and `/oql` as `○` Static; sign-in, participant, report, admin, and API routes remain `ƒ` Dynamic.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+  - In-app browser QA covered all eight public routes at 320, 390, 768, 900, 1024, 1280, and 1440 px plus a short 1440×560 viewport. All 64 route/viewport combinations had zero horizontal overflow, no application error, one main and footer, and zero pending reveal targets after a progressive full-page scroll.
+  - Blindspot-specific browser checks proved a 1440 px-wide field, a stationary 72 px-offset desktop stage, scroll progress `0.0000 → 0.5024 → 1.0000`, all four connected signals at completion, a complete non-sticky 390 px composition, four unclipped 44×44 px controls, and no header collision at the five-link 1024 px breakpoint.
+  - Browser console inspection reported no runtime errors. Next's development LCP heuristic warned about the existing founder photo during the intentionally rapid automated scroll sweep; the local server also reported the expected missing `NEXTAUTH_URL`/secret warnings because production credentials were not injected for public-page visual QA.
+- Risks/unknowns:
+  - Hosted Safari/Chromium checks remain appropriate for mask compositing, font timing, reduced motion, and forced colours. The local browser matrix validates layout and progressive fallbacks but does not replace the staging CDN/runtime pass.
+  - Real database, Resend, Blob, OpenAI, hosted authentication, and cron behavior were not exercised because this is a public visual change and local production credentials were intentionally absent.
+  - No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review the visual diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then repeat the key desktop/mobile Blindspot interaction and hosted Safari/Chromium fallback checks before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-03-02
+- Timestamp (UTC): 2026-08-03T07:39:05Z
+- Timestamp (Local): 2026-08-03 13:09:05 IST (+0530)
+- Task: Publish consented workshop photography as a static Work in practice field-note archive.
+- Why: The public site explained OLQ Lab's method clearly but offered little documentary evidence of real cohorts and workshops. A restrained photo-led layer adds human credibility and context without turning the landing page into a generic gallery or adding another heavy client-side interaction.
+- What changed:
+  - `public/work/*.webp`: added ten selected, orientation-correct, metadata-free workshop derivatives while leaving the source photographs outside the repository and untouched.
+  - `src/content/work-events.ts`: added one typed, server-side presentation source for four field notes, their dates, broad locations, formats, visible-activity descriptions, alt text, captions, dimensions, crops, and CPR-aligned tones.
+  - `src/app/work/page.tsx` and `src/app/work/work.module.css`: added a fully static Work in practice route with a photo-led hero, field-note index, four semantic event chapters, surface-aware colour contrast, responsive editorial galleries, a short-viewport treatment, and an accessible closing pathway.
+  - `src/components/marketing/WorkInPracticePreview.tsx`, `src/components/marketing/WorkInPracticePreview.module.css`, and `src/app/page.tsx`: added an asymmetric two-image landing preview after the practice sequence, with archive-consistent numbering, visible captions, restrained reveal motion, and a direct `/work` pathway.
+  - `src/app/about/page.tsx`, `src/app/about/about.module.css`, and `src/components/marketing/Editorial.tsx`: linked the founder story and footer Practice column to the new archive and gave the About link appropriate story-body spacing.
+  - `src/app/sitemap.ts`, `src/components/effects/ScrollProgress.tsx`, `src/components/navigation/PublicHeader.tsx`, and `AGENTS.md`: registered `/work` in discovery, shared public progress, and static-route contracts.
+  - `tests/work-in-practice.test.ts`, `tests/marketing-interaction-contracts.test.ts`, and `tests/marketing-motion-system.test.ts`: added asset, metadata, content, semantics, sitemap, ordering, motion-fallback, and decorative-layer regression coverage.
+  - `guide.md` and `journal.md`: documented the static archive contract, photography derivative rules, directly supported public-copy policy, consent status, validation evidence, and hand-off.
+- How:
+  - Curated ten photographs from the owner-supplied workshop folder, normalized EXIF orientation, resized the long edge to at most 2400 px, converted to sRGB WebP, and removed EXIF/IPTC/XMP metadata. The public derivatives range from 118 KB to 362 KB; source originals remain unchanged in `/Users/ary/Downloads/OLQ Lab -Pics/`.
+  - Kept the archive server-rendered and content-led: semantic `article`, `time`, `dl`, `figure`, and `figcaption` elements remain in document flow; one genuine above-fold hero is prioritized and every field-note or landing image remains lazy. There is no carousel, autoplay, lightbox, new scroll listener, or client-only content dependency.
+  - Limited event descriptions to activities visible in the supplied photographs and used broad `India` locations where an exact venue was not established. The Kopargaon context is visible in the supplied Solution Mindset material. The owner confirmed that all photographed participants consented to internet publication and requested no on-page warning copy.
+  - Used independent content, privacy, architecture, accessibility, and final implementation reviews. Their findings corrected archive numbering, light/dark accent contrast, the Work closing CTA, About-link spacing, short-screen hero composition, and language that initially implied outcomes not established by the supplied material.
+- Validation/output:
+  - Full Node 22 `npm run ci` passed: lint, strict typecheck, 61 test files, 215 tests, Prisma generation, and the optimized production build. Focused Work/motion/interaction validation passed 3 files and 29 tests.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; sign-in, participant, report, admin, and API routes remain `ƒ` Dynamic.
+  - A second clean `npm run build` passed after the development renderer was stopped. Local optimized `next start` smoke returned 200 for all nine public routes, retained four semantic Work dates and both landing-preview assets, returned 404 for the intentionally removed `/privacy` and `/terms`, and served `/work` with `x-nextjs-cache: HIT`, `x-nextjs-prerender: 1`, and `Cache-Control: s-maxage=31536000`.
+  - Asset tests verified all ten WebP derivatives exist, match their declared dimensions, remain below 450 KB, and expose no EXIF, IPTC, or XMP payloads.
+  - In-app browser QA progressively reviewed the landing preview and all Work chapters on desktop and mobile, then checked `/` and `/work` at 320, 390, 768, 900, 1024, 1280, and 1440 px plus 1440×560. All 16 final route/viewport cases had one main/footer, bounded headings, zero media or caption clipping, zero horizontal overflow, no application error, and no browser warning/error logs. The About work link resolves to a 28 px story-body gap.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+- Risks/unknowns:
+  - Three field notes intentionally use the broad location `India`; the event titles and camera-local dates should receive a content-owner pass if exact venue, programme naming, or timezone-qualified dates are needed before production promotion.
+  - Hosted staging and Safari/Chromium checks remain appropriate for CDN image optimization, installed-font timing, reduced motion, and forced colours. The local server reported only expected missing-auth-environment warnings and a development-only LCP heuristic during an intentionally rapid scroll sweep.
+  - No schema, authentication, shared database, provider, or admin behavior was changed. No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review the field-note wording and imagery, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, and repeat the landing/Work desktop-mobile smoke before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-04-01
+- Timestamp (UTC): 2026-08-03T20:32:31Z
+- Timestamp (Local): 2026-08-04 02:02:31 IST (+0530)
+- Task: Add Work in practice to the public navigation and deepen its photographic motion story.
+- Why: The new field-note archive needed direct top-level discovery, two more owner-approved workshop moments, and a cleaner Mistral-inspired motion language that felt expressive without adding loops, carousels, or moving controls.
+- What changed:
+  - `src/components/navigation/NavLinks.tsx` and `src/app/globals.css`: added the semantic `Work in practice` link between Assessments and Blindspot Work in both navigation modes, updated the six-link contract, and prevented multi-word desktop labels from wrapping.
+  - `public/work/offsite-individual-attempt.webp`, `public/work/offsite-team-effort.webp`, and `src/content/work-events.ts`: added two 2000×1332 metadata-free derivatives to the 6 April 2023 field note with factual alt text, captions, crops, and an exact seven-image editorial sequence.
+  - `src/app/work/page.tsx` and `src/app/work/work.module.css`: added decorative CPR scroll layers to the hero, tightened normal and short-screen hero typography, assembled each chapter header once on entry, added numbered figure captions and a restrained index fill/arrow exchange, and replaced the five-image mosaic with a balanced 5/7, 4/4/4, 7/5 desktop composition plus complete tablet/mobile layouts.
+  - `src/components/marketing/WorkInPracticePreview.tsx` and `src/components/marketing/WorkInPracticePreview.module.css`: added one shared decorative scroll scene behind the landing diptych while keeping headings, photographs, captions, and the link stationary and semantic.
+  - `tests/work-in-practice.test.ts`, `tests/marketing-interaction-contracts.test.ts`, and `tests/marketing-motion-system.test.ts`: raised the archive figure contract to twelve, locked the exact off-site sequence, validated the complete navigation records, and covered the hidden decorative layers and motion CSS.
+  - `guide.md`: documented public-header discovery and the decorative-only Work scroll-motion boundary.
+- How:
+  - Reused the singleton `ScrollMotion` scheduler and the existing one-shot reveal vocabulary. Every continuously moved layer is `aria-hidden`; interactive targets remain stationary; coarse-pointer, reduced-motion, no-script, and forced-colour paths keep the complete composition.
+  - Exported only sRGB WebP derivatives without `withMetadata`; the supplied originals remain untouched outside the repository. The new files are 362,122 bytes and 220,048 bytes and expose no EXIF, IPTC, or XMP payloads.
+  - Used independent navigation, photography, and motion reviews plus the in-app browser. Browser work identified and corrected a clipped short-screen CTA and distinguished a stale development image-optimizer worker from an asset or reveal defect before final acceptance.
+- Validation/output:
+  - Full Node 22 `npm run ci` passed: lint, strict typecheck, 61 test files, 215 tests, Prisma generation, and the optimized production build. Focused Work/motion/interaction validation passed 3 files and 29 tests.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; sign-in, participant, report, admin, and API routes remain `ƒ` Dynamic.
+  - In-app browser QA covered `/` and `/work` at 320, 390, 768, 900, 1024, 1280, and 1440 px plus 1440×560. All layout cases had one main/footer, bounded headings and captions, zero horizontal overflow, and no application error. The 1024 px six-link header retained about 120 px of clearance on each side; the 320 px six-item menu remained 224 px wide and fully visible.
+  - Progressive browser sweeps resolved every reveal target. A deliberate mobile dwell pass loaded all twelve Work figures, and a clean-server desktop pass loaded all seven off-site AVIF/WebP candidates; the only console warning was Next's development LCP heuristic caused by jumping directly to a lazy field-note image.
+  - Asset checks confirmed both new WebPs are 2000×1332 sRGB, below 450 KB, and metadata-free. `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+- Risks/unknowns:
+  - Exact location and programme naming for the April 2023 field note remain intentionally broad; the captions describe only visible activity.
+  - Hosted staging and Safari/Chromium checks remain appropriate for CDN image optimization, font timing, reduced motion, and forced colours. Local public-page QA intentionally did not exercise database, Resend, authentication, or admin workflows.
+  - No files were staged, committed, pushed, deployed, or written to shared production data.
+- Next step:
+  - Review the expanded field note, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, and repeat the header plus landing/Work desktop-mobile smoke before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-04-02
+- Timestamp (UTC): 2026-08-04T09:07:10Z
+- Timestamp (Local): 2026-08-04 14:37:10 IST (+0530)
+- Task: Complete the final public UI/UX polish with a cleaner landing hierarchy, controlled vivid colour, and accessible navigation and sign-in states.
+- Why: The public experience had accumulated too many simultaneous decorative signals on the landing page, several non-interactive surfaces behaved like links on hover, and a final responsive/accessibility sweep found small but real contrast, disclosure, focus, and short-viewport navigation defects worth resolving before staging.
+- What changed:
+  - `src/app/page.tsx`, `src/app/LandingOverture.module.css`, and `src/app/globals.css`: moved the landing overture to the shared sticky-progress contract, removed the duplicate rotated spectrum and triple arrow loop, assembled the CPR objects in the hero's open middle field, simplified the colour rail, tightened supporting-heading scale and spacing, grouped section reveals, removed fake card/photo hover motion, reduced paper grain, and concentrated the vivid CPR palette into one readable framework set-piece plus restrained chapter washes.
+  - `src/components/marketing/WorkInPracticePreview.module.css`, `src/app/work/work.module.css`, `src/app/about/about.module.css`, `src/app/contact/contact.module.css`, `src/app/blindspot/blindspot.module.css`, `src/components/marketing/HexDial.tsx`, and `src/components/marketing/StepperFlow.tsx`: reduced competing decorative intensity, removed non-interactive photography zooms, strengthened meaningful small-text and focus contrast, used the vivid triad only on dark or ink-labelled surfaces, and retained deep semantic colours for light-surface text.
+  - `src/components/navigation/NavLinks.tsx`, `src/components/navigation/HeaderAuthSlot.tsx`, and `src/components/navigation/ProfileMenu.tsx`: bounded the six-link mobile menu to the short viewport, enforced 44 px targets and visible focus, hid the redundant standalone Dashboard link on narrow signed-in headers, and made Profile a correctly described disclosure that closes on Escape or focus departure and returns focus to its trigger.
+  - `src/app/(auth)/signin/page.tsx`, `src/app/(auth)/signin/SignInForm.tsx`, `src/app/(auth)/signin/confirm/page.tsx`, and `src/app/(auth)/signin/confirm/ContinueButton.tsx`: restored sibling banner/main/contentinfo landmarks, added skip targets with sticky-header clearance, strengthened input-boundary, button, link, placeholder, and focus contrast, and preserved the documented two-step magic-link continuation chain.
+  - `src/app/coaching/page.tsx`: replaced pointer-specific “Hover or tap” instructions with the input-neutral “Choose any stage” wording.
+  - `tests/public-ui-quality.test.ts`: added regression coverage for landing restraint and sticky progress, vivid-field use, bounded narrow navigation, Profile disclosure semantics, auth landmarks, skip clearance, and sign-in contrast/focus tokens.
+  - `guide.md`: documented the restrained colour hierarchy, non-interactive motion boundary, deterministic landing progression, narrow authenticated-header behavior, Profile disclosure contract, and auth-page landmark/focus requirements.
+- How:
+  - Kept cream and ink as the dominant reading surfaces and used teal, amber, and coral as a controlled signal system rather than colouring body copy or every card. The three vivid fields retain ink labels and supporting text at readable opacity; light-surface text continues to use deeper semantic aliases.
+  - Reused the existing `ScrollMotion` scheduler and one-shot reveal system. Continuously moving layers remain decorative and `aria-hidden`; links, buttons, form controls, and primary content stay stationary and complete under reduced motion, coarse pointers, forced colours, missing JavaScript, and short viewports.
+  - Used two independent final source reviews plus in-app browser inspection. The reviews caught the final vivid-card text contrast, input boundary, disclosure semantics, photo-hover, and focus-indicator issues before acceptance.
+- Validation/output:
+  - Exact Node 22.23.1 `npm run ci` passed: ESLint with 0 errors, strict typecheck, 62 test files, 218 tests, Prisma generation, and the optimized Next.js production build.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; `/signin`, `/signin/confirm`, authenticated pages, admin pages, reports, and APIs remain `ƒ` Dynamic.
+  - In-app browser QA progressively scrolled the landing page at 320, 390, 768, 900×600, 1024×600, 1280, and 1440 px, then every remaining public route plus `/signin` and `/signin/confirm` at 390 and 1440 px. All 27 primary route/viewport cases had one main/footer/heading, bounded headings, zero horizontal overflow, zero broken images, no application error, and zero pending reveals at completion. The affected landing, About, Work, and auth pages were repeated after the final accessibility fixes with the same result.
+  - The 390×320 mobile menu remains a 224 px viewport-bounded panel with `overflow-y: auto`; all six links are reachable and Contact is fully visible after the panel scrolls. A fresh local landing tab logged only React development information and the HMR connection, with no browser warning or error.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+  - `npm run env:check` failed only because local production credentials (`DATABASE_URL`, NextAuth, Resend, Blob, OpenAI, and job secrets) were intentionally not injected for public visual QA.
+- Risks/unknowns:
+  - Local public-page QA did not exercise the hosted database, Resend delivery, the authenticated Profile disclosure with a real session, Blob/OpenAI providers, or cron jobs. No authentication callback, access-control, schema, provider, or shared-data behavior changed.
+  - Hosted staging and Safari/Chromium checks remain appropriate for CDN image optimization, installed-font timing, mask compositing, reduced motion, and forced colours.
+  - No files were staged, committed, pushed, deployed, or written to shared production data.
+- Next step:
+  - Review the final visual diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, and repeat the landing, short mobile menu, Work archive, contact, and authenticated Profile smoke before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-04-03
+- Timestamp (UTC): 2026-08-04T12:41:05Z
+- Timestamp (Local): 2026-08-04 18:11:05 IST (+0530)
+- Task: Polish the authenticated workspace and remove avoidable route-transition latency.
+- Why: Signed-in page changes felt slow because dynamic routes had no immediate streamed fallback, several pages repeated the live User/Organisation query, report access expanded into an N-item query loop, admin lists fetched and rendered broader windows than needed, and assessment management loaded unrelated tab data up front. A final source and browser sweep also found stale-request, cached-tab, nested-landmark, short-screen motion, and disclosure defects that made the perceived delay less trustworthy.
+- What changed:
+  - `src/components/navigation/AppShell.tsx`, `src/components/navigation/WorkspaceLinkStatus.tsx`, `src/components/navigation/ProfileMenu.tsx`, `src/app/(app)/loading.tsx`, `src/app/(app)/admin/loading.tsx`, and `src/app/globals.css`: rebuilt the signed-in shell with one semantic workspace wrapper, active-link and fixed-size pending feedback, viewport-bounded mobile navigation, route-change/outside/Escape closure, a click-driven Profile disclosure, a compact 320 px assessment-session header, opaque low-cost surfaces, reduced-motion fallbacks, and static app/admin loading boundaries that do no auth or database work.
+  - `src/components/marketing/MarketingEffects.tsx`, the marketing route entries, `src/app/layout.tsx`, and `src/components/navigation/PublicHeader.tsx`: scoped public progress/reveal hydration to the marketing tree, removed those observers and the fixed blended grain from signed-in/auth surfaces, and replaced remaining scroll-time translucent header treatments with solid editorial surfaces.
+  - `src/lib/api-auth.ts`, `src/app/(app)/dashboard/page.tsx`, `src/app/(app)/assessment/current/page.tsx`, `src/app/(app)/assessment/[assessmentId]/page.tsx`, and `src/app/(app)/reports/current/page.tsx`: reused the request-scoped live User/Organisation result, removed duplicate identity reads, counted instead of loading complete relations, parallelized independent dashboard/start-page queries, and kept persisted identity and authorization checks live on every authenticated request.
+  - `src/lib/assessment-access.ts`: extracted one shared access decision builder and added `resolveAssessmentAccessMany()`. `/reports/current` now resolves a page-sized assessment set with one bounded current-schema query set instead of invoking up to six resolver reads for every report, while preserving direct/Organisation union, future-user cutoff, due-job precedence, override modes, report metadata, ADMIN denial, effective-time behavior, missing-record denial, and the schema-compatibility fallback.
+  - `src/app/api/admin/users/route.ts`, `src/app/api/admin/tenants/route.ts`, and `src/app/api/admin/assessments/route.ts`: made direct sort paths honor the requested page window, retained larger bounded windows only for derived filtering/sorting, added a lightweight user-option mode that skips unused global statistics/Organisation summaries/counts, and started full Users context reads in parallel with the list query.
+  - `UsersClient.tsx`, `TenantsClient.tsx`, `AssessmentsClient.tsx`, and `AssessmentDetailClient.tsx`: debounced search, aborted superseded work, ignored stale responses, separated loading from empty states, reduced per-row Organisation controls, fixed URL-query synchronization, loaded assessment tabs on first use, cached safe revisits, invalidated dependent tabs after enrollment/job mutations, preserved unsaved Content/Policy edits, gated controls during load/error, and retained ordinary disclosure-button semantics instead of an incomplete ARIA tab pattern.
+  - `src/app/(app)/assessment/session/[sessionId]/page.tsx`, the participant response review, and participant/admin question imagery: cancelled route-keyed loaders on navigation, prevented late responses from replacing the current session/participant, removed nested main landmarks, removed the redundant post-navigation refresh, and deferred image decoding/loading below the immediate viewport.
+  - `src/app/LandingOverture.module.css`, `src/components/effects/ScrollMotion.tsx`, `src/app/page.tsx`, and `src/app/contact/contact.module.css`: aligned the landing JavaScript and CSS capability gates, supplied a complete non-transforming short-height fallback, and removed the Contact sticky progress blur without changing the final composition.
+  - `tests/assessment-access-many.test.ts`, `tests/workspace-performance-contracts.test.ts`, `tests/public-ui-quality.test.ts`, `tests/api-auth.test.ts`, `tests/marketing-motion-system.test.ts`, and `guide.md`: added batch-access parity/query-boundary cases, signed-in performance/landmark/request-cancellation contracts, public fallback regressions, and the durable navigation/query-shaping rules.
+- How:
+  - Used request-local React caching only to deduplicate the mandatory live identity lookup inside one server render; no process-wide identity or authorization cache was introduced. Parallel reads remain fail-closed, and the batch resolver returns the same decision shape from the same pure builder as the single resolver.
+  - Used Next 16 route loading boundaries and `useLinkStatus` for immediate perceived feedback rather than forcing full prefetches of auth-gated dynamic routes. Admin caches are explicit, tab-scoped, invalidated by cross-cutting mutations, and removed after failed refreshes so stale data is never silently declared current.
+  - Used independent query/access and UI/accessibility reviewers plus in-app browser inspection. Their findings repaired large-Organisation selector truncation, mutation cache invalidation, failed-refresh retry state, option-query overfetch, Profile hover/click conflict, 320 px header pressure, short-screen hydration motion, incomplete tab semantics, stale participant/session searches, nested main landmarks, and reduced-motion coverage.
+- Validation/output:
+  - Exact Node 22.23.1 `npm run ci` passed: ESLint with 0 errors, strict typecheck, 64 test files, 227 tests, Prisma generation, and the optimized Next.js 16.2.12 production build.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; `/signin`, `/signin/confirm`, dashboard, assessment, report, admin, and API routes remain `ƒ` Dynamic.
+  - Batched-access tests cover deduplication and a fixed six-query current-schema path, direct MANUAL metadata, Organisation future-user rules, due-unenroll precedence, ADMIN/missing-assessment denial, and the legacy compatibility fallback. Workspace regression tests cover loading boundaries, marketing-observer scoping, active/pending navigation, query reuse, stale-request cancellation, dependent-tab invalidation, direct list windows, and single-main ownership.
+  - In-app browser QA covered the landing at 320×700, 1024×600, and desktop widths; Framework and the full-screen Blindspot field at 1280×800; the Work archive/gallery; Contact at 1280×800; and Sign in at 390×844. Final cases had one main, no horizontal overflow, no broken images, no sticky Contact blur, no marketing observers on Sign in, and no browser error logs. The 1024×600 landing correctly remained unenhanced with `transform: none` rather than jumping its sticky progress on hydration.
+  - `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+  - `npm run env:check` failed only because local production credentials (`DATABASE_URL`, NextAuth, Resend, job/cron, migration, Blob, OpenAI, and report-model values) were intentionally not injected.
+- Risks/unknowns:
+  - The in-app staging browser profile was not authenticated, and local production credentials were intentionally absent, so a hosted signed-in before/after timing and real admin/participant click-through could not be captured without sending a new external magic link. The changes have structural query/test evidence and local public/auth browser evidence, but staging should still receive an authenticated route-transition smoke after deployment.
+  - No schema, migration, sign-in callback chain, shared database row, provider configuration, email, Blob object, OpenAI request, cron job, or production environment was mutated. No files were staged, committed, pushed, or deployed.
+- Next step:
+  - Review the working diff, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, then measure Dashboard → Assessment Centre → My Reports and the main admin list/detail transitions with a real session at desktop and mobile widths before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-04-04
+- Timestamp (UTC): 2026-08-04T13:55:29Z
+- Timestamp (Local): 2026-08-04 19:25:29 IST (+0530)
+- Task: Warm role-visible workspace routes after sign-in without caching live authorization data.
+- Why: Signed-in navigation should feel immediate even when a destination link is hidden in the mobile menu or has not yet entered the viewport. Forcing complete authenticated pages into a five-minute client cache would run avoidable database work and could reuse stale role, Organisation, enrollment, or report-release data, so the optimization needed a narrower browser-memory boundary.
+- What changed:
+  - `src/components/navigation/WorkspaceRouteWarmer.tsx` and `src/components/navigation/AppShell.tsx`: added a production-only, non-visual route warmer to the normal workspace shell. It prefetches one route per idle opportunity, skips the route currently displayed both when scheduling and when execution arrives, pauses while offline/hidden or on Data Saver/2G, resumes on visibility/network changes, cancels pending work on unmount, and never mounts inside a focused assessment session.
+  - `src/lib/workspace-navigation.ts`: defined the exact role-scoped warm sets and the constrained-network policy. Employees warm Dashboard, Assessment Center, and My Reports; leaders also warm Team Reports; admins warm Dashboard and Admin, after which the visible Admin links use Next's native automatic prefetching for subsections.
+  - `src/app/(app)/admin/page.tsx`: repeated the request-scoped live-admin check at the operational-data leaf before reading counts or jobs, closing the shared-layout reuse gap exposed by prefetch review without adding a duplicate User query in the same render request.
+  - `tests/workspace-navigation.test.ts` and `tests/workspace-performance-contracts.test.ts`: added exact role-matrix, forbidden-route, constrained-connection, focused-session, production-only, cancellation, no-persistent-cache, queue-advancement/current-route, and Admin overview guard regressions.
+  - `guide.md`: documented the in-memory AUTO prefetch boundary, its cascade and resource guards, the live Admin overview check, and the hosted browser/network acceptance gate.
+- How:
+  - Used public `router.prefetch(href)` with no options. In installed Next 16.2.12 this selects AUTO/LoadingBoundary behavior for the dynamic authenticated tree, warming route code, shared layouts, and static loading UI without opting into `PrefetchKind.FULL`, `prefetch={true}`, invalidation polling, Cache Storage, local storage, IndexedDB, or a service worker.
+  - Kept the warm list finite and role-derived, excluded dynamic assessment/session/report/detail URLs and the heavier static Landing route, staggered work with `requestIdleCallback` plus a delayed compatibility fallback, and let visible native links continue to use Next's own prioritization.
+  - Used independent Next-runtime, access/freshness, and final code reviews. Their findings narrowed Admin warming to a two-stage cascade, added the Admin overview leaf guard, rechecked changing connection conditions during the sequence, and prevented a queued prefetch from redundantly fetching the route a user had already opened.
+- Validation/output:
+  - Exact Node 22.23.1 `npm run ci` passed after implementation: ESLint with 0 errors, strict typecheck, 64 test files, 230 tests, Prisma generation, and the optimized Next.js 16.2.12 production build.
+  - Focused workspace tests passed 2 files and 11 tests. The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; dashboard, assessment, report, admin, sign-in, and API routes remain `ƒ` Dynamic.
+  - In-app browser inspection confirmed the currently deployed staging build still redirects an unauthenticated `/dashboard` request to `/signin`; the resulting page has one main landmark, zero horizontal overflow, zero broken images, and no Next error overlay. The available browser profile did not carry an authenticated staging session, so it could not exercise this local-only warmer before deployment.
+  - `git diff --check` passed. `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+- Risks/unknowns:
+  - AUTO prefetch makes the loading shell and route assets ready; it deliberately does not promise a data-complete page with no server round trip. That remaining request is what preserves immediate role/revocation and current assessment/report decisions.
+  - The exact before/after signed-in transition timing, request count, transfer size, Data Saver behavior, and demotion/enrollment freshness still require a real authenticated production-build session after staging deployment. No shared database, authentication provider, email, schema, migration, environment, or deployed code was changed in this task.
+  - Changes remain local and unstaged; nothing was committed, pushed, or deployed.
+- Next step:
+  - Review and stage only the intended files, push to `staging`, wait for Vercel `READY`, then capture Dashboard → Assessment Center → My Reports/Team Reports and Dashboard → Admin request/timing evidence with a real session before promoting the standing staging-to-main PR.

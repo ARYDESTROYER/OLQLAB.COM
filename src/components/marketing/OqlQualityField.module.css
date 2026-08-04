@@ -1,0 +1,253 @@
+.field {
+  position: relative;
+  margin-top: clamp(3rem, 6vw, 5rem);
+  overflow: clip;
+  border: 1px solid var(--rule-strong);
+  background:
+    radial-gradient(
+      circle at 8% 18%,
+      color-mix(in srgb, var(--signal-cognitive-soft) 55%, transparent),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 92% 84%,
+      color-mix(in srgb, var(--signal-response-soft) 48%, transparent),
+      transparent 27%
+    ),
+    var(--paper);
+  isolation: isolate;
+}
+
+.frameHeader {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  min-height: 3.1rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--rule-strong);
+  background: color-mix(in srgb, var(--cream-deep) 91%, transparent);
+  padding: 0.85rem 1rem;
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.artifact {
+  position: absolute;
+  z-index: 0;
+  display: grid;
+  width: clamp(5rem, 10vw, 9rem);
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid currentColor;
+  font-family: var(--font-instrument-serif), "Times New Roman", serif;
+  font-size: clamp(2.75rem, 6vw, 5.5rem);
+  line-height: 1;
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+.artifactO {
+  top: 9%;
+  right: 9%;
+  border-radius: 50%;
+  color: var(--signal-cognitive);
+}
+
+.artifactQ {
+  top: 47%;
+  left: 4%;
+  color: var(--signal-personality);
+  transform: rotate(9deg);
+}
+
+.artifactL {
+  right: 4%;
+  bottom: 6%;
+  color: var(--signal-response);
+  transform: rotate(-8deg);
+}
+
+.grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  --card-surface: color-mix(in srgb, var(--paper) 91%, transparent);
+  --card-ink: var(--ink);
+  --card-signal: var(--brass-text);
+  position: relative;
+  display: grid;
+  min-height: 10.5rem;
+  grid-template-columns: auto 1fr;
+  align-content: space-between;
+  gap: 2.5rem 1rem;
+  overflow: hidden;
+  border-right: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  background: var(--card-surface);
+  padding: clamp(1.15rem, 2.25vw, 1.75rem);
+  color: var(--card-ink);
+  transition:
+    background-color var(--motion-medium) var(--ease-editorial),
+    color var(--motion-medium) var(--ease-editorial);
+}
+
+.card::after {
+  position: absolute;
+  right: -2.4rem;
+  bottom: -3.1rem;
+  width: 7rem;
+  aspect-ratio: 1;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  content: "";
+  opacity: 0.16;
+  transform: scale(0.72);
+  transition:
+    transform 620ms var(--ease-snap),
+    opacity 420ms ease;
+}
+
+.card:nth-child(3),
+.card:nth-child(8) {
+  --card-surface: var(--signal-cognitive);
+  --card-ink: var(--on-signal-dark);
+  --card-signal: var(--signal-cognitive-soft);
+}
+
+.card:nth-child(5),
+.card:nth-child(10) {
+  --card-surface: var(--signal-personality-soft);
+  --card-signal: var(--signal-response);
+}
+
+.card:nth-child(6) {
+  --card-surface: var(--signal-response);
+  --card-ink: var(--on-signal-dark);
+  --card-signal: var(--signal-response-soft);
+}
+
+.card:nth-child(12) {
+  --card-surface: var(--ink);
+  --card-ink: var(--cream);
+  --card-signal: var(--signal-personality-soft);
+}
+
+.index {
+  font-family: var(--font-plex-mono), ui-monospace, monospace;
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+}
+
+.signalDot {
+  justify-self: end;
+  width: 0.5rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--card-signal);
+  box-shadow: 0 0 0 0.38rem
+    color-mix(in srgb, var(--card-signal) 16%, transparent);
+}
+
+.card h3 {
+  grid-column: 1 / -1;
+  max-width: 15ch;
+  font-family: var(--font-instrument-serif), "Times New Roman", serif;
+  font-size: clamp(1.45rem, 2.7vw, 2.25rem);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+}
+
+.progress {
+  position: relative;
+  z-index: 4;
+  height: 0.28rem;
+  overflow: hidden;
+  background: var(--cream-deep);
+}
+
+.progress span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(var(--scroll-progress, 0));
+  transform-origin: left;
+  background: linear-gradient(
+    90deg,
+    var(--signal-cognitive) 0 33.333%,
+    var(--signal-personality) 33.333% 66.666%,
+    var(--signal-response) 66.666% 100%
+  );
+}
+
+@media (min-width: 40rem) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .card {
+    grid-column: span 2;
+  }
+
+  .card:nth-child(1),
+  .card:nth-child(2),
+  .card:nth-child(11),
+  .card:nth-child(12) {
+    grid-column: span 3;
+  }
+
+  .card:nth-child(6) {
+    grid-column: span 4;
+    min-height: 13rem;
+  }
+
+  .card:nth-child(7) {
+    min-height: 13rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .artifact,
+  .card,
+  .card::after,
+  .progress span {
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .progress span {
+    width: 100%;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .artifact {
+    transform: none !important;
+  }
+}
+
+@media (scripting: none) {
+  .artifact,
+  .progress span {
+    transform: none !important;
+  }
+}
