@@ -10,6 +10,7 @@ import styles from "./ScrollMotion.module.css";
 type ScrollMotionProps = {
   children: ReactNode;
   className?: string;
+  enhancementQuery?: string;
   progressMode?: "viewport" | "sticky";
   stickyOffset?: number;
 };
@@ -61,6 +62,7 @@ function setLength(root: HTMLDivElement, property: string, value: number) {
 export default function ScrollMotion({
   children,
   className,
+  enhancementQuery,
   progressMode = "viewport",
   stickyOffset = 0,
 }: ScrollMotionProps) {
@@ -75,12 +77,17 @@ export default function ScrollMotion({
       "(prefers-reduced-motion: reduce)",
     );
     const coarsePointer = window.matchMedia("(hover: none), (pointer: coarse)");
+    const enhancementCapability = enhancementQuery
+      ? window.matchMedia(enhancementQuery)
+      : null;
     let isNearViewport = true;
     let unsubscribeViewport: (() => void) | null = null;
     let ownedLayers = new Set<HTMLElement>();
     let ownedAmbientNodes = new Set<HTMLElement>();
     const motionIsDisabled = () =>
-      motionPreference.matches || coarsePointer.matches;
+      motionPreference.matches ||
+      coarsePointer.matches ||
+      enhancementCapability?.matches === false;
 
     const isOwnedByRoot = (element: Element) =>
       element.closest("[data-scroll-scene]") === root;
@@ -264,6 +271,7 @@ export default function ScrollMotion({
     resize.observe(root);
     motionPreference.addEventListener("change", onMotionCapabilityChange);
     coarsePointer.addEventListener("change", onMotionCapabilityChange);
+    enhancementCapability?.addEventListener("change", onMotionCapabilityChange);
     update();
 
     return () => {
@@ -272,6 +280,7 @@ export default function ScrollMotion({
       stopViewportSubscription();
       motionPreference.removeEventListener("change", onMotionCapabilityChange);
       coarsePointer.removeEventListener("change", onMotionCapabilityChange);
+      enhancementCapability?.removeEventListener("change", onMotionCapabilityChange);
       clearMotion();
       ownedLayers.forEach((element) => {
         if (element.dataset.scrollOwner === sceneId)
@@ -283,7 +292,7 @@ export default function ScrollMotion({
         }
       });
     };
-  }, [progressMode, sceneId, stickyOffset]);
+  }, [enhancementQuery, progressMode, sceneId, stickyOffset]);
 
   return (
     <div

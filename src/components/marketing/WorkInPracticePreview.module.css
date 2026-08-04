@@ -5,7 +5,7 @@
   background:
     radial-gradient(
       circle at 92% 8%,
-      color-mix(in srgb, var(--signal-personality-vivid) 18%, transparent),
+      color-mix(in srgb, var(--signal-personality-vivid) 11%, transparent),
       transparent 24rem
     ),
     var(--cream);
@@ -36,7 +36,7 @@
   aspect-ratio: 1;
   background: color-mix(
     in srgb,
-    var(--signal-cognitive-vivid) 13%,
+    var(--signal-cognitive-vivid) 8%,
     transparent
   );
 }
@@ -48,7 +48,7 @@
   aspect-ratio: 1;
   background: color-mix(
     in srgb,
-    var(--signal-personality-vivid) 55%,
+    var(--signal-personality-vivid) 34%,
     transparent
   );
 }
@@ -60,12 +60,12 @@
   height: clamp(8rem, 17vw, 15rem);
   border-color: color-mix(
     in srgb,
-    var(--signal-response-vivid) 48%,
+    var(--signal-response-vivid) 34%,
     transparent
   );
   background: color-mix(
     in srgb,
-    var(--signal-response-vivid) 20%,
+    var(--signal-response-vivid) 12%,
     transparent
   );
 }
@@ -181,11 +181,6 @@
 
 .image {
   object-fit: cover;
-  transition: transform 700ms var(--ease-editorial);
-}
-
-.figure:hover .image {
-  transform: scale(1.025);
 }
 
 .figure figcaption {
@@ -244,13 +239,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .image,
   .link {
     transition: none;
-  }
-
-  .figure:hover .image {
-    transform: none;
   }
 }
 

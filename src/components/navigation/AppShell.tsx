@@ -2,14 +2,73 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import ProfileMenu from "@/components/navigation/ProfileMenu";
+import WorkspaceLinkStatus from "@/components/navigation/WorkspaceLinkStatus";
 import {
   getFocusedSessionNavigation,
   hasParticipantWorkspaceAccess,
   type WorkspaceRole,
 } from "@/lib/workspace-navigation";
+
+type WorkspaceLink = {
+  href: string;
+  label: string;
+  matchPrefixes: string[];
+};
+
+function isActiveLink(pathname: string, item: WorkspaceLink) {
+  return item.matchPrefixes.some((prefix) =>
+    prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
+  );
+}
+
+function BrandMark({ focused = false }: { focused?: boolean }) {
+  return (
+    <Link
+      href="/dashboard"
+      className="group flex min-h-11 items-center gap-3 rounded-lg focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[var(--focus-light)]"
+    >
+      <span className="workspace-mark" aria-hidden="true">
+        OQ
+      </span>
+      <span
+        className={`${focused ? "hidden sm:block" : ""} text-sm font-bold tracking-[0.14em] text-ink`}
+      >
+        OLQLAB
+        {!focused ? <span className="hidden font-medium text-ink/55 xl:inline"> / Workspace</span> : null}
+      </span>
+      <WorkspaceLinkStatus label="Dashboard" />
+    </Link>
+  );
+}
+
+function NavigationLink({
+  item,
+  active,
+  mobile = false,
+  onNavigate,
+}: {
+  item: WorkspaceLink;
+  active: boolean;
+  mobile?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={`${mobile ? "workspace-mobile-link" : "workspace-nav-link"} ${
+        active ? "is-active" : ""
+      }`}
+      onNavigate={onNavigate}
+    >
+      <span>{item.label}</span>
+      <WorkspaceLinkStatus label={item.label} />
+    </Link>
+  );
+}
 
 export default function AppShell({
   role,
@@ -24,9 +83,47 @@ export default function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
   const focusedSession = pathname.startsWith("/assessment/session/");
   const focusedNavigation = getFocusedSessionNavigation(pathname, role);
+  const mobileMenuId = useId();
+  const headerRef = useRef<HTMLElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const links = useMemo(() => {
-    const base = [{ href: "/dashboard", label: "Dashboard", matchPrefixes: ["/dashboard"] }];
+  useEffect(() => {
+    let active = true;
+    Promise.resolve().then(() => {
+      if (active) setMobileOpen(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+
+    function closeOnPointerDown(event: PointerEvent) {
+      if (!headerRef.current?.contains(event.target as Node)) {
+        setMobileOpen(false);
+      }
+    }
+
+    function closeOnEscape(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      setMobileOpen(false);
+      menuButtonRef.current?.focus();
+    }
+
+    window.addEventListener("pointerdown", closeOnPointerDown);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      window.removeEventListener("pointerdown", closeOnPointerDown);
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileOpen]);
+
+  const links = useMemo<WorkspaceLink[]>(() => {
+    const base: WorkspaceLink[] = [
+      { href: "/dashboard", label: "Dashboard", matchPrefixes: ["/dashboard"] },
+    ];
 
     if (hasParticipantWorkspaceAccess(role)) {
       base.push(
@@ -55,113 +152,107 @@ export default function AppShell({
     }
 
     base.push({ href: "/", label: "Landing", matchPrefixes: ["/"] });
-
     return base;
   }, [role]);
 
   if (focusedSession) {
     return (
-      <main className="min-h-screen">
-        <header className="sticky top-0 z-40 border-b border-slate-200/75 bg-white/90 backdrop-blur-xl">
-          <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-4 md:px-10">
-            <Link href="/dashboard" className="flex items-center gap-2">
-              <div className="gradient-ring flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
-                OQ
-              </div>
-              <p className="text-sm font-semibold tracking-[0.12em] text-slate-900">OLQLAB</p>
-            </Link>
-
+      <div className="workspace-shell min-h-screen">
+        <a className="skip-link" href="#workspace-content">
+          Skip to workspace content
+        </a>
+        <header className="workspace-header" ref={headerRef}>
+          <div className="mx-auto flex min-h-[4.5rem] max-w-7xl items-center justify-between gap-3 px-5 md:px-10">
+            <BrandMark focused />
             <div className="flex items-center gap-2">
               <Link
                 href={focusedNavigation.exitHref}
-                className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+                aria-label={focusedNavigation.exitLabel}
+                className="workspace-action-link"
               >
-                {focusedNavigation.exitLabel}
+                <span className="hidden sm:inline">{focusedNavigation.exitLabel}</span>
+                <span className="sm:hidden" aria-hidden="true">Exit</span>
+                <WorkspaceLinkStatus label={focusedNavigation.exitLabel} />
               </Link>
-              {focusedNavigation.showMyReports && (
-                <Link
-                  href="/reports/current"
-                  className="hidden rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 md:inline-block"
-                >
-                  My Reports
+              {focusedNavigation.showMyReports ? (
+                <Link href="/reports/current" className="workspace-action-link hidden md:inline-flex">
+                  <span>My Reports</span>
+                  <WorkspaceLinkStatus label="My Reports" />
                 </Link>
-              )}
+              ) : null}
               <ProfileMenu role={role} email={email} />
             </div>
           </div>
         </header>
-
-        <div>{children}</div>
-      </main>
+        <div id="workspace-content" tabIndex={-1}>{children}</div>
+      </div>
     );
   }
 
   return (
-    <main className="min-h-screen">
-      <header className="sticky top-0 z-40 border-b border-slate-200/75 bg-white/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-6 py-4 md:px-10">
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="gradient-ring flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white">
-              OQ
-            </div>
-            <p className="text-sm font-semibold tracking-[0.12em] text-slate-900">OLQLAB Workspace</p>
-          </Link>
+    <div className="workspace-shell min-h-screen">
+      <a className="skip-link" href="#workspace-content">
+        Skip to workspace content
+      </a>
+      <header
+        className="workspace-header"
+        ref={headerRef}
+        onBlur={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+            setMobileOpen(false);
+          }
+        }}
+      >
+        <div className="mx-auto flex min-h-[4.5rem] max-w-7xl items-center justify-between gap-3 px-5 md:px-10">
+          <BrandMark />
 
-          <nav className="hidden items-center gap-2 md:flex">
+          <nav className="hidden items-center gap-1 lg:flex" aria-label="Workspace">
             {links.map((item) => (
-              <Link
+              <NavigationLink
                 key={item.href}
-                href={item.href}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                  item.matchPrefixes.some((prefix) =>
-                    prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
-                  )
-                    ? "bg-slate-900 text-white"
-                    : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                }`}
-              >
-                {item.label}
-              </Link>
+                item={item}
+                active={isActiveLink(pathname, item)}
+              />
             ))}
           </nav>
 
           <div className="flex items-center gap-2">
             <button
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 md:hidden"
-              onClick={() => setMobileOpen((prev) => !prev)}
+              ref={menuButtonRef}
+              aria-controls={mobileMenuId}
+              aria-expanded={mobileOpen}
+              className="workspace-menu-button lg:hidden"
+              onClick={() => setMobileOpen((previous) => !previous)}
               type="button"
             >
-              Menu
+              {mobileOpen ? "Close" : "Menu"}
             </button>
             <ProfileMenu role={role} email={email} />
           </div>
         </div>
 
-        {mobileOpen && (
-          <div className="border-t border-slate-200 bg-white px-6 py-3 md:hidden">
-            <div className="grid gap-2">
+        {mobileOpen ? (
+          <nav
+            id={mobileMenuId}
+            aria-label="Workspace mobile"
+            className="max-h-[calc(100svh-4.5rem)] overflow-y-auto overscroll-contain border-t border-ink/12 bg-[var(--paper)] px-5 py-3 lg:hidden"
+          >
+            <div className="mx-auto grid max-w-7xl gap-1">
               {links.map((item) => (
-                <Link
+                <NavigationLink
                   key={item.href}
-                  href={item.href}
-                  className={`rounded-lg px-3 py-2 text-sm font-semibold transition ${
-                    item.matchPrefixes.some((prefix) =>
-                      prefix === "/" ? pathname === "/" : pathname.startsWith(prefix),
-                    )
-                      ? "bg-slate-900 text-white"
-                      : "text-slate-700 hover:bg-slate-100"
-                  }`}
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {item.label}
-                </Link>
+                  item={item}
+                  active={isActiveLink(pathname, item)}
+                  mobile
+                  onNavigate={() => setMobileOpen(false)}
+                />
               ))}
             </div>
-          </div>
-        )}
+          </nav>
+        ) : null}
       </header>
 
-      <div>{children}</div>
-    </main>
+      <div id="workspace-content" tabIndex={-1}>{children}</div>
+    </div>
   );
 }

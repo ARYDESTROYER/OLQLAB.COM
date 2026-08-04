@@ -92,7 +92,7 @@ export default function StepperFlow({
           aria-live="polite"
           aria-atomic="true"
         >
-          <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/55">
+          <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/65">
             <span className="brass-dot" aria-hidden />
             Stage {String(active + 1).padStart(2, "0")}
           </p>

@@ -1,9 +1,5 @@
 .motion {
-  --overture-progress: clamp(
-    0,
-    calc((var(--scroll-progress, 0.36) - 0.36) * 5.1),
-    1
-  );
+  --overture-progress: var(--scroll-progress, 0);
   position: relative;
   overflow: clip;
 }
@@ -22,9 +18,11 @@
   z-index: 2;
 }
 
-.headlineCell,
-.introCell {
-  will-change: auto;
+.motion[data-scroll-active="true"] .headlineCopy,
+.motion[data-scroll-active="true"] .introStatement,
+.motion[data-scroll-active="true"] .signalArtifact,
+.motion[data-scroll-active="true"] .signalLabel {
+  will-change: transform, opacity;
 }
 
 .headlineCopy {
@@ -57,7 +55,7 @@
 
 .chapterMark::before {
   position: absolute;
-  top: 50%;
+  top: 46%;
   left: 50%;
   width: min(52vw, 44rem);
   height: 1px;
@@ -69,8 +67,7 @@
   );
   content: "";
   opacity: calc(0.12 + var(--overture-progress) * 0.42);
-  transform: translate(-50%, calc(8.5rem - var(--overture-progress) * 4rem))
-    scaleX(var(--overture-progress));
+  transform: translate(-50%, -50%) scaleX(var(--overture-progress));
   transform-origin: center;
 }
 
@@ -90,7 +87,7 @@
   opacity: calc(0.16 + var(--overture-progress) * 0.78);
   transform: translate3d(
       calc(var(--artifact-from-x) * (1 - var(--overture-progress))),
-      calc(var(--artifact-from-y) * (1 - var(--overture-progress))),
+      calc(var(--artifact-from-y) * (1 - var(--overture-progress)) - 50%),
       0
     )
     rotate(calc(var(--artifact-turn) * (1 - var(--overture-progress))))
@@ -113,7 +110,7 @@
   --artifact-from-y: -22vh;
   --artifact-turn: -11deg;
   right: calc(50% + clamp(4.4rem, 8vw, 7rem));
-  bottom: clamp(2rem, 6vh, 4.5rem);
+  top: 46%;
   border-radius: 50%;
   color: var(--signal-cognitive);
 }
@@ -123,7 +120,7 @@
   --artifact-from-y: 26vh;
   --artifact-turn: 9deg;
   right: calc(50% - 2.6rem);
-  bottom: clamp(2rem, 6vh, 4.5rem);
+  top: 46%;
   background: var(--signal-personality-soft);
   color: var(--ink);
 }
@@ -133,7 +130,7 @@
   --artifact-from-y: -16vh;
   --artifact-turn: 13deg;
   left: calc(50% + clamp(4.4rem, 8vw, 7rem));
-  bottom: clamp(2rem, 6vh, 4.5rem);
+  top: 46%;
   color: var(--signal-response);
 }
 
@@ -166,35 +163,25 @@
   bottom: clamp(1.25rem, 3vw, 2.25rem);
   left: clamp(1.25rem, 3vw, 3rem);
   z-index: 3;
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
   font-family: var(--font-plex-mono), ui-monospace, monospace;
-  font-size: 0.72rem;
-  line-height: 0.65;
-  opacity: calc(0.72 - var(--overture-progress) * 0.52);
+  font-size: 0.61rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+  opacity: calc(0.72 * (1 - var(--overture-progress)));
 }
 
-.scrollCue span {
-  animation: arrow-fall 2s var(--ease-editorial) infinite;
-}
-
-.scrollCue span:nth-child(2) {
-  animation-delay: 180ms;
-}
-.scrollCue span:nth-child(3) {
-  animation-delay: 360ms;
-}
-
-@keyframes arrow-fall {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: translateY(-0.2rem);
-  }
-  45% {
-    opacity: 0.9;
-    transform: translateY(0.18rem);
-  }
+.scrollCue::after {
+  width: clamp(2rem, 4vw, 4rem);
+  height: 1px;
+  background: currentColor;
+  content: "";
+  transform: scaleX(calc(1 - var(--overture-progress)));
+  transform-origin: left;
 }
 
 .continuation {
@@ -282,6 +269,37 @@
   }
 }
 
+@media (min-width: 64rem) and (max-height: 43.99rem) {
+  .motion {
+    min-height: auto;
+  }
+
+  .stage {
+    position: relative;
+    top: auto;
+    min-height: auto;
+  }
+
+  .headlineCell,
+  .introCell,
+  .stage :global(.landing-hero__shell) {
+    min-height: auto;
+  }
+
+  .headlineCopy,
+  .introStatement,
+  .signalArtifact,
+  .signalLabel {
+    opacity: 1;
+    transform: none;
+  }
+
+  .chapterMark,
+  .scrollCue {
+    display: none;
+  }
+}
+
 @media (hover: none), (pointer: coarse) {
   .motion {
     min-height: auto;
@@ -338,9 +356,6 @@
     transform: none;
   }
 
-  .scrollCue span {
-    animation: none;
-  }
 }
 
 @media (scripting: none) {

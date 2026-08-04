@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const role = liveUser.role as WorkspaceRole;
   const hasParticipantAccess = hasParticipantWorkspaceAccess(role);
 
-  const [mySubmittedCount, userRecord] = await Promise.all([
+  const [mySubmittedCount, publishedAssessments] = await Promise.all([
     hasParticipantAccess
       ? db.quizSession.count({
           where: {
@@ -32,90 +32,49 @@ export default async function DashboardPage() {
           },
         })
       : Promise.resolve(0),
-    db.user.findUnique({
-      where: { id: liveUser.id },
-      select: {
-        firstName: true,
-        lastName: true,
-        tenantId: true,
-        createdAt: true,
-        tenant: {
-          select: { name: true },
-        },
-      },
-    }),
+    hasParticipantAccess
+      ? db.assessment
+          .count({
+            where: {
+              isPublished: true,
+              OR: [
+                {
+                  userEnrollments: {
+                    some: {
+                      userId: liveUser.id,
+                      active: true,
+                    },
+                  },
+                },
+                {
+                  tenantEnrollments: {
+                    some: {
+                      tenantId: liveUser.tenantId,
+                      active: true,
+                      OR: [
+                        { includeFutureUsers: true },
+                        { createdAt: { gte: liveUser.createdAt } },
+                      ],
+                    },
+                  },
+                },
+              ],
+            },
+          })
+          .catch(async (error) => {
+            if (!isSchemaCompatibilityError(error)) throw error;
+            return db.assessment.count({
+              where: {
+                tenantId: liveUser.tenantId,
+                isPublished: true,
+              },
+            });
+          })
+      : Promise.resolve(0),
   ]);
 
-  let publishedAssessments = 0;
-
-  if (hasParticipantAccess && userRecord) {
-    try {
-      publishedAssessments = (
-        await db.assessment.findMany({
-          where: {
-            isPublished: true,
-            OR: [
-              {
-                userEnrollments: {
-                  some: {
-                    userId: liveUser.id,
-                    active: true,
-                  },
-                },
-              },
-              {
-                tenantEnrollments: {
-                  some: {
-                    tenantId: userRecord.tenantId,
-                    active: true,
-                  },
-                },
-              },
-            ],
-          },
-          select: {
-            id: true,
-            userEnrollments: {
-              where: {
-                userId: liveUser.id,
-                active: true,
-              },
-              select: {
-                id: true,
-              },
-            },
-            tenantEnrollments: {
-              where: {
-                tenantId: userRecord.tenantId,
-                active: true,
-              },
-              select: {
-                includeFutureUsers: true,
-                createdAt: true,
-              },
-            },
-          },
-        })
-      ).filter((assessment) => {
-        if (assessment.userEnrollments.length > 0) return true;
-        return assessment.tenantEnrollments.some(
-          (enrollment) => enrollment.includeFutureUsers || userRecord.createdAt <= enrollment.createdAt,
-        );
-      }).length;
-    } catch (error) {
-      if (!isSchemaCompatibilityError(error)) throw error;
-
-      publishedAssessments = await db.assessment.count({
-        where: {
-          tenantId: userRecord.tenantId,
-          isPublished: true,
-        },
-      });
-    }
-  }
-
   const fullName =
-    `${userRecord?.firstName || liveUser.firstName || ""} ${userRecord?.lastName || liveUser.lastName || ""}`.trim() ||
+    `${liveUser.firstName || ""} ${liveUser.lastName || ""}`.trim() ||
     liveUser.email ||
     roleLabel(role);
 
@@ -153,7 +112,7 @@ export default async function DashboardPage() {
           <div className="metric-card rounded-xl p-4">
             <p className="text-xs uppercase tracking-wide text-slate-500">Organisation</p>
             <p className="mt-2 truncate text-sm font-semibold text-slate-900">
-              {userRecord?.tenant?.name || liveUser.tenantId || "-"}
+              {liveUser.tenant.name || liveUser.tenantId || "-"}
             </p>
           </div>
         </div>

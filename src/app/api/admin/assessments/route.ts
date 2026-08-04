@@ -350,13 +350,28 @@ export async function GET(req: NextRequest) {
   const format = params.get("format")?.trim().toLowerCase();
   const isCsv = format === "csv";
   const take = parseLimit(params.get("limit"), isCsv ? 5000 : 100, isCsv ? 5000 : 500);
-  const fetchLimit = Math.max(take, isCsv ? take : 300);
   const isPublishedFilter =
     statusParam === "PUBLISHED"
       ? true
       : statusParam === "DRAFT"
         ? false
         : undefined;
+  const usesDerivedWindow =
+    typeof minCompletionRate === "number" ||
+    typeof maxCompletionRate === "number" ||
+    sortBy === "completionRate" ||
+    sortBy === "participants";
+  const fetchLimit = isCsv
+    ? take
+    : usesDerivedWindow
+      ? Math.max(take, 300)
+      : take;
+  const databaseOrderBy: Prisma.AssessmentOrderByWithRelationInput =
+    sortBy === "title"
+      ? { title: sortOrder }
+      : sortBy === "updatedAt"
+        ? { updatedAt: sortOrder }
+        : { createdAt: sortOrder };
 
   type AssessmentListRow = {
     id: string;
@@ -428,7 +443,7 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: usesDerivedWindow ? { createdAt: "desc" } : databaseOrderBy,
         take: fetchLimit,
       }),
       db.assessment.count({ where: currentWhere }),
@@ -497,7 +512,7 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: usesDerivedWindow ? { createdAt: "desc" } : databaseOrderBy,
         take: fetchLimit,
       }),
       db.assessment.count({ where: legacyWhere }),

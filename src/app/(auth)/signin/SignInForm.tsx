@@ -46,7 +46,7 @@ export default function SignInForm({ initialEmail = "" }: { initialEmail?: strin
         >
           <label
             htmlFor="email"
-            className="block text-[11px] font-medium uppercase tracking-[0.22em] text-[#101114]/55"
+            className="block text-[11px] font-medium uppercase tracking-[0.22em] text-[#101114]/65"
           >
             Work email
           </label>
@@ -59,13 +59,13 @@ export default function SignInForm({ initialEmail = "" }: { initialEmail?: strin
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             disabled={state === "sending" || state === "accepted"}
-            className="mt-3 w-full rounded-md border border-[#B5803C]/65 bg-[#EFE8DA]/80 px-4 py-3.5 text-base text-[#101114] placeholder:text-[#101114]/35 outline-none transition-colors duration-200 focus:border-[#B5803C] focus:bg-[#EFE8DA] disabled:opacity-60 md:text-lg"
+            className="mt-3 w-full rounded-md border border-[#735027] bg-[#EFE8DA]/80 px-4 py-3.5 text-base text-[#101114] placeholder:text-[#101114]/62 transition-colors duration-200 focus:bg-[#EFE8DA] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#735027] disabled:opacity-60 md:text-lg"
           />
 
           <button
             type="submit"
             disabled={state === "sending" || state === "accepted"}
-            className="cta-shimmer group mt-5 inline-flex w-full items-center justify-center gap-3 rounded-full bg-[#B5803C] px-7 py-3.5 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#9C6F31] disabled:cursor-not-allowed disabled:opacity-60"
+            className="cta-shimmer group mt-5 inline-flex w-full items-center justify-center gap-3 rounded-full bg-[var(--signal-personality-vivid)] px-7 py-3.5 text-sm font-semibold text-[#101114] transition-colors duration-300 hover:bg-[#D9922A] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[#735027] disabled:cursor-not-allowed disabled:opacity-60"
           >
             <span>{state === "sending" ? "Sending..." : "Send sign-in link"}</span>
             <span
@@ -97,7 +97,7 @@ export default function SignInForm({ initialEmail = "" }: { initialEmail?: strin
               <button
                 type="button"
                 onClick={useDifferentEmail}
-                className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-[#9C6F31] underline decoration-[#B5803C]/45 underline-offset-4 transition-colors hover:text-[#101114] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#9C6F31]"
+                className="mt-3 text-xs font-medium uppercase tracking-[0.16em] text-[#735027] underline decoration-[#735027]/55 underline-offset-4 transition-colors hover:text-[#101114] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#735027]"
               >
                 Use a different email
               </button>
@@ -114,11 +114,11 @@ export default function SignInForm({ initialEmail = "" }: { initialEmail?: strin
           )}
         </form>
 
-        <p className="mt-8 text-[11px] font-medium uppercase tracking-[0.22em] text-[#101114]/55">
+        <p className="mt-8 text-[11px] font-medium uppercase tracking-[0.22em] text-[#101114]/62">
           Not invited yet?{" "}
           <a
             href="/contact"
-            className="link-underline text-[#B5803C] transition-colors duration-200 hover:text-[#9C6F31]"
+            className="link-underline text-[#735027] transition-colors duration-200 hover:text-[#101114]"
           >
             Get in touch{" "}
             <span aria-hidden>→</span>

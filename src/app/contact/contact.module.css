@@ -1,14 +1,18 @@
 .page {
-  --contact-ink: #101114;
-  --contact-cream: #efe8da;
-  --contact-paper: #f8f3e8;
-  --contact-brass: #b5803c;
-  --contact-orange: #d98a3b;
-  --contact-rule: rgba(16, 17, 20, 0.16);
-  --contact-cognitive: var(--signal-cognitive, #173e45);
-  --contact-personality: var(--signal-personality, #d19a51);
-  --contact-personality-soft: var(--signal-personality-soft, #efd49c);
-  --contact-response: var(--signal-response, #743b2d);
+  --contact-ink: var(--ink);
+  --contact-cream: var(--cream);
+  --contact-paper: var(--paper);
+  --contact-brass: var(--brass);
+  --contact-brass-text: var(--brass-deep);
+  --contact-orange: var(--signal-spark);
+  --contact-rule: var(--rule-strong);
+  --contact-cognitive: var(--signal-cognitive);
+  --contact-cognitive-vivid: var(--signal-cognitive-vivid);
+  --contact-personality: var(--signal-personality);
+  --contact-personality-vivid: var(--signal-personality-vivid);
+  --contact-personality-soft: var(--signal-personality-soft);
+  --contact-response: var(--signal-response);
+  --contact-response-vivid: var(--signal-response-vivid);
   min-height: 100vh;
   overflow-x: clip;
   background: var(--contact-cream);
@@ -106,7 +110,7 @@
 }
 
 .heroTitle .heroTitleAccent {
-  color: var(--contact-brass);
+  color: var(--contact-brass-text);
   font-style: italic;
 }
 
@@ -287,15 +291,15 @@
 }
 
 .signalList li:nth-child(1) {
-  --signal-accent: var(--contact-cognitive);
+  --signal-accent: var(--contact-cognitive-vivid);
 }
 
 .signalList li:nth-child(2) {
-  --signal-accent: var(--contact-personality);
+  --signal-accent: var(--contact-personality-vivid);
 }
 
 .signalList li:nth-child(3) {
-  --signal-accent: var(--contact-response);
+  --signal-accent: var(--contact-response-vivid);
 }
 
 .signalList li:nth-child(4) {
@@ -575,13 +579,12 @@
   gap: 1rem;
   padding: 1rem clamp(1.25rem, 3vw, 2.25rem) 1.25rem;
   border-bottom: 1px solid rgba(16, 17, 20, 0.08);
-  background: rgba(239, 232, 218, 0.94);
+  background: var(--contact-cream);
   color: rgba(16, 17, 20, 0.68);
   font-family: var(--font-plex-mono), monospace;
   font-size: 0.64rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  backdrop-filter: blur(10px);
 }
 
 .progressCount {

@@ -16,7 +16,7 @@ import HeaderAuthSlot from "@/components/navigation/HeaderAuthSlot";
  */
 export default function PublicHeader() {
   return (
-    <header className="sticky top-0 z-40 border-b border-ink/10 bg-cream/88 backdrop-blur-md">
+    <header className="sticky top-0 z-40 border-b border-ink/10 bg-cream shadow-[0_0.5rem_1.5rem_rgba(16,17,20,0.025)]">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-4 sm:px-6 md:px-10 md:py-5">
         <Link
           href="/"

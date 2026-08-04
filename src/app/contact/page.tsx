@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ScrollMotion from "@/components/effects/ScrollMotion";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { EditorialFooter } from "@/components/marketing/Editorial";
 import { createPageMetadata } from "@/lib/site-metadata";
@@ -47,6 +48,7 @@ const briefingSignals = [
 export default function ContactPage() {
   return (
     <div className={styles.page}>
+      <MarketingEffects />
       <a className={styles.skipLink} href="#contact-main">
         Skip to main content
       </a>

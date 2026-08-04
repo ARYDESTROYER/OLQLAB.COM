@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "@/components/admin/Toast";
 import EmptyState from "@/components/admin/EmptyState";
@@ -33,7 +33,10 @@ type TenantListMeta = {
 
 export default function TenantsClient() {
   const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q")?.trim() || "";
   const [tenants, setTenants] = useState<Tenant[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const tenantRequestRef = useRef<AbortController | null>(null);
   const [listMeta, setListMeta] = useState<TenantListMeta>({
     returned: 0,
     limit: 100,
@@ -80,6 +83,10 @@ export default function TenantsClient() {
   }>({ open: false, title: "", data: null, loading: false });
 
   const loadTenants = useCallback(async () => {
+    tenantRequestRef.current?.abort();
+    const controller = new AbortController();
+    tenantRequestRef.current = controller;
+    setListLoading(true);
     const params = new URLSearchParams();
     if (query.trim()) params.set("q", query.trim());
     if (includeArchived) params.set("includeArchived", "1");
@@ -89,51 +96,66 @@ export default function TenantsClient() {
     params.set("sortOrder", sortOrder);
     params.set("limit", String(listLimit));
 
-    const res = await fetch(`/api/admin/tenants?${params.toString()}`);
-    const data = await res.json();
-    const rows = data.tenants || [];
-    setTenants(rows);
-    setListMeta(
-      (data.meta as TenantListMeta | undefined) || {
-        returned: rows.length,
-        limit: 100,
-        totalMatchingFilters: rows.length,
-        totalCandidates: rows.length,
-        hasMore: false,
-        truncated: false,
-      },
-    );
-    setSelectedTenantIds((prev) => prev.filter((id) => rows.some((row: Tenant) => row.id === id)));
-
-    setEditByTenant((prev) => {
-      const next = { ...prev };
-      for (const tenant of rows) {
-        if (!next[tenant.id]) {
-          next[tenant.id] = {
-            name: tenant.name,
-            seatLimit: tenant.seatLimit,
-            isArchived: tenant.isArchived,
-          };
-        }
+    try {
+      const res = await fetch(`/api/admin/tenants?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to load organisations.");
       }
-      return next;
-    });
+      if (tenantRequestRef.current !== controller) return;
+      const rows = (data as { tenants?: Tenant[] }).tenants || [];
+      setTenants(rows);
+      setListMeta(
+        (data as { meta?: TenantListMeta }).meta || {
+          returned: rows.length,
+          limit: 100,
+          totalMatchingFilters: rows.length,
+          totalCandidates: rows.length,
+          hasMore: false,
+          truncated: false,
+        },
+      );
+      setSelectedTenantIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
+
+      setEditByTenant((prev) => {
+        const next = { ...prev };
+        for (const tenant of rows) {
+          if (!next[tenant.id]) {
+            next[tenant.id] = {
+              name: tenant.name,
+              seatLimit: tenant.seatLimit,
+              isArchived: tenant.isArchived,
+            };
+          }
+        }
+        return next;
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast(error instanceof Error ? error.message : "Failed to load organisations.", "error");
+    } finally {
+      if (tenantRequestRef.current === controller && !controller.signal.aborted) {
+        setListLoading(false);
+      }
+    }
   }, [includeArchived, listLimit, query, seatStateFilter, sortBy, sortOrder, typeFilter]);
 
   useEffect(() => {
-    loadTenants();
-  }, [loadTenants]);
+    const timeout = window.setTimeout(
+      () => void loadTenants(),
+      query.trim() ? 250 : 0,
+    );
+    return () => {
+      window.clearTimeout(timeout);
+      tenantRequestRef.current?.abort();
+    };
+  }, [loadTenants, query]);
 
   useEffect(() => {
-    const q = searchParams.get("q")?.trim() || "";
-    if (q && q !== query) {
-      setQuery(q);
-    }
-  }, [query, searchParams]);
-
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") loadTenants();
-  }
+    setQuery(urlQuery);
+  }, [urlQuery]);
 
   function resetFilters() {
     setQuery("");
@@ -378,7 +400,6 @@ export default function TenantsClient() {
             className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
             placeholder="Search organisations…"
           />
           <select
@@ -515,7 +536,7 @@ export default function TenantsClient() {
               </div>
             </div>
           )}
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm" aria-busy={listLoading}>
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">
@@ -535,7 +556,13 @@ export default function TenantsClient() {
               </tr>
             </thead>
             <tbody>
-              {tenants.length === 0 ? (
+              {listLoading && tenants.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={7}>
+                    Loading organisations…
+                  </td>
+                </tr>
+              ) : tenants.length === 0 ? (
                 <EmptyState
                   icon="🏢"
                   title="No organisations found"

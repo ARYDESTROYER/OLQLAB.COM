@@ -1,66 +1,64 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { getLiveSession } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { resolveAssessmentAccess } from "@/lib/assessment-access";
+import { resolveAssessmentAccessMany } from "@/lib/assessment-access";
 import { evaluateReportRelease } from "@/lib/report-release";
 
 export default async function CurrentReportsPage() {
-  const session = await getServerAuthSession();
-  if (!session?.user?.id) redirect("/signin");
+  const check = await getLiveSession();
+  if (!check) redirect("/signin");
+  const userId = check.liveUser.id;
 
-  const reports = await db.quizSession.findMany({
-    where: {
-      userId: session.user.id,
-      status: "SUBMITTED",
-    },
-    include: {
-      assessment: {
-        select: {
-          id: true,
-          title: true,
-          policy: {
-            select: {
-              reportWorkflow: true,
-              showResultsToEmployee: true,
-              resultReleaseDelayHours: true,
-              leaderCanViewFullReport: true,
+  const [reports, reportRows] = await Promise.all([
+    db.quizSession.findMany({
+      where: {
+        userId,
+        status: "SUBMITTED",
+      },
+      include: {
+        assessment: {
+          select: {
+            id: true,
+            title: true,
+            policy: {
+              select: {
+                reportWorkflow: true,
+                showResultsToEmployee: true,
+                resultReleaseDelayHours: true,
+                leaderCanViewFullReport: true,
+              },
             },
           },
         },
       },
-    },
-    orderBy: { submittedAt: "desc" },
-  });
-
-  const accessResults = await Promise.all(
-    reports.map(async (item) => {
-      const access = await resolveAssessmentAccess(session.user.id, item.assessment.id);
-      return {
-        item,
-        access,
-      };
+      orderBy: { submittedAt: "desc" },
     }),
+    db.report.findMany({
+      where: { userId },
+      select: {
+        assessmentId: true,
+        status: true,
+        availableAt: true,
+        pdfAsset: { select: { id: true } },
+      },
+    }),
+  ]);
+  const accessByAssessmentId = await resolveAssessmentAccessMany(
+    userId,
+    reports.map((item) => item.assessment.id),
   );
-
-  const reportRows = await db.report.findMany({
-    where: {
-      userId: session.user.id,
-    },
-    select: {
-      assessmentId: true,
-      status: true,
-      availableAt: true,
-      pdfAsset: { select: { id: true } },
-    },
-  });
+  const accessResults = reports.map((item) => ({
+    item,
+    access: accessByAssessmentId.get(item.assessment.id),
+  }));
   const reportByAssessmentId = new Map(
     reportRows.map((report) => [report.assessmentId, report]),
   );
 
   const visibleReports = accessResults
     .filter((entry) => {
-      if (!entry.access.canViewAppReport) return false;
+      if (!entry.access?.canViewAppReport) return false;
       const report = reportByAssessmentId.get(entry.item.assessment.id) || null;
       const policy = entry.item.assessment.policy || {
         reportWorkflow: "AI_STANDARD" as const,

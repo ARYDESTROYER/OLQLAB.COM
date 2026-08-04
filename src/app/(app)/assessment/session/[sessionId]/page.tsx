@@ -69,6 +69,8 @@ function renderQuestionImage(question: Question) {
       <img
         src={question.imageUrl}
         alt={question.imageAlt || "Question reference image"}
+        loading="lazy"
+        decoding="async"
         crossOrigin={question.imageUrl.startsWith("https://") ? "anonymous" : undefined}
         referrerPolicy="no-referrer"
         className="max-h-[28rem] w-full bg-white object-contain"
@@ -128,6 +130,7 @@ export default function SessionPage() {
   );
 
   useEffect(() => {
+    const controller = new AbortController();
     const run = async () => {
       if (!sessionId) {
         setLoadError("Invalid session id. Please start the assessment again.");
@@ -135,8 +138,13 @@ export default function SessionPage() {
         return;
       }
       try {
+        await Promise.resolve();
+        if (controller.signal.aborted) return;
+        setLoading(true);
+        setLoadError("");
         const res = await fetch(`/api/assessment/sessions/${encodeURIComponent(sessionId)}`, {
           cache: "no-store",
+          signal: controller.signal,
         });
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
@@ -176,12 +184,14 @@ export default function SessionPage() {
         setSessionStatus(data.status === "SUBMITTED" ? "SUBMITTED" : "IN_PROGRESS");
         setActiveQuestionIndex(findInitialQuestionIndex(data.questions, next));
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") return;
         setLoadError(error instanceof Error ? error.message : "Could not load session.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     void run();
+    return () => controller.abort();
   }, [sessionId]);
 
   useEffect(() => {
@@ -442,7 +452,6 @@ export default function SessionPage() {
       };
       if (!res.ok) throw new Error(data.error || "Could not submit assessment.");
       router.push(data.redirectTo || (isPreviewMode ? previewReturnTo : readOnlyTarget));
-      router.refresh();
     } catch (error) {
       setActionError(error instanceof Error ? error.message : "Could not submit assessment.");
     } finally {

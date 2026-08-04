@@ -42,7 +42,9 @@ describe("live authentication compatibility", () => {
       lastName: "Admin",
       role: "ADMIN",
       tenantId: "solo-tenant",
+      createdAt: new Date("2026-07-01T00:00:00.000Z"),
       tenant: {
+        name: "Legacy Solo Organisation",
         type: "SOLO",
         isArchived: false,
       },
@@ -57,5 +59,15 @@ describe("live authentication compatibility", () => {
       role: "ADMIN",
       tenant: { type: "SOLO", isArchived: false },
     });
+    expect(mocks.userFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          createdAt: true,
+          tenant: {
+            select: expect.objectContaining({ name: true }),
+          },
+        }),
+      }),
+    );
   });
 });

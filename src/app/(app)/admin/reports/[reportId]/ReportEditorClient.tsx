@@ -343,7 +343,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
   return (
     <>
     <div className="grid min-h-screen gap-5 bg-slate-50 p-3 sm:p-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <main className="min-w-0">
+      <section className="min-w-0" aria-label="Report editor">
         <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-slate-200 bg-white p-2">
             <button type="button" onClick={() => setPreview(false)} aria-pressed={!preview} className={`rounded border px-2.5 py-1 text-xs ${!preview ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`}>Edit</button>
@@ -364,7 +364,7 @@ export default function ReportEditorClient({ report }: ReportEditorClientProps) 
           </div>
           <EditorContent editor={editor} />
         </div>
-      </main>
+      </section>
 
       <aside className="h-fit rounded-2xl border border-slate-200 bg-white p-5 lg:sticky lg:top-5">
         <h2 className="text-lg font-semibold text-slate-900">Report delivery</h2>

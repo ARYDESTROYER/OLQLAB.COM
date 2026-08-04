@@ -493,11 +493,6 @@
 
 .image {
   object-fit: cover;
-  transition: transform 700ms var(--ease-editorial);
-}
-
-.figure:hover .image {
-  transform: scale(1.025);
 }
 
 .figure figcaption {
@@ -731,9 +726,6 @@
     transform: none;
   }
 
-  .figure:hover .image {
-    transform: none;
-  }
 }
 
 @media (forced-colors: active) {

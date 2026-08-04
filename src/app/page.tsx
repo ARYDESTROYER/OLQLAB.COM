@@ -4,6 +4,7 @@ import PublicHeader from "@/components/navigation/PublicHeader";
 import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
 import LeadershipSignal from "@/components/marketing/LeadershipSignal";
 import WorkInPracticePreview from "@/components/marketing/WorkInPracticePreview";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
 import ScrollMotion from "@/components/effects/ScrollMotion";
 import SectionSignalRail from "@/components/effects/SectionSignalRail";
 import { createPageMetadata } from "@/lib/site-metadata";
@@ -116,6 +117,7 @@ const journeyRail = journey.map((step, index) => ({
 export default function HomePage() {
   return (
     <div className="relative min-h-screen bg-cream text-ink">
+      <MarketingEffects />
       <a className="skip-link" href="#landing-content">
         Skip to content
       </a>
@@ -123,17 +125,17 @@ export default function HomePage() {
 
       <main id="landing-content" tabIndex={-1}>
         <section className="landing-hero" aria-labelledby="landing-hero-title">
-          <ScrollMotion className={motionStyles.motion}>
+          <ScrollMotion
+            className={motionStyles.motion}
+            enhancementQuery="(min-width: 64rem) and (min-height: 44rem) and (hover: hover) and (pointer: fine)"
+            progressMode="sticky"
+            stickyOffset={72}
+          >
             <div className={motionStyles.stage}>
               <div className="landing-hero__shell">
                 <div
                   className={`landing-hero__headline-cell ${motionStyles.headlineCell}`}
                 >
-                  <div className="landing-hero__spectrum" aria-hidden>
-                    <span data-scroll-layer="far" />
-                    <span data-scroll-layer="mid" />
-                    <span data-scroll-layer="near" />
-                  </div>
                   <div className="landing-rise">
                     <Eyebrow>OLQ Lab · Leadership development</Eyebrow>
                   </div>
@@ -210,9 +212,7 @@ export default function HomePage() {
               </div>
 
               <span className={motionStyles.scrollCue} aria-hidden>
-                <span data-ambient>⌄</span>
-                <span data-ambient>⌄</span>
-                <span data-ambient>⌄</span>
+                Scroll to reveal
               </span>
             </div>
           </ScrollMotion>
@@ -232,7 +232,7 @@ export default function HomePage() {
               <p className="landing-kicker">02 / Practice</p>
               <p className="mt-5 max-w-sm text-base leading-relaxed text-ink/72">
                 Behavioral science, operational experience, and honest
-                conversation— brought together as one practical leadership
+                conversation—brought together as one practical leadership
                 discipline.
               </p>
               <dl className="landing-proof-stats">
@@ -274,12 +274,11 @@ export default function HomePage() {
               </Link>
             </div>
 
-            <ol className="landing-practice-list">
+            <ol className="landing-practice-list" data-reveal-group="rise">
               {services.map((service, index) => (
                 <li
                   key={service.title}
-                  className="reveal-on-scroll"
-                  data-reveal="rise"
+                  data-reveal-item
                   data-stagger={index + 1}
                 >
                   <span>{String(index + 1).padStart(2, "0")}</span>
@@ -333,12 +332,11 @@ export default function HomePage() {
               </div>
             </div>
 
-            <ol className="landing-dimension-grid">
+            <ol className="landing-dimension-grid" data-reveal-group="assembly">
               {dimensions.map((dimension, index) => (
                 <li
                   key={dimension.code}
-                  className="reveal-on-scroll"
-                  data-reveal="scale"
+                  data-reveal-item
                   data-stagger={index + 1}
                   data-tone={dimension.code.toLowerCase()}
                 >
@@ -420,12 +418,11 @@ export default function HomePage() {
                   </span>
                 </h2>
               </div>
-              <div className="landing-outcome-grid">
+              <div className="landing-outcome-grid" data-reveal-group="rise">
                 {outcomes.map((outcome, index) => (
                   <article
                     key={outcome.title}
-                    className="reveal-on-scroll"
-                    data-reveal="rise"
+                    data-reveal-item
                     data-stagger={index + 1}
                     data-tone={outcome.tone}
                   >

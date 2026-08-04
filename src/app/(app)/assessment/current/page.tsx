@@ -1,29 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getServerAuthSession } from "@/lib/auth";
+import { getLiveSession } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { isMissingTableError } from "@/lib/prisma-errors";
 
 export default async function CurrentAssessmentPage() {
-  const session = await getServerAuthSession();
-  if (!session?.user?.id) redirect("/signin");
-
-  const currentUser = await db.user.findUnique({
-    where: { id: session.user.id },
-    select: {
-      id: true,
-      email: true,
-      tenantId: true,
-      createdAt: true,
-      tenant: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
-
-  if (!currentUser) redirect("/signin");
+  const check = await getLiveSession();
+  if (!check) redirect("/signin");
+  const currentUser = check.liveUser;
 
   const assessments = await db.assessment
     .findMany({
@@ -48,9 +32,11 @@ export default async function CurrentAssessmentPage() {
           },
         ],
       },
-      include: {
-        questions: {
-          select: { id: true },
+      select: {
+        id: true,
+        title: true,
+        _count: {
+          select: { questions: true },
         },
         userEnrollments: {
           where: {
@@ -120,9 +106,11 @@ export default async function CurrentAssessmentPage() {
             },
           ],
         },
-        include: {
-          questions: {
-            select: { id: true },
+        select: {
+          id: true,
+          title: true,
+          _count: {
+            select: { questions: true },
           },
           userEnrollments: {
             where: {
@@ -250,7 +238,7 @@ export default async function CurrentAssessmentPage() {
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Assessment</p>
                     <h2 className="text-lg font-semibold text-slate-900">{assessment.title}</h2>
-                    <p className="mt-1 text-sm text-slate-600">{assessment.questions.length} questions</p>
+                    <p className="mt-1 text-sm text-slate-600">{assessment._count.questions} questions</p>
                   </div>
                   <span
                     className={`rounded-full px-3 py-1 text-xs font-semibold ${

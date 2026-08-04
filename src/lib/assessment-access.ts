@@ -85,6 +85,209 @@ export function resolveDueUnenrollOverlay(input: {
   };
 }
 
+type AccessUserState = {
+  id: string;
+  tenantId: string;
+  createdAt: Date;
+  role: "ADMIN" | "EMPLOYEE" | "LEADER";
+};
+
+type AccessAssessmentState = {
+  id: string;
+  isPublished: boolean;
+};
+
+type DirectEnrollmentState = {
+  id: string;
+  assessmentId?: string;
+  active: boolean;
+  createdAt: Date;
+  reportMode: "AUTO" | "MANUAL";
+  reportDelayHours: number;
+};
+
+type TenantEnrollmentState = {
+  id: string;
+  assessmentId?: string;
+  active: boolean;
+  tenantId: string;
+  includeFutureUsers: boolean;
+  createdAt: Date;
+  reportMode: "AUTO" | "MANUAL";
+  reportDelayHours: number;
+};
+
+type AccessOverrideState = {
+  assessmentId?: string;
+  mode: "KEEP_APP_ACCESS" | "LINK_ONLY" | "REVOKE";
+};
+
+type DueUnenrollJobState = DueUnenrollJob & { assessmentId?: string };
+
+function buildAssessmentAccessResolution(input: {
+  userId: string;
+  assessmentId: string;
+  atTime: Date;
+  user: AccessUserState | null;
+  assessment: AccessAssessmentState | null;
+  directEnrollment: DirectEnrollmentState | null;
+  override: AccessOverrideState | null;
+  tenantEnrollments: TenantEnrollmentState[];
+  dueJobs: DueUnenrollJobState[];
+}): AssessmentAccessResolution {
+  const {
+    userId,
+    assessmentId,
+    atTime,
+    user,
+    assessment,
+    directEnrollment,
+    override,
+    tenantEnrollments,
+    dueJobs,
+  } = input;
+  const participantEligible = Boolean(user && isAssessmentParticipantRole(user.role));
+  const dueOverlay = user
+    ? resolveDueUnenrollOverlay({
+        userId,
+        tenantId: user.tenantId,
+        userCreatedAt: user.createdAt,
+        tenantEnrollments,
+        dueJobs,
+      })
+    : {
+        directEnrollmentRevoked: false,
+        revokedTenantIds: new Set<string>(),
+        overrideMode: null,
+        sourceJobId: null,
+      };
+
+  const directSources: EnrollmentSource[] =
+    participantEligible &&
+    directEnrollment?.active &&
+    directEnrollment.createdAt <= atTime &&
+    !dueOverlay.directEnrollmentRevoked
+      ? [{ scope: "USER", enrollmentId: directEnrollment.id }]
+      : [];
+
+  const tenantSources: EnrollmentSource[] = [];
+  if (user && participantEligible) {
+    for (const enrollment of tenantEnrollments) {
+      if (!enrollment.active || dueOverlay.revokedTenantIds.has(enrollment.tenantId)) {
+        continue;
+      }
+      const qualifies =
+        enrollment.includeFutureUsers || user.createdAt <= enrollment.createdAt;
+      if (!qualifies) continue;
+      tenantSources.push({
+        scope: "TENANT",
+        enrollmentId: enrollment.id,
+        tenantId: enrollment.tenantId,
+        includeFutureUsers: enrollment.includeFutureUsers,
+        enrolledAt: enrollment.createdAt,
+      });
+    }
+  }
+
+  const hasDirectEnrollment = directSources.length > 0;
+  const hasTenantEnrollment = tenantSources.length > 0;
+  const hasActiveEnrollment = hasDirectEnrollment || hasTenantEnrollment;
+  const overrideMode = dueOverlay.overrideMode || override?.mode || null;
+  const assessmentExists = Boolean(assessment);
+  const isPublished = Boolean(assessment?.isPublished);
+  const canStartAssessment = assessmentExists && isPublished && hasActiveEnrollment;
+  const canViewViaLinkOnly =
+    participantEligible && !hasActiveEnrollment && overrideMode === "LINK_ONLY";
+  const canViewAppReport =
+    participantEligible && (hasActiveEnrollment || overrideMode === "KEEP_APP_ACCESS");
+  const isRevoked =
+    !participantEligible ||
+    (!hasActiveEnrollment && (overrideMode === "LINK_ONLY" || overrideMode === "REVOKE"));
+
+  let enrollmentReportMode: "AUTO" | "MANUAL" = "AUTO";
+  let enrollmentReportDelayHours = 0;
+
+  if (directSources.length > 0 && directEnrollment) {
+    enrollmentReportMode = directEnrollment.reportMode || "AUTO";
+    enrollmentReportDelayHours = directEnrollment.reportDelayHours || 0;
+  } else if (tenantSources.length > 0) {
+    const qualifying = tenantEnrollments.find(
+      (enrollment) =>
+        enrollment.active &&
+        !dueOverlay.revokedTenantIds.has(enrollment.tenantId) &&
+        (enrollment.includeFutureUsers ||
+          (user && user.createdAt <= enrollment.createdAt)),
+    );
+    if (qualifying) {
+      enrollmentReportMode = qualifying.reportMode || "AUTO";
+      enrollmentReportDelayHours = qualifying.reportDelayHours || 0;
+    }
+  }
+
+  return {
+    assessmentId,
+    userId,
+    assessmentExists,
+    isPublished,
+    hasDirectEnrollment,
+    hasTenantEnrollment,
+    hasActiveEnrollment,
+    overrideMode,
+    canStartAssessment,
+    canViewAppReport,
+    canViewViaLinkOnly,
+    isRevoked,
+    sources: [...directSources, ...tenantSources],
+    enrollmentReportMode,
+    enrollmentReportDelayHours,
+  };
+}
+
+function buildLegacyAssessmentAccessResolution(input: {
+  userId: string;
+  assessmentId: string;
+  user: { tenantId: string; role: "ADMIN" | "EMPLOYEE" | "LEADER" } | null;
+  assessment: { tenantId: string | null; isPublished: boolean } | null;
+}): AssessmentAccessResolution {
+  const { userId, assessmentId, user, assessment } = input;
+  const assessmentExists = Boolean(assessment);
+  const isPublished = Boolean(assessment?.isPublished);
+  const hasTenantEnrollment =
+    Boolean(user) &&
+    Boolean(user && isAssessmentParticipantRole(user.role)) &&
+    Boolean(assessment) &&
+    assessment?.tenantId === user?.tenantId;
+  const hasActiveEnrollment = hasTenantEnrollment;
+
+  return {
+    assessmentId,
+    userId,
+    assessmentExists,
+    isPublished,
+    hasDirectEnrollment: false,
+    hasTenantEnrollment,
+    hasActiveEnrollment,
+    overrideMode: null,
+    canStartAssessment: assessmentExists && isPublished && hasActiveEnrollment,
+    canViewAppReport: hasActiveEnrollment,
+    canViewViaLinkOnly: false,
+    isRevoked: !hasActiveEnrollment,
+    sources: [],
+    enrollmentReportMode: "AUTO",
+    enrollmentReportDelayHours: 0,
+  };
+}
+
+function groupByAssessmentId<T extends { assessmentId: string }>(rows: T[]) {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const existing = grouped.get(row.assessmentId);
+    if (existing) existing.push(row);
+    else grouped.set(row.assessmentId, [row]);
+  }
+  return grouped;
+}
+
 export async function resolveAssessmentAccess(
   userId: string,
   assessmentId: string,
@@ -178,104 +381,17 @@ export async function resolveAssessmentAccess(
         ])
       : [[], []];
 
-    const participantEligible = Boolean(user && isAssessmentParticipantRole(user.role));
-    const dueOverlay = user
-      ? resolveDueUnenrollOverlay({
-          userId,
-          tenantId: user.tenantId,
-          userCreatedAt: user.createdAt,
-          tenantEnrollments,
-          dueJobs,
-        })
-      : {
-          directEnrollmentRevoked: false,
-          revokedTenantIds: new Set<string>(),
-          overrideMode: null,
-          sourceJobId: null,
-        };
-
-    const directSources: EnrollmentSource[] =
-      participantEligible &&
-      directEnrollment?.active &&
-      directEnrollment.createdAt <= atTime &&
-      !dueOverlay.directEnrollmentRevoked
-        ? [{ scope: "USER", enrollmentId: directEnrollment.id }]
-        : [];
-
-    const tenantSources: EnrollmentSource[] = [];
-    if (user && participantEligible) {
-      for (const enrollment of tenantEnrollments) {
-        if (!enrollment.active || dueOverlay.revokedTenantIds.has(enrollment.tenantId)) {
-          continue;
-        }
-        const qualifies =
-          enrollment.includeFutureUsers || user.createdAt <= enrollment.createdAt;
-        if (!qualifies) continue;
-        tenantSources.push({
-          scope: "TENANT",
-          enrollmentId: enrollment.id,
-          tenantId: enrollment.tenantId,
-          includeFutureUsers: enrollment.includeFutureUsers,
-          enrolledAt: enrollment.createdAt,
-        });
-      }
-    }
-
-    const hasDirectEnrollment = directSources.length > 0;
-    const hasTenantEnrollment = tenantSources.length > 0;
-    const hasActiveEnrollment = hasDirectEnrollment || hasTenantEnrollment;
-
-    const overrideMode = dueOverlay.overrideMode || override?.mode || null;
-    const assessmentExists = Boolean(assessment);
-    const isPublished = Boolean(assessment?.isPublished);
-    const canStartAssessment = assessmentExists && isPublished && hasActiveEnrollment;
-
-    // Precedence rule: active enrollment always wins over restrictive override modes.
-    const canViewViaLinkOnly =
-      participantEligible && !hasActiveEnrollment && overrideMode === "LINK_ONLY";
-    const canViewAppReport =
-      participantEligible && (hasActiveEnrollment || overrideMode === "KEEP_APP_ACCESS");
-    const isRevoked =
-      !participantEligible ||
-      (!hasActiveEnrollment && (overrideMode === "LINK_ONLY" || overrideMode === "REVOKE"));
-
-    let enrollmentReportMode: "AUTO" | "MANUAL" = "AUTO";
-    let enrollmentReportDelayHours = 0;
-
-    if (directSources.length > 0 && directEnrollment) {
-      enrollmentReportMode = directEnrollment.reportMode || "AUTO";
-      enrollmentReportDelayHours = directEnrollment.reportDelayHours || 0;
-    } else if (tenantSources.length > 0) {
-      const qualifying = tenantEnrollments.find(
-        (enrollment) =>
-          enrollment.active &&
-          !dueOverlay.revokedTenantIds.has(enrollment.tenantId) &&
-          (enrollment.includeFutureUsers ||
-            (user && user.createdAt <= enrollment.createdAt)),
-      );
-      if (qualifying) {
-        enrollmentReportMode = qualifying.reportMode || "AUTO";
-        enrollmentReportDelayHours = qualifying.reportDelayHours || 0;
-      }
-    }
-
-    return {
-      assessmentId,
+    return buildAssessmentAccessResolution({
       userId,
-      assessmentExists,
-      isPublished,
-      hasDirectEnrollment,
-      hasTenantEnrollment,
-      hasActiveEnrollment,
-      overrideMode,
-      canStartAssessment,
-      canViewAppReport,
-      canViewViaLinkOnly,
-      isRevoked,
-      sources: [...directSources, ...tenantSources],
-      enrollmentReportMode,
-      enrollmentReportDelayHours,
-    };
+      assessmentId,
+      atTime,
+      user,
+      assessment,
+      directEnrollment,
+      override,
+      tenantEnrollments,
+      dueJobs,
+    });
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;
 
@@ -298,32 +414,178 @@ export async function resolveAssessmentAccess(
       }),
     ]);
 
-    const assessmentExists = Boolean(assessment);
-    const isPublished = Boolean(assessment?.isPublished);
-    const hasTenantEnrollment =
-      Boolean(user) &&
-      Boolean(user && isAssessmentParticipantRole(user.role)) &&
-      Boolean(assessment) &&
-      assessment?.tenantId === user?.tenantId;
-    const hasActiveEnrollment = hasTenantEnrollment;
-
-    return {
+    return buildLegacyAssessmentAccessResolution({
       assessmentId,
       userId,
-      assessmentExists,
-      isPublished,
-      hasDirectEnrollment: false,
-      hasTenantEnrollment,
-      hasActiveEnrollment,
-      overrideMode: null,
-      canStartAssessment: assessmentExists && isPublished && hasActiveEnrollment,
-      canViewAppReport: hasActiveEnrollment,
-      canViewViaLinkOnly: false,
-      isRevoked: !hasActiveEnrollment,
-      sources: [],
-      enrollmentReportMode: "AUTO",
-      enrollmentReportDelayHours: 0,
-    };
+      user,
+      assessment,
+    });
+  }
+}
+
+/**
+ * Resolves one user's access to many assessments with a bounded query set.
+ * The pure resolution path is shared with resolveAssessmentAccess so report
+ * lists cannot drift from the canonical single-assessment decision.
+ */
+export async function resolveAssessmentAccessMany(
+  userId: string,
+  assessmentIds: string[],
+  atTime: Date = new Date(),
+): Promise<Map<string, AssessmentAccessResolution>> {
+  const uniqueAssessmentIds = Array.from(new Set(assessmentIds));
+  if (uniqueAssessmentIds.length === 0) return new Map();
+
+  try {
+    const [user, assessments] = await Promise.all([
+      db.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          tenantId: true,
+          createdAt: true,
+          role: true,
+        },
+      }),
+      db.assessment.findMany({
+        where: { id: { in: uniqueAssessmentIds } },
+        select: {
+          id: true,
+          isPublished: true,
+        },
+      }),
+    ]);
+
+    const [directEnrollments, overrides, tenantEnrollments, dueJobs] = user
+      ? await Promise.all([
+          db.assessmentUserEnrollment.findMany({
+            where: {
+              userId,
+              assessmentId: { in: uniqueAssessmentIds },
+            },
+            select: {
+              id: true,
+              assessmentId: true,
+              active: true,
+              createdAt: true,
+              reportMode: true,
+              reportDelayHours: true,
+            },
+          }),
+          db.assessmentReportAccessOverride.findMany({
+            where: {
+              userId,
+              assessmentId: { in: uniqueAssessmentIds },
+            },
+            select: {
+              assessmentId: true,
+              mode: true,
+            },
+          }),
+          db.assessmentTenantEnrollment.findMany({
+            where: {
+              assessmentId: { in: uniqueAssessmentIds },
+              createdAt: { lte: atTime },
+              tenantId: user.tenantId,
+            },
+            select: {
+              id: true,
+              assessmentId: true,
+              active: true,
+              tenantId: true,
+              includeFutureUsers: true,
+              createdAt: true,
+              reportMode: true,
+              reportDelayHours: true,
+            },
+          }),
+          db.assessmentUnenrollJob.findMany({
+            where: {
+              assessmentId: { in: uniqueAssessmentIds },
+              effectiveAt: { lte: atTime },
+              status: { in: ["PENDING", "FAILED"] },
+              OR: [
+                { targetScope: "USER", targetId: userId },
+                { targetScope: "TENANT", targetId: user.tenantId },
+              ],
+            },
+            select: {
+              assessmentId: true,
+              targetScope: true,
+              id: true,
+              targetId: true,
+              reportMode: true,
+              effectiveAt: true,
+              createdAt: true,
+            },
+          }),
+        ])
+      : [[], [], [], []];
+
+    const assessmentById = new Map(
+      assessments.map((assessment) => [assessment.id, assessment]),
+    );
+    const directEnrollmentById = new Map(
+      directEnrollments.map((enrollment) => [enrollment.assessmentId, enrollment]),
+    );
+    const overrideById = new Map(
+      overrides.map((override) => [override.assessmentId, override]),
+    );
+    const tenantEnrollmentsById = groupByAssessmentId(tenantEnrollments);
+    const dueJobsById = groupByAssessmentId(dueJobs);
+
+    return new Map(
+      uniqueAssessmentIds.map((assessmentId) => [
+        assessmentId,
+        buildAssessmentAccessResolution({
+          userId,
+          assessmentId,
+          atTime,
+          user,
+          assessment: assessmentById.get(assessmentId) || null,
+          directEnrollment: directEnrollmentById.get(assessmentId) || null,
+          override: overrideById.get(assessmentId) || null,
+          tenantEnrollments: tenantEnrollmentsById.get(assessmentId) || [],
+          dueJobs: dueJobsById.get(assessmentId) || [],
+        }),
+      ]),
+    );
+  } catch (error) {
+    if (!isSchemaCompatibilityError(error)) throw error;
+
+    const [user, assessments] = await Promise.all([
+      db.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          tenantId: true,
+          role: true,
+        },
+      }),
+      db.assessment.findMany({
+        where: { id: { in: uniqueAssessmentIds } },
+        select: {
+          id: true,
+          tenantId: true,
+          isPublished: true,
+        },
+      }),
+    ]);
+    const assessmentById = new Map(
+      assessments.map((assessment) => [assessment.id, assessment]),
+    );
+
+    return new Map(
+      uniqueAssessmentIds.map((assessmentId) => [
+        assessmentId,
+        buildLegacyAssessmentAccessResolution({
+          userId,
+          assessmentId,
+          user,
+          assessment: assessmentById.get(assessmentId) || null,
+        }),
+      ]),
+    );
   }
 }
 

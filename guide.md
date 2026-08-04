@@ -63,6 +63,11 @@ Session-security rules:
   server layouts resolve the current user and organisation from Postgres on every
   request. Deleted users, archived organisations, and role changes therefore take
   effect without waiting for a user to sign out.
+- `getLiveSession()` uses React's request cache only to deduplicate that live lookup
+  within one server-render request. It is not a cross-request identity cache. Pages
+  should consume the returned `liveUser` fields instead of issuing a second User or
+  Organisation query, but must not replace the live lookup with JWT-only or durable
+  process caching.
 - `ADMIN` accounts are administration-only. They are rejected from participant
   enrollments and assessment sessions, and promotion to `ADMIN` removes participant
   enrollment/access state in the same transaction.
@@ -82,7 +87,16 @@ Session-security rules:
 
 Single source of truth:
 - `src/lib/assessment-access.ts`
-- function: `resolveAssessmentAccess(userId, assessmentId, atTime)`
+- functions:
+  - `resolveAssessmentAccess(userId, assessmentId, atTime)` for one assessment
+  - `resolveAssessmentAccessMany(userId, assessmentIds, atTime)` for a page-sized
+    batch such as `/reports/current`
+
+Both entry points use the same resolution builder, fields, precedence, effective
+time, ADMIN denial, tenant future-user cutoff, report metadata, and compatibility
+fallback. The batch entry point is query shaping only: duplicate IDs are collapsed
+and the current-schema path uses a fixed set of queries instead of repeating the
+resolver query set for every report.
 
 Resolution fields:
 - `hasDirectEnrollment`
@@ -480,6 +494,38 @@ Updated runtime behavior:
   model, answer edits are blocked while the lease is live, and failures clear only
   the claim they own.
 
+### 9.1 Authenticated navigation and performance contract
+
+- The authenticated route tree owns static `loading.tsx` boundaries at the app and
+  admin levels. They must remain free of auth and database work so a dynamic route
+  can show immediate navigation feedback while its server render is in flight.
+- `AppShell` owns the workspace banner/navigation wrapper but not a nested `main`;
+  each destination owns its one main landmark. Workspace links expose the active
+  page with `aria-current` and a fixed-size `useLinkStatus` pending indicator so
+  navigation feedback does not shift the link label.
+- Dashboard and Assessment Centre reuse the request-scoped live User/Organisation
+  row returned by `getLiveSession()`, parallelize independent reads, and request
+  counts rather than complete relation payloads when only counts are rendered.
+  These are query reductions only; persisted identity and access-control checks
+  remain live on every authenticated request.
+- `/reports/current` resolves all displayed assessments through
+  `resolveAssessmentAccessMany()` once, rather than invoking the single resolver in
+  an N-item loop.
+- Large admin lists debounce search, abort superseded requests, ignore stale
+  responses, and distinguish loading from a true empty result. Direct database-sort
+  paths fetch only the requested page window; larger bounded windows are reserved
+  for filters or sorts derived after retrieval. User option lookups pass
+  `includeContext=0` so they do not compute global statistics, Organisation
+  summaries, or an unused total count; the full Users view starts its context and
+  list reads in parallel.
+- Assessment admin detail loads Content first. Access, Participants, Policy, and
+  Jobs load on first tab activation and are retained for instant revisits; explicit
+  mutations and retry actions refresh the affected tab, while enrollment and job
+  mutations invalidate every dependent cached tab. One-time form hydration must
+  not overwrite unsaved Content or Policy edits when switching tabs. Its participant
+  picker and route-keyed participant/session loaders abort superseded requests so a
+  late response cannot replace the current route or search state.
+
 Leader/admin visibility:
 - participant self-access restrictions do not automatically remove leader/admin-level visibility gates.
 
@@ -746,6 +792,15 @@ Release infrastructure gates:
 - inspect the build manifest: `/`, `/about`, `/framework`, `/assessments`,
   `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` remain `○` static
   while sign-in, participant, leader, admin, and API routes remain `ƒ` dynamic
+- mount `ScrollProgress` and `ScrollReveal` only inside the marketing route tree;
+  authenticated and sign-in routes must not hydrate public scroll observers
+- browser-check authenticated route transitions with a real session at desktop and
+  mobile widths: active and pending navigation states remain visible, loading
+  boundaries do not add a second `main`, mobile menus remain viewport-bounded, and
+  participant/admin authorization still reflects current database state
+- validate `resolveAssessmentAccessMany()` against the single-item contract for
+  direct and Organisation enrollment, future-user cutoffs, due unenroll precedence,
+  report metadata, ADMIN denial, missing assessments, and schema compatibility
 - for public motion work, verify the final static composition with reduced
   motion and without JavaScript; scroll-linked enhancement must not hide copy,
   add dead scroll space, move focus targets, or change route static rendering
@@ -755,7 +810,11 @@ Release infrastructure gates:
   CPR meaning. Their `*-vivid` companions are reserved for decorative rails,
   active signals, and ink-labelled colour fields; use the deep `*-text`
   aliases (including `--brass-text`) for small text on a light surface, and use
-  the surface-specific focus tokens for visible focus
+  the surface-specific focus tokens for visible focus. The landing CPR
+  triptych is the one large vivid colour set-piece; supporting chapters use
+  restrained single-signal tints so the full triad is not repeated as visual
+  noise. Brass display text on cream uses `--brass-deep`, while the brighter
+  brass remains available for non-text decoration
 - use the shared `ScrollReveal` vocabulary (`data-reveal="rise|fade|scale|wipe|line"`)
   for one-shot section entrances; for a staggered composition, observe one
   `data-reveal-group="rise|fade|scale|split|rail|mask|counter|assembly"` parent
@@ -780,7 +839,12 @@ Release infrastructure gates:
   field are the only large desktop scrubbed stages. They stay bounded to about
   1.4–1.65 viewports, keep every link and map/signal control stationary, and
   become normal unpinned compositions on mobile, coarse pointers, reduced
-  motion, missing observer APIs, or no JavaScript. `SectionSignalRail` is
+  motion, missing observer APIs, or no JavaScript. The landing overture uses
+  the shared sticky-progress calculation with the 72 px header offset; its
+  scroll cue is a single non-looping label/line, and its opening does not add a
+  second decorative CPR spectrum before the assembled signals and retained
+  `LeadershipSignal` field. Non-interactive cards and photographs do not lift
+  or zoom as if they were links. `SectionSignalRail` is
   decorative (`aria-hidden`), observes existing document sections, and must
   never add controls, reorder content, or announce scroll-originated state
   through `aria-live`
@@ -795,6 +859,15 @@ Release infrastructure gates:
 - browser-check public visual changes at 320, 390, 768, 900, 1024, 1280, and
   1440 px, including horizontal overflow, sticky transitions, keyboard focus,
   and hydrated interaction state
+- keep the public header usable in authenticated narrow and short-height
+  states: the redundant standalone Dashboard link is hidden below `sm`, while
+  Dashboard remains available inside Profile; mobile navigation and the
+  Profile disclosure are viewport-bounded, vertically scrollable, and expose
+  keyboard-visible focus. Profile publishes `aria-expanded`, closes on Escape
+  and focus departure, and returns focus to its trigger after Escape
+- `/signin` and both `/signin/confirm` states expose banner, main, and
+  contentinfo as sibling landmarks, provide a skip link to a focusable main,
+  and retain high-contrast input and CTA focus indicators
 - keep the CPR relationship map's six outer and six inner connector segments
   complete at every breakpoint; node discs may mask line centres, but a reveal
   animation must never leave a relationship partially drawn

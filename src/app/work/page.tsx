@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import ScrollMotion from "@/components/effects/ScrollMotion";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
 import {
   EditorialFooter,
   Eyebrow,
@@ -49,6 +50,7 @@ function WorkFigure({
 export default function WorkPage() {
   return (
     <div className={styles.page}>
+      <MarketingEffects />
       <a className="skip-link" href="#work-content">
         Skip to content
       </a>

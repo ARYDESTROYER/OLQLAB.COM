@@ -749,7 +749,7 @@
 
 .intentPanel .panelIndex,
 .intentPanel .panelNote {
-  color: rgba(16, 17, 20, 0.58);
+  color: var(--muted);
 }
 
 .impactPanel .panelIndex,
@@ -798,7 +798,7 @@
 }
 
 .practiceCode {
-  color: var(--brass);
+  color: var(--brass-deep);
   font-family: var(--font-instrument-serif), "Times New Roman", serif;
   font-size: clamp(2.5rem, 5vw, 4.5rem);
   line-height: 0.85;

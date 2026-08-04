@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import ScrollMotion from "@/components/effects/ScrollMotion";
 import AboutDisciplineAtlas from "@/components/marketing/AboutDisciplineAtlas";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
 import { EditorialFooter } from "@/components/marketing/Editorial";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { createPageMetadata } from "@/lib/site-metadata";
@@ -69,6 +70,7 @@ const principles = [
 export default function AboutPage() {
   return (
     <div className={styles.page}>
+      <MarketingEffects />
       <a href="#about-content" className="skip-link">
         Skip to content
       </a>

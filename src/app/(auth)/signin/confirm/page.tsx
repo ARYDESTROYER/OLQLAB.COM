@@ -26,61 +26,79 @@ export default async function ConfirmSignInPage({ searchParams }: ConfirmSignInP
 
   if (!validated) {
     return (
-      <main className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+      <div className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+        <a className="skip-link" href="#signin-confirm-content">
+          Skip to content
+        </a>
         <PublicHeader />
-        <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
-          <div className="reveal">
-            <Eyebrow>Sign-in</Eyebrow>
-            <h1 className="font-display mt-8 text-balance text-[clamp(2.25rem,6vw,4.5rem)] leading-[1] tracking-[-0.03em]">
-              This sign-in link is invalid<span className="brass-period">.</span>
-            </h1>
-            <p className="mt-8 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
-              The link can no longer be used. Request a fresh sign-in link to continue.
-            </p>
-            <div className="mt-12">
-              <Link
-                href="/signin"
-                className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20]"
-              >
-                <span>Back to sign-in</span>
-                <span
-                  aria-hidden
-                  className="transition-transform duration-300 group-hover:translate-x-1"
+        <main
+          id="signin-confirm-content"
+          className="scroll-mt-24 flex-1"
+          tabIndex={-1}
+        >
+          <section className="mx-auto flex w-full max-w-3xl flex-col px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
+            <div className="reveal">
+              <Eyebrow>Sign-in</Eyebrow>
+              <h1 className="font-display mt-8 text-balance text-[clamp(2.25rem,6vw,4.5rem)] leading-[1] tracking-[-0.03em]">
+                This sign-in link is invalid<span className="brass-period">.</span>
+              </h1>
+              <p className="mt-8 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
+                The link can no longer be used. Request a fresh sign-in link to continue.
+              </p>
+              <div className="mt-12">
+                <Link
+                  href="/signin"
+                  className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--focus-light)]"
                 >
-                  →
-                </span>
-              </Link>
+                  <span>Back to sign-in</span>
+                  <span
+                    aria-hidden
+                    className="transition-transform duration-300 group-hover:translate-x-1"
+                  >
+                    →
+                  </span>
+                </Link>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </main>
         <EditorialFooter />
-      </main>
+      </div>
     );
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+    <div className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+      <a className="skip-link" href="#signin-confirm-content">
+        Skip to content
+      </a>
       <PublicHeader />
 
-      <section className="mx-auto w-full max-w-7xl flex-1 px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
-        <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
-          <div className="reveal">
-            <Eyebrow>One last step</Eyebrow>
-            <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,7vw,5.5rem)] leading-[0.96] tracking-[-0.03em]">
-              Welcome back<span className="brass-period">.</span>
-            </h1>
-            <p className="mt-8 max-w-md text-base leading-relaxed text-[#101114]/72 md:text-lg">
-              Click continue below to complete your secure sign-in.
-            </p>
-          </div>
+      <main
+        id="signin-confirm-content"
+        className="scroll-mt-24 flex-1"
+        tabIndex={-1}
+      >
+        <section className="mx-auto w-full max-w-7xl px-6 pt-20 pb-24 md:px-10 md:pt-28 md:pb-32">
+          <div className="grid gap-14 md:grid-cols-[5fr_7fr] md:gap-20">
+            <div className="reveal">
+              <Eyebrow>One last step</Eyebrow>
+              <h1 className="font-display mt-8 text-balance text-[clamp(2.5rem,7vw,5.5rem)] leading-[0.96] tracking-[-0.03em]">
+                Welcome back<span className="brass-period">.</span>
+              </h1>
+              <p className="mt-8 max-w-md text-base leading-relaxed text-[#101114]/72 md:text-lg">
+                Click continue below to complete your secure sign-in.
+              </p>
+            </div>
 
-          <div className="reveal reveal-delay-1">
-            <ContinueButton tokenUrl={validated.absoluteUrl} />
+            <div className="reveal reveal-delay-1">
+              <ContinueButton tokenUrl={validated.absoluteUrl} />
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
 
       <EditorialFooter />
-    </main>
+    </div>
   );
 }

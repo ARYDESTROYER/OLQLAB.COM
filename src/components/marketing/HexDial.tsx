@@ -187,7 +187,7 @@ export default function HexDial({
 
       {/* DETAIL PANEL */}
       <div className="md:py-6">
-        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/55">
+        <p className="text-[11px] font-medium uppercase tracking-[0.28em] text-[#101114]/65">
           <span className="brass-dot" aria-hidden />
           {String(activeIdx + 1).padStart(2, "0")} · Discipline
         </p>
@@ -228,7 +228,7 @@ export default function HexDial({
           })}
         </div>
 
-        <p className="mt-8 text-[11px] uppercase tracking-[0.22em] text-[#101114]/45">
+        <p className="mt-8 text-[11px] uppercase tracking-[0.22em] text-[#101114]/65">
           {hint}
         </p>
       </div>

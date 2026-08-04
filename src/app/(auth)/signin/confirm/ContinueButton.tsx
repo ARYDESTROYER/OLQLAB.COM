@@ -84,7 +84,7 @@ export default function ContinueButton({ tokenUrl }: { tokenUrl: string }) {
         <button
           type="submit"
           disabled={state !== "idle"}
-          className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20] disabled:cursor-wait disabled:opacity-70"
+          className="group inline-flex items-center gap-3 bg-[#101114] px-7 py-4 text-sm font-medium text-[#EFE8DA] transition-colors duration-300 hover:bg-[#1d1d20] focus-visible:outline focus-visible:outline-3 focus-visible:outline-offset-4 focus-visible:outline-[var(--focus-light)] disabled:cursor-wait disabled:opacity-70"
         >
           <span>{state === "idle" ? "Continue to sign-in" : "Signing you in"}</span>
           <span

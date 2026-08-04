@@ -45,7 +45,6 @@ export async function GET(req: NextRequest) {
   const format = params.get("format")?.trim().toLowerCase();
   const isCsv = format === "csv";
   const take = parseLimit(params.get("limit"), isCsv ? 5000 : 100, isCsv ? 5000 : 500);
-  const fetchLimit = Math.max(take, isCsv ? take : 500);
 
   const tenantType: TenantType | undefined =
     typeParam === "ORGANIZATION" || typeParam === "SOLO" ? typeParam : undefined;
@@ -55,6 +54,21 @@ export async function GET(req: NextRequest) {
     seatStateParam === "OVER_CAPACITY"
       ? seatStateParam
       : undefined;
+  const usesDerivedWindow =
+    Boolean(seatState) || sortBy === "seatsUsed" || sortBy === "seatUtilization";
+  const fetchLimit = isCsv
+    ? take
+    : usesDerivedWindow
+      ? Math.max(take, 500)
+      : take;
+  const databaseOrderBy: Prisma.TenantOrderByWithRelationInput =
+    sortBy === "name"
+      ? { name: sortOrder }
+      : sortBy === "seatLimit"
+        ? { seatLimit: sortOrder }
+        : sortBy === "createdAt"
+          ? { createdAt: sortOrder }
+          : { updatedAt: sortOrder };
 
   type TenantListRow = {
     id: string;
@@ -99,7 +113,7 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        orderBy: { updatedAt: "desc" },
+        orderBy: usesDerivedWindow ? { updatedAt: "desc" } : databaseOrderBy,
         take: fetchLimit,
       }),
       db.tenant.count({ where }),
@@ -149,7 +163,7 @@ export async function GET(req: NextRequest) {
             },
           },
         },
-        orderBy: { updatedAt: "desc" },
+        orderBy: usesDerivedWindow ? { updatedAt: "desc" } : databaseOrderBy,
         take: fetchLimit,
       }),
       db.tenant.count({ where: legacyWhere }),

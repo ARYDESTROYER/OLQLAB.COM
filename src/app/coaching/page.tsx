@@ -70,8 +70,7 @@ export default function CoachingPage() {
           <span className="brass-period">.</span>
         </h2>
         <p className="mt-6 max-w-xl text-base leading-relaxed text-[#101114]/72 md:text-lg">
-          Hover or tap any stage of the engagement to read what happens at that
-          step.
+          Choose any stage of the engagement to read what happens at that step.
         </p>
       </div>
 

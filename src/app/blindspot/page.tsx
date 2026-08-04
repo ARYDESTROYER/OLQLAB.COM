@@ -1,5 +1,6 @@
 import Link from "next/link";
 import PublicHeader from "@/components/navigation/PublicHeader";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
 import {
   EditorialFooter,
   Eyebrow,
@@ -65,6 +66,7 @@ const practice = [
 export default function BlindspotPage() {
   return (
     <div className={styles.page}>
+      <MarketingEffects />
       <a className={styles.skipLink} href="#blindspot-content">
         Skip to main content
       </a>

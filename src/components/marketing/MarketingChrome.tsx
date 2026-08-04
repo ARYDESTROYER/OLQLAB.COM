@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import ScrollMotion from "@/components/effects/ScrollMotion";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
 import { EditorialFooter, Eyebrow } from "@/components/marketing/Editorial";
 
 export function MarketingChrome({
@@ -23,6 +24,7 @@ export function MarketingChrome({
 }) {
   return (
     <div className="relative min-h-screen bg-cream text-ink">
+      <MarketingEffects />
       <a className="skip-link" href="#marketing-content">
         Skip to content
       </a>

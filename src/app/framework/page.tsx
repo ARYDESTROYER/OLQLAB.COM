@@ -2,6 +2,7 @@ import Link from "next/link";
 import ScrollMotion from "@/components/effects/ScrollMotion";
 import { EditorialFooter } from "@/components/marketing/Editorial";
 import FrameworkExperience from "@/components/marketing/FrameworkExperience";
+import MarketingEffects from "@/components/marketing/MarketingEffects";
 import PublicHeader from "@/components/navigation/PublicHeader";
 import { createPageMetadata } from "@/lib/site-metadata";
 import styles from "./FrameworkPage.module.css";
@@ -22,6 +23,7 @@ const dimensions = [
 export default function FrameworkPage() {
   return (
     <div className={styles.page}>
+      <MarketingEffects />
       <a className="skip-link" href="#framework-content">
         Skip to framework content
       </a>

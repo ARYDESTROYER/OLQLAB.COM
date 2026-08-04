@@ -18,12 +18,15 @@ export default async function SignInPage({
   const initialEmail = normalizeSignInEmailPrefill(params.email);
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+    <div className="relative flex min-h-screen flex-col bg-[#EFE8DA] text-[#101114]">
+      <a className="skip-link" href="#signin-content">
+        Skip to content
+      </a>
       <PublicHeader />
-      <div className="flex-1">
+      <main id="signin-content" className="scroll-mt-24 flex-1" tabIndex={-1}>
         <SignInForm initialEmail={initialEmail} />
-      </div>
+      </main>
       <EditorialFooter />
-    </main>
+    </div>
   );
 }

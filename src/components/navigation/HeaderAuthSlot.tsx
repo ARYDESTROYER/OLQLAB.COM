@@ -43,7 +43,7 @@ export default function HeaderAuthSlot() {
     return (
       <Link
         href="/signin"
-        className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
+        className="link-underline text-sm font-medium text-ink/80 transition-colors duration-200 hover:text-ink"
       >
         Sign in
       </Link>
@@ -51,10 +51,10 @@ export default function HeaderAuthSlot() {
   }
 
   return (
-    <div className="flex items-center gap-5">
+    <div className="flex items-center gap-3 sm:gap-5">
       <Link
         href="/dashboard"
-        className="link-underline text-sm font-medium text-[#101114]/80 transition-colors duration-200 hover:text-[#101114]"
+        className="link-underline hidden text-sm font-medium text-ink/80 transition-colors duration-200 hover:text-ink sm:inline-block"
       >
         Dashboard
       </Link>

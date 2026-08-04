@@ -86,6 +86,7 @@ type AssessmentListMeta = {
 
 export default function AssessmentsClient() {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [listLoading, setListLoading] = useState(true);
   const [listMeta, setListMeta] = useState<AssessmentListMeta>({
     returned: 0,
     limit: 100,
@@ -163,6 +164,7 @@ export default function AssessmentsClient() {
     assessmentRequestRef.current?.abort();
     const controller = new AbortController();
     assessmentRequestRef.current = controller;
+    setListLoading(true);
     try {
       const res = await fetch(
         `/api/admin/assessments?${buildAssessmentQueryParams().toString()}`,
@@ -191,17 +193,23 @@ export default function AssessmentsClient() {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       toast(error instanceof Error ? error.message : "Failed to load assessments.", "error");
+    } finally {
+      if (assessmentRequestRef.current === controller && !controller.signal.aborted) {
+        setListLoading(false);
+      }
     }
   }, [buildAssessmentQueryParams]);
 
   useEffect(() => {
-    void loadAssessments();
-    return () => assessmentRequestRef.current?.abort();
-  }, [loadAssessments]);
-
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") loadAssessments();
-  }
+    const timeout = window.setTimeout(
+      () => void loadAssessments(),
+      query.trim() ? 250 : 0,
+    );
+    return () => {
+      window.clearTimeout(timeout);
+      assessmentRequestRef.current?.abort();
+    };
+  }, [loadAssessments, query]);
 
   function clearAdvancedFilters() {
     setQuery("");
@@ -646,7 +654,6 @@ export default function AssessmentsClient() {
             className="rounded-xl border border-slate-300 px-3 py-2 text-sm"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={handleSearchKeyDown}
             placeholder="Search assessments…"
           />
           <select
@@ -788,7 +795,7 @@ export default function AssessmentsClient() {
               </div>
             </div>
           )}
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm" aria-busy={listLoading}>
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">
@@ -806,7 +813,13 @@ export default function AssessmentsClient() {
               </tr>
             </thead>
             <tbody>
-              {assessments.length === 0 ? (
+              {listLoading && assessments.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={5}>
+                    Loading assessments…
+                  </td>
+                </tr>
+              ) : assessments.length === 0 ? (
                 <EmptyState
                   icon="📋"
                   title="No assessments found"

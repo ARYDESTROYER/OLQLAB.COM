@@ -17,8 +17,10 @@ export const getLiveSession = cache(async () => {
       lastName: true,
       role: true,
       tenantId: true,
+      createdAt: true,
       tenant: {
         select: {
+          name: true,
           type: true,
           isArchived: true,
         },

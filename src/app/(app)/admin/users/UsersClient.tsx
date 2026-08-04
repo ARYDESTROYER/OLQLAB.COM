@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "@/components/admin/Toast";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import EmptyState from "@/components/admin/EmptyState";
@@ -100,6 +100,8 @@ function formatBulkPreviewAction(action: BulkPreviewRow["action"]) {
 export default function UsersClient() {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const usersRequestRef = useRef<AbortController | null>(null);
   const [meta, setMeta] = useState<UsersMeta>({
     scope: "ALL",
     totalMatchingFilters: 0,
@@ -254,52 +256,79 @@ export default function UsersClient() {
   );
 
   const loadUsers = useCallback(async () => {
+    usersRequestRef.current?.abort();
+    const controller = new AbortController();
+    usersRequestRef.current = controller;
+    setListLoading(true);
     const params = buildUsersQueryParams();
-    const res = await fetch(`/api/admin/users?${params.toString()}`);
-    const data = await res.json();
-    const rows = (data.users || []) as UserRow[];
-    const nextOrganizations = (data.organizations || []) as OrganizationSummary[];
-    setUsers(rows);
-    setOrganizations(nextOrganizations);
-    setMeta(
-      (data.meta as UsersMeta | undefined) || {
-        scope: "ALL",
-        totalMatchingFilters: rows.length,
-        totalCandidates: rows.length,
-        returned: rows.length,
-        limit: 100,
-        hasMore: false,
-        truncated: false,
-        totalAllAccounts: rows.length,
-        totalParticipants: rows.filter((row) => row.role !== "ADMIN").length,
-        totalAdmins: rows.filter((row) => row.role === "ADMIN").length,
-      },
-    );
-    setScope(((data.meta as UsersMeta | undefined)?.scope || "ALL") as "ALL" | "PARTICIPANTS");
-    setSelectedUserIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
-    setCreateForm((prev) => {
-      const tenantStillValid = nextOrganizations.some(
-        (organization) => organization.organizationId === prev.tenantId && !organization.isArchived,
+    try {
+      const res = await fetch(`/api/admin/users?${params.toString()}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error((data as { error?: string }).error || "Failed to load users.");
+      }
+      if (usersRequestRef.current !== controller) return;
+      const rows = ((data as { users?: UserRow[] }).users || []) as UserRow[];
+      const nextOrganizations =
+        ((data as { organizations?: OrganizationSummary[] }).organizations || []) as OrganizationSummary[];
+      setUsers(rows);
+      setOrganizations(nextOrganizations);
+      setMeta(
+        (data as { meta?: UsersMeta }).meta || {
+          scope: "ALL",
+          totalMatchingFilters: rows.length,
+          totalCandidates: rows.length,
+          returned: rows.length,
+          limit: 100,
+          hasMore: false,
+          truncated: false,
+          totalAllAccounts: rows.length,
+          totalParticipants: rows.filter((row) => row.role !== "ADMIN").length,
+          totalAdmins: rows.filter((row) => row.role === "ADMIN").length,
+        },
       );
-      if (tenantStillValid) return prev;
+      setScope(((data as { meta?: UsersMeta }).meta?.scope || "ALL") as "ALL" | "PARTICIPANTS");
+      setSelectedUserIds((prev) => prev.filter((id) => rows.some((row) => row.id === id)));
+      setCreateForm((prev) => {
+        const tenantStillValid = nextOrganizations.some(
+          (organization) => organization.organizationId === prev.tenantId && !organization.isArchived,
+        );
+        if (tenantStillValid) return prev;
 
-      const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
-      return { ...prev, tenantId: firstActive?.organizationId || "" };
-    });
-    setBulkImportTenantId((prev) => {
-      const tenantStillValid = nextOrganizations.some(
-        (organization) => organization.organizationId === prev && !organization.isArchived,
-      );
-      if (tenantStillValid) return prev;
+        const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
+        return { ...prev, tenantId: firstActive?.organizationId || "" };
+      });
+      setBulkImportTenantId((prev) => {
+        const tenantStillValid = nextOrganizations.some(
+          (organization) => organization.organizationId === prev && !organization.isArchived,
+        );
+        if (tenantStillValid) return prev;
 
-      const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
-      return firstActive?.organizationId || "";
-    });
+        const firstActive = nextOrganizations.find((organization) => !organization.isArchived);
+        return firstActive?.organizationId || "";
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast(error instanceof Error ? error.message : "Failed to load users.", "error");
+    } finally {
+      if (usersRequestRef.current === controller && !controller.signal.aborted) {
+        setListLoading(false);
+      }
+    }
   }, [buildUsersQueryParams]);
 
   useEffect(() => {
-    loadUsers();
-  }, [loadUsers]);
+    const timeout = window.setTimeout(
+      () => void loadUsers(),
+      query.trim() ? 250 : 0,
+    );
+    return () => {
+      window.clearTimeout(timeout);
+      usersRequestRef.current?.abort();
+    };
+  }, [loadUsers, query]);
 
   useEffect(() => {
     if (scope === "PARTICIPANTS" && selectedRole === "ADMIN") {
@@ -510,6 +539,11 @@ export default function UsersClient() {
       const data = await res.json();
       if (res.ok) {
         toast("User moved.", "success");
+        setMoveTenantByUser((previous) => {
+          const next = { ...previous };
+          delete next[userId];
+          return next;
+        });
         await loadUsers();
       } else {
         toast(data.error || "Failed to move user.", "error");
@@ -668,10 +702,6 @@ export default function UsersClient() {
       toast("Failed to load data.", "error");
       setInspectPanel((prev) => ({ ...prev, data: null, loading: false }));
     }
-  }
-
-  function handleSearchKeyDown(e: React.KeyboardEvent) {
-    if (e.key === "Enter") loadUsers();
   }
 
   function clearAdvancedFilters() {
@@ -1226,7 +1256,6 @@ export default function UsersClient() {
               className="w-full min-w-[240px] flex-1 rounded-xl border border-slate-300 px-3 py-2 text-sm"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
               placeholder="Search users..."
             />
             <select
@@ -1421,7 +1450,7 @@ export default function UsersClient() {
         )}
 
         <div className="mt-4 overflow-x-auto overflow-y-visible rounded-xl border border-slate-200">
-          <table className="min-w-full text-left text-sm">
+          <table className="min-w-full text-left text-sm" aria-busy={listLoading}>
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="px-3 py-2">
@@ -1439,7 +1468,13 @@ export default function UsersClient() {
               </tr>
             </thead>
             <tbody>
-              {users.length === 0 ? (
+              {listLoading && users.length === 0 ? (
+                <tr>
+                  <td className="px-4 py-10 text-center text-sm text-slate-500" colSpan={5}>
+                    Loading users…
+                  </td>
+                </tr>
+              ) : users.length === 0 ? (
                 <EmptyState
                   icon="👤"
                   title="No users found"
@@ -1493,30 +1528,61 @@ export default function UsersClient() {
                       <div className="flex flex-wrap items-center justify-end gap-1.5">
                         <ActionMenu actions={getRowActions(user)} />
 
-                        <select
-                          className="rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
-                          value={moveTenantByUser[user.id] || ""}
-                          onChange={(e) =>
-                            setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
-                          }
-                        >
-                          <option value="">Move to…</option>
-                          {activeOrganizations.map((organization) => (
-                            <option
-                              key={organization.organizationId}
-                              value={organization.organizationId}
+                        {Object.prototype.hasOwnProperty.call(moveTenantByUser, user.id) ? (
+                          <>
+                            <select
+                              className="max-w-48 rounded-lg border border-slate-300 px-2 py-1 text-[11px]"
+                              value={moveTenantByUser[user.id] || ""}
+                              onChange={(e) =>
+                                setMoveTenantByUser((prev) => ({ ...prev, [user.id]: e.target.value }))
+                              }
+                              aria-label={`Move ${user.email} to organisation`}
                             >
-                              {organization.name}
-                            </option>
-                          ))}
-                        </select>
-                        <button
-                          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] hover:bg-slate-50 transition-colors"
-                          onClick={() => moveUser(user.id)}
-                          disabled={busyUserId === user.id || user.role === "ADMIN" || bulkBusy}
-                        >
-                          Move
-                        </button>
+                              <option value="">Select organisation…</option>
+                              {activeOrganizations.map((organization) => (
+                                <option
+                                  key={organization.organizationId}
+                                  value={organization.organizationId}
+                                >
+                                  {organization.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] transition-colors hover:bg-slate-50"
+                              onClick={() => moveUser(user.id)}
+                              disabled={busyUserId === user.id || bulkBusy}
+                            >
+                              Confirm move
+                            </button>
+                            <button
+                              className="rounded-lg px-2.5 py-1 text-[11px] text-slate-500 transition-colors hover:bg-slate-100"
+                              onClick={() =>
+                                setMoveTenantByUser((previous) => {
+                                  const next = { ...previous };
+                                  delete next[user.id];
+                                  return next;
+                                })
+                              }
+                              disabled={busyUserId === user.id || bulkBusy}
+                            >
+                              Cancel
+                            </button>
+                          </>
+                        ) : user.role !== "ADMIN" ? (
+                          <button
+                            className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] transition-colors hover:bg-slate-50"
+                            onClick={() =>
+                              setMoveTenantByUser((previous) => ({
+                                ...previous,
+                                [user.id]: "",
+                              }))
+                            }
+                            disabled={bulkBusy}
+                          >
+                            Move organisation
+                          </button>
+                        ) : null}
                       </div>
 
                       {editingUserId === user.id && (

@@ -349,8 +349,9 @@ describe("public marketing motion system", () => {
       'window.matchMedia("(hover: none), (pointer: coarse)")',
     );
     expect(motion).toMatch(
-      /const motionIsDisabled = \(\) =>[\s\S]*motionPreference\.matches \|\| coarsePointer\.matches/,
+      /const motionIsDisabled = \(\) =>[\s\S]*motionPreference\.matches\s*\|\|\s*coarsePointer\.matches/,
     );
+    expect(motion).toContain("enhancementCapability?.matches === false");
     expect(motion).toContain(
       "if (!motionIsDisabled()) startViewportSubscription();",
     );

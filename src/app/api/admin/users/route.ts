@@ -56,6 +56,7 @@ export async function GET(req: NextRequest) {
   const sortOrder = params.get("sortOrder")?.trim().toLowerCase() === "asc" ? "asc" : "desc";
   const format = params.get("format")?.trim().toLowerCase();
   const isCsv = format === "csv";
+  const includeContext = !isCsv && params.get("includeContext") !== "0";
   const take = parseLimit(
     params.get("limit"),
     isCsv ? 5000 : 100,
@@ -144,9 +145,10 @@ export async function GET(req: NextRequest) {
     adminUsers: number;
   };
 
-  const [userStats, organizations] = await Promise.all([
-    getAdminUserStats(),
-    (async (): Promise<OrganizationSummary[]> => {
+  const contextPromise = includeContext
+    ? Promise.all([
+        getAdminUserStats(),
+        (async (): Promise<OrganizationSummary[]> => {
       try {
         const organizationTenants = await db.tenant.findMany({
           where: { type: "ORGANIZATION" },
@@ -252,8 +254,9 @@ export async function GET(req: NextRequest) {
           };
         });
       }
-    })(),
-  ]);
+        })(),
+      ])
+    : Promise.resolve([null, []] as [null, OrganizationSummary[]]);
 
   let users: UserListRow[] = [];
   let totalMatchingFilters = 0;
@@ -272,7 +275,7 @@ export async function GET(req: NextRequest) {
         orderBy,
         take,
       }),
-      db.user.count({ where }),
+      includeContext || isCsv ? db.user.count({ where }) : Promise.resolve(0),
     ]);
   } catch (error) {
     if (!isSchemaCompatibilityError(error)) throw error;
@@ -294,7 +297,9 @@ export async function GET(req: NextRequest) {
         orderBy,
         take,
       }),
-      db.user.count({ where: legacyWhere }),
+      includeContext || isCsv
+        ? db.user.count({ where: legacyWhere })
+        : Promise.resolve(0),
     ]);
     totalMatchingFilters = legacyCount;
 
@@ -370,22 +375,28 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  const [userStats, organizations] = await contextPromise;
+
   return NextResponse.json({
     users,
-    organizations,
-    meta: {
-      scope,
-      ...buildAdminListWindowMeta({
-        returned: users.length,
-        limit: take,
-        totalCandidates: totalMatchingFilters,
-        processedCandidates: users.length,
-        matchingWithinWindow: users.length,
-      }),
-      totalAllAccounts: userStats.usersTotal,
-      totalParticipants: userStats.usersParticipants,
-      totalAdmins: userStats.usersAdmins,
-    },
+    ...(userStats
+      ? {
+          organizations,
+          meta: {
+            scope,
+            ...buildAdminListWindowMeta({
+              returned: users.length,
+              limit: take,
+              totalCandidates: totalMatchingFilters,
+              processedCandidates: users.length,
+              matchingWithinWindow: users.length,
+            }),
+            totalAllAccounts: userStats.usersTotal,
+            totalParticipants: userStats.usersParticipants,
+            totalAdmins: userStats.usersAdmins,
+          },
+        }
+      : {}),
   });
 }
 
