@@ -67,6 +67,14 @@ export const WORK_IMAGES = {
     alt: "Pratap Pawar addressing participants gathered for an outdoor team exercise.",
     caption: "The group gathers for instructions before the outdoor exercises.",
   },
+  offsiteIndividualAttempt: {
+    src: "/work/offsite-individual-attempt.webp",
+    width: 2000,
+    height: 1332,
+    alt: "An individual tosses a green ball during an outdoor group exercise while the cohort watches.",
+    caption: "The wider cohort gathers around an individual attempt.",
+    objectPosition: "50% 48%",
+  },
   offsiteResponse: {
     src: "/work/offsite-response.webp",
     width: 2000,
@@ -82,6 +90,14 @@ export const WORK_IMAGES = {
     alt: "A participant leading a tug-of-war team during an outdoor leadership challenge.",
     caption: "A participant takes position at the front of a tug-of-war team.",
     objectPosition: "50% 52%",
+  },
+  offsiteTeamEffort: {
+    src: "/work/offsite-team-effort.webp",
+    width: 2000,
+    height: 1332,
+    alt: "Participants pull together during an outdoor tug-of-war challenge, seen at close range.",
+    caption: "The front of one tug-of-war team, seen at close range.",
+    objectPosition: "50% 48%",
   },
   offsiteCoordination: {
     src: "/work/offsite-coordination.webp",
@@ -158,8 +174,10 @@ export const WORK_EVENTS = [
     layout: "mosaic",
     images: [
       WORK_IMAGES.offsiteOrientation,
+      WORK_IMAGES.offsiteIndividualAttempt,
       WORK_IMAGES.offsiteResponse,
       WORK_IMAGES.offsiteTrust,
+      WORK_IMAGES.offsiteTeamEffort,
       WORK_IMAGES.offsiteCoordination,
       WORK_IMAGES.offsiteCourage,
     ],

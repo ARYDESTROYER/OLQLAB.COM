@@ -7,17 +7,19 @@ export const PUBLIC_NAV_ITEMS = [
   { href: "/about", label: "About" },
   { href: "/framework", label: "Framework" },
   { href: "/assessments", label: "Assessments" },
+  { href: "/work", label: "Work in practice" },
   { href: "/blindspot", label: "Blindspot Work" },
   { href: "/contact", label: "Contact" },
 ] as const;
 
 /**
- * The five primary nav links, with the active page highlighted by a
+ * The six primary nav links, with the active page highlighted by a
  * persistent brass underline + full ink colour. Inactive links are muted
  * so the active one reads first.
  *
  * Implemented as a client component so it can read the pathname; the parent
- * `PublicHeader` is a server component and handles the session lookup.
+ * `PublicHeader` stays static while its separate auth slot hydrates session
+ * state client-side.
  */
 export default function NavLinks() {
   const pathname = usePathname() ?? "";

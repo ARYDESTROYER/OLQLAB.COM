@@ -32,6 +32,20 @@ describe("Work in practice content", () => {
         expect(image.height).toBeGreaterThan(1000);
       }
     }
+
+    const offsite = WORK_EVENTS.find(
+      (event) => event.slug === "experiential-leadership-offsite",
+    );
+    expect(offsite?.images).toHaveLength(7);
+    expect(offsite?.images.map((image) => image.src)).toEqual([
+      "/work/offsite-orientation.webp",
+      "/work/offsite-individual-attempt.webp",
+      "/work/offsite-response.webp",
+      "/work/offsite-trust.webp",
+      "/work/offsite-team-effort.webp",
+      "/work/offsite-coordination.webp",
+      "/work/offsite-courage.webp",
+    ]);
   });
 
   it("ships bounded WebP derivatives without embedded metadata", async () => {
@@ -57,8 +71,9 @@ describe("Work in practice content", () => {
     expect(markup).toContain("Work in practice");
     expect(markup.match(/data-work-event="true"/g)).toHaveLength(4);
     expect(markup.match(/<time dateTime=/g)).toHaveLength(4);
-    expect(markup.match(/<figure/g)).toHaveLength(10);
-    expect(markup.match(/<figcaption/g)).toHaveLength(10);
+    expect(markup.match(/<figure/g)).toHaveLength(12);
+    expect(markup.match(/<figcaption/g)).toHaveLength(12);
+    expect(markup.match(/data-reveal-group="assembly"/g)).toHaveLength(4);
     expect(markup).toContain("Kopargaon, Maharashtra");
     expect(markup).toContain('href="/contact"');
     expect(markup).not.toContain("carousel");

@@ -811,11 +811,14 @@ Release infrastructure gates:
   animation-frame bounded, without installing a global custom cursor
 - treat `/work` as a static, server-rendered, photo-led archive. Canonical event
   and image presentation data live in `src/content/work-events.ts`; the landing
-  preview, About link, footer link, and sitemap provide discovery. Keep the
-  photography semantic with useful alt text and visible captions, reserve
-  priority loading for the hero image, and lazy-load the field-note imagery.
+  preview, public header, About link, footer link, and sitemap provide discovery.
+  Keep the photography semantic with useful alt text and visible captions,
+  reserve priority loading for the hero image, and lazy-load the field-note imagery.
   Reduced-motion and no-script paths must show the complete composition; do not
-  introduce an autoplay carousel or make the archive depend on client JavaScript
+  introduce an autoplay carousel or make the archive depend on client JavaScript.
+  Scroll-linked Work motion is limited to aria-hidden CPR geometry on the shared
+  `ScrollMotion` scheduler; copy, photographs, captions, and controls stay in
+  their semantic document flow
 
 Architecture scenarios to validate manually:
 1. migration integrity for legacy assessments and impacts

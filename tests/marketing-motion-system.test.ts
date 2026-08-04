@@ -130,6 +130,7 @@ describe("public marketing motion system", () => {
     expect(workCss).toContain("@media (forced-colors: active)");
     expect(previewCss).toContain("@media (prefers-reduced-motion: reduce)");
     expect(previewCss).toContain("@media (forced-colors: active)");
+    expect(previewCss).toContain(".motionField");
     expect(workCss).not.toContain("animation-iteration-count: infinite");
     expect(previewCss).not.toContain("animation-iteration-count: infinite");
   });

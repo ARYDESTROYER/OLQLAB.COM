@@ -132,13 +132,14 @@ describe("public marketing interaction contracts", () => {
     expect(source).toContain("window.requestAnimationFrame");
   });
 
-  it("places Blindspot Work before Contact in both public navigation modes", () => {
-    expect(PUBLIC_NAV_ITEMS.map((item) => item.label)).toEqual([
-      "About",
-      "Framework",
-      "Assessments",
-      "Blindspot Work",
-      "Contact",
+  it("places Work in practice before the Blindspot and Contact path", () => {
+    expect(PUBLIC_NAV_ITEMS).toEqual([
+      { href: "/about", label: "About" },
+      { href: "/framework", label: "Framework" },
+      { href: "/assessments", label: "Assessments" },
+      { href: "/work", label: "Work in practice" },
+      { href: "/blindspot", label: "Blindspot Work" },
+      { href: "/contact", label: "Contact" },
     ]);
   });
 
@@ -166,7 +167,10 @@ describe("public marketing interaction contracts", () => {
     expect(markup.match(/<figure/g)).toHaveLength(2);
     expect(markup.match(/<figcaption/g)).toHaveLength(2);
     expect(markup).toContain('href="/work"');
-    expect(markup).not.toContain("data-scroll-layer");
+    expect(markup.match(/data-scroll-layer=/g)).toHaveLength(3);
+    expect(inspectScrollLayers(markup).every((layer) => layer.hidden)).toBe(
+      true,
+    );
     expect(markup.indexOf("solution-mindset-campus.webp")).toBeLessThan(
       markup.indexOf("learning-through-action.webp"),
     );

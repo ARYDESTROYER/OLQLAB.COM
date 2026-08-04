@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import ScrollMotion from "@/components/effects/ScrollMotion";
 import { Eyebrow } from "@/components/marketing/Editorial";
 import { WORK_IMAGES } from "@/content/work-events";
 import styles from "./WorkInPracticePreview.module.css";
@@ -24,6 +25,14 @@ const previewImages = [
 export default function WorkInPracticePreview() {
   return (
     <section className={styles.section} aria-labelledby="work-preview-title">
+      <ScrollMotion className={styles.motionField}>
+        <div className={styles.motionBlocks} aria-hidden>
+          <span data-scroll-layer="far" data-block="cognitive" />
+          <span data-scroll-layer="mid" data-block="personality" />
+          <span data-scroll-layer="near" data-block="response" />
+        </div>
+      </ScrollMotion>
+
       <div className={styles.signalRail} aria-hidden>
         <span />
         <span />

@@ -1789,3 +1789,32 @@ This file is the append-only engineering diary for implementation work in this r
   - No schema, authentication, shared database, provider, or admin behavior was changed. No files were staged, committed, pushed, or deployed.
 - Next step:
   - Review the field-note wording and imagery, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, and repeat the landing/Work desktop-mobile smoke before promoting the standing staging-to-main PR.
+
+## Entry 2026-08-04-01
+- Timestamp (UTC): 2026-08-03T20:32:31Z
+- Timestamp (Local): 2026-08-04 02:02:31 IST (+0530)
+- Task: Add Work in practice to the public navigation and deepen its photographic motion story.
+- Why: The new field-note archive needed direct top-level discovery, two more owner-approved workshop moments, and a cleaner Mistral-inspired motion language that felt expressive without adding loops, carousels, or moving controls.
+- What changed:
+  - `src/components/navigation/NavLinks.tsx` and `src/app/globals.css`: added the semantic `Work in practice` link between Assessments and Blindspot Work in both navigation modes, updated the six-link contract, and prevented multi-word desktop labels from wrapping.
+  - `public/work/offsite-individual-attempt.webp`, `public/work/offsite-team-effort.webp`, and `src/content/work-events.ts`: added two 2000×1332 metadata-free derivatives to the 6 April 2023 field note with factual alt text, captions, crops, and an exact seven-image editorial sequence.
+  - `src/app/work/page.tsx` and `src/app/work/work.module.css`: added decorative CPR scroll layers to the hero, tightened normal and short-screen hero typography, assembled each chapter header once on entry, added numbered figure captions and a restrained index fill/arrow exchange, and replaced the five-image mosaic with a balanced 5/7, 4/4/4, 7/5 desktop composition plus complete tablet/mobile layouts.
+  - `src/components/marketing/WorkInPracticePreview.tsx` and `src/components/marketing/WorkInPracticePreview.module.css`: added one shared decorative scroll scene behind the landing diptych while keeping headings, photographs, captions, and the link stationary and semantic.
+  - `tests/work-in-practice.test.ts`, `tests/marketing-interaction-contracts.test.ts`, and `tests/marketing-motion-system.test.ts`: raised the archive figure contract to twelve, locked the exact off-site sequence, validated the complete navigation records, and covered the hidden decorative layers and motion CSS.
+  - `guide.md`: documented public-header discovery and the decorative-only Work scroll-motion boundary.
+- How:
+  - Reused the singleton `ScrollMotion` scheduler and the existing one-shot reveal vocabulary. Every continuously moved layer is `aria-hidden`; interactive targets remain stationary; coarse-pointer, reduced-motion, no-script, and forced-colour paths keep the complete composition.
+  - Exported only sRGB WebP derivatives without `withMetadata`; the supplied originals remain untouched outside the repository. The new files are 362,122 bytes and 220,048 bytes and expose no EXIF, IPTC, or XMP payloads.
+  - Used independent navigation, photography, and motion reviews plus the in-app browser. Browser work identified and corrected a clipped short-screen CTA and distinguished a stale development image-optimizer worker from an asset or reveal defect before final acceptance.
+- Validation/output:
+  - Full Node 22 `npm run ci` passed: lint, strict typecheck, 61 test files, 215 tests, Prisma generation, and the optimized production build. Focused Work/motion/interaction validation passed 3 files and 29 tests.
+  - The build manifest keeps `/`, `/about`, `/framework`, `/assessments`, `/coaching`, `/blindspot`, `/work`, `/contact`, and `/oql` as `○` Static; sign-in, participant, report, admin, and API routes remain `ƒ` Dynamic.
+  - In-app browser QA covered `/` and `/work` at 320, 390, 768, 900, 1024, 1280, and 1440 px plus 1440×560. All layout cases had one main/footer, bounded headings and captions, zero horizontal overflow, and no application error. The 1024 px six-link header retained about 120 px of clearance on each side; the 320 px six-item menu remained 224 px wide and fully visible.
+  - Progressive browser sweeps resolved every reveal target. A deliberate mobile dwell pass loaded all twelve Work figures, and a clean-server desktop pass loaded all seven off-site AVIF/WebP candidates; the only console warning was Next's development LCP heuristic caused by jumping directly to a lazy field-note image.
+  - Asset checks confirmed both new WebPs are 2000×1332 sRGB, below 450 KB, and metadata-free. `npm audit --omit=dev --audit-level=low` reported 0 vulnerabilities; `git diff --check` passed; `CLAUDE.md` remains exactly one LF-terminated 11-byte line: `@agents.md\n`.
+- Risks/unknowns:
+  - Exact location and programme naming for the April 2023 field note remain intentionally broad; the captions describe only visible activity.
+  - Hosted staging and Safari/Chromium checks remain appropriate for CDN image optimization, font timing, reduced motion, and forced colours. Local public-page QA intentionally did not exercise database, Resend, authentication, or admin workflows.
+  - No files were staged, committed, pushed, deployed, or written to shared production data.
+- Next step:
+  - Review the expanded field note, stage only the intended files by name, push to `staging`, wait for Vercel `READY`, and repeat the header plus landing/Work desktop-mobile smoke before promoting the standing staging-to-main PR.

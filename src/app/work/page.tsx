@@ -1,11 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
-import PublicHeader from "@/components/navigation/PublicHeader";
+import ScrollMotion from "@/components/effects/ScrollMotion";
 import {
   EditorialFooter,
   Eyebrow,
   PrimaryCTA,
 } from "@/components/marketing/Editorial";
+import PublicHeader from "@/components/navigation/PublicHeader";
 import { WORK_EVENTS, WORK_IMAGES, type WorkImage } from "@/content/work-events";
 import { createPageMetadata } from "@/lib/site-metadata";
 import styles from "./work.module.css";
@@ -56,12 +57,22 @@ export default function WorkPage() {
       <main id="work-content" tabIndex={-1}>
         <section className={styles.hero} aria-labelledby="work-title">
           <div className={styles.heroCopy}>
+            <ScrollMotion className={styles.heroMotion}>
+              <div className={styles.heroGeometry} aria-hidden>
+                <span data-scroll-layer="far" data-tone="cognitive" />
+                <span data-scroll-layer="mid" data-tone="personality" />
+                <span data-scroll-layer="near" data-tone="response" />
+              </div>
+            </ScrollMotion>
             <div className={styles.heroSignals} aria-hidden>
               <span />
               <span />
               <span />
             </div>
-            <div className="reveal-on-scroll" data-reveal="rise">
+            <div
+              className={`${styles.heroContent} reveal-on-scroll`}
+              data-reveal="rise"
+            >
               <Eyebrow>Work in practice</Eyebrow>
               <h1 id="work-title">
                 Leadership becomes visible
@@ -162,16 +173,19 @@ export default function WorkPage() {
               aria-labelledby={`${event.slug}-title`}
             >
               <div className={styles.eventInner}>
-                <header className={`${styles.eventHeader} reveal-on-scroll`} data-reveal="rise">
-                  <div className={styles.eventIdentity}>
+                <header
+                  className={styles.eventHeader}
+                  data-reveal-group="assembly"
+                >
+                  <div className={styles.eventIdentity} data-reveal-item>
                     <span>{event.index}</span>
                     <p>{event.eyebrow}</p>
                   </div>
-                  <div className={styles.eventCopy}>
+                  <div className={styles.eventCopy} data-reveal-item>
                     <h2 id={`${event.slug}-title`}>{event.title}</h2>
                     <p>{event.description}</p>
                   </div>
-                  <dl className={styles.eventMeta}>
+                  <dl className={styles.eventMeta} data-reveal-item>
                     <div>
                       <dt>When</dt>
                       <dd>
